@@ -184,6 +184,15 @@ h1 { font-family: Georgia, "Times New Roman", serif; font-size: clamp(31px, 3vw,
 .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 28px; padding-top: 21px; border-top: 1px solid var(--border); }
 .form-error { background: #fff1eb; color: #aa4a32; font-size: 12px; padding: 12px; border-radius: 6px; margin: 18px 0 0; line-height: 1.7; overflow-wrap: anywhere; }
 .confirmation-description { font-size: 13px; line-height: 1.9; color: #7c8870; }
+.admin-toggle { white-space: nowrap; font-size: 11px; }
+.header-right { flex-wrap: wrap; justify-content: flex-end; }
+.header-right .trust-label { display: none; }
+.admin-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 22px; padding: 12px 16px; border: 1px solid #c8d8bd; border-radius: 9px; background: #edf4e8; }
+.admin-toolbar > span { display: flex; align-items: center; gap: 9px; color: var(--green); font-size: 13px; font-weight: 600; }
+.edit-time-button { display: flex; align-items: center; gap: 7px; border: 0; background: #f0f5eb; color: var(--green); padding: 10px 18px; width: 100%; font-size: 11px; text-align: left; }
+.edit-time-button:hover { background: #e3eedb; }
+.field select { width: 100%; min-width: 0; min-height: 43px; border: 1px solid #dae1d3; background: #fcfdf9; border-radius: 6px; padding: 10px 12px; font-size: 14px; font-weight: 400; color: #35492e; }
+@media (max-width: 540px) { .admin-toolbar { align-items: stretch; flex-direction: column; }.admin-toggle { min-height: 38px; }.header-right { gap: 12px; }.edit-time-button { min-height: 44px; font-size: 12px; } }
 @media (min-width: 1600px) { .main-container, .header-inner { max-width: 1440px; } }
 @media (max-width: 1200px) {
   .header-inner { padding: 20px 30px; }.main-container { padding: 20px 30px 0; }.dashboard-layout { gap: 22px; grid-template-columns: minmax(0, 1fr) 260px; }.personal-panel { padding: 22px 20px; }.current-week-label { display: none; }.mass-heading { padding: 17px 14px; gap: 10px; }.mass-time { font-size: 23px; min-width: 75px; padding-right: 10px; }.attendance-section { padding: 14px; }.mass-actions { padding: 0 14px 14px; }.trust-label { display: none; }

@@ -32,11 +32,13 @@ describe('MassCard', () => {
     expect(onAction).toHaveBeenLastCalledWith(mass, 'restore');
   });
   it('offers deletion only for an extra Mass', () => {
-    const props = { attendees: [], rules: [], exceptions: [], activeId: '', busy: false, onAction: vi.fn(), onDelete: vi.fn() };
+    const props = { attendees: [], rules: [], exceptions: [], activeId: '', busy: false, onAction: vi.fn(), onDelete: vi.fn(), isAdmin: true };
     const { rerender } = render(<MassCard {...props} mass={mass} />);
     expect(screen.queryByRole('button', { name: /Usuń nabożeństwo/ })).toBeNull();
     rerender(<MassCard {...props} mass={{ ...mass, is_extra: true }} />);
     expect(screen.getByRole('button', { name: /Usuń nabożeństwo/ })).toBeTruthy();
+    rerender(<MassCard {...props} isAdmin={false} mass={{ ...mass, is_extra: true }} />);
+    expect(screen.queryByRole('button', { name: /Usuń nabożeństwo/ })).toBeNull();
   });
 });
 

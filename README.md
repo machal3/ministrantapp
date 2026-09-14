@@ -16,7 +16,7 @@ Bez obu zmiennych Supabase uruchamia się **jawny podgląd demonstracyjny**. Dan
 ## Podłączenie Supabase
 
 1. Utwórz projekt Supabase z PostgreSQL 15 lub nowszym.
-2. W SQL Editor wykonaj cały `supabase/schema.sql`. Następnie, na nowej bazie, uruchom `supabase/seed.sql`, jeżeli chcesz sześciu przykładowych ministrantów i Msze na bieżący tydzień.
+2. W SQL Editor wykonaj cały `supabase/schema.sql`, potem `supabase/migrations/202609140001_admin.sql`. Następnie, na nowej bazie, uruchom `supabase/seed.sql`, jeżeli chcesz sześciu przykładowych ministrantów i Msze na bieżący tydzień. Na istniejącej bazie wystarczy nowy skrypt `202609140001_admin.sql` — nie usuwaj danych ani nie uruchamiaj ponownie seeda.
 3. Skopiuj `.env.example` do `.env`. Ustaw URL projektu i publiczny klucz `anon` lub publishable. Nie używaj `service_role` ani secret key w aplikacji przeglądarkowej.
 4. Uruchom ponownie serwer Vite. Zniknie pasek demonstracyjny, a aplikacja odczyta dane Supabase. Błąd połączenia nigdy nie przełącza działającej integracji na dane lokalne.
 5. Skrypt dodaje cztery tabele do istniejącej publikacji `supabase_realtime`. W standardowym projekcie Supabase ta publikacja już istnieje. Jeśli ją usunięto, przywróć ją zgodnie z konfiguracją projektu i ponownie wykonaj schemat.
@@ -62,9 +62,25 @@ Testy obejmują rzeczywisty silnik PostgreSQL w PGlite (RLS anon, SQL, unikalno�
 
 Do hostingu statycznego przekaż katalog `dist`. Zmienne Supabase ustaw **przed** `npm run build`. Serwuj przez HTTPS. Aplikacja nie wymaga serwera Node w środowisku produkcyjnym. Zewnętrzny projekt Supabase i wdrożenie nie są tworzone przez samo uruchomienie repozytorium.
 
+## Tryb administratora
+
+Przycisk **Administrator** w nagłówku otwiera formularz PIN-u. Początkowy PIN to **0403**, z zerem na początku. Administrator może zmieniać imiona/nazwiska i stopnie istniejących ministrantów oraz godzinę każdej konkretnej Mszy. Dodawanie i usuwanie dodatkowych nabożeństw także wymaga trybu administratora. Kosz nadal dotyczy tylko Mszy dodatkowych.
+
+Edycja ministranta zachowuje jego `id`, zapisy i reguły. Edycja godziny zachowuje `mass_id`, datę w czasie polskim, zapisy jednorazowe i wyjątki, ale przelicza stałe dyżury według nowej godziny. Zmiana nie przesuwa reguł ani innych Mszy. Formularz wyraźnie informuje o tym przed zapisem.
+
+W Supabase PIN jest weryfikowany przez funkcję `admin_login`; prywatne tabele w `liturgy_private` nie są dostępne dla `anon` ani `authenticated`. W bazie zapisany jest hash PIN-u z losową solą oraz hashe losowych tokenów sesji. RPC do każdej operacji zarządzania sprawdza token i jego datę wygaśnięcia. Bezpośrednie INSERT/UPDATE/DELETE w `altar_servers` i `masses` są odebrane zwykłym klientom. Funkcje mają stały pusty `search_path` i ograniczone uprawnienia wykonania.
+
+Sesja trwa 30 minut. Przeglądarka trzyma token wyłącznie w pamięci, bez localStorage ani sessionStorage: odświeżenie strony wymaga ponownego PIN-u. Przycisk wyjścia unieważnia token w bazie. Po 5 błędnych próbach w jednym 10-minutowym oknie kolejne logowania są blokowane do końca okna. Limit jest wspólny dla aplikacji, więc blokada dotyczy wszystkich administratorów; istniejące sesje nadal działają. W podglądzie lokalnym ochrona jest wyłącznie demonstracyjna. Moduł z demonstracyjnym PIN-em nie jest dołączany do buildu z ustawionymi zmiennymi Supabase.
+
+**Aktualizacja działającej strony:** najpierw uruchom `supabase/migrations/202609140001_admin.sql` w SQL Editor istniejącego projektu, następnie opublikuj nowy kod przez GitHub/Cloudflare. Nie dodawaj PIN-u do zmiennych `VITE_*`. Skrypt można uruchomić ponownie: nie zmienia danych ani już skonfigurowanego PIN-u. Stary frontend po migracji nadal pozwala się zapisywać, ale zarządzanie Mszami wymaga publikacji nowej wersji.
+
+Nowy skrypt jest przyrostową aktualizacją wcześniejszego `schema.sql`. Repozytorium nadal nie wykonuje automatycznie migracji w zdalnym Supabase; folder `migrations` nie oznacza, że wdrożono już Supabase CLI/CI lub historię migracji wcześniejszej bazy.
+
 ## Model zaufania
 
-Otwarte RLS dla `anon` i brak hasła są świadomym wymaganiem: każdy z dostępem do API może czytać, dodawać, edytować i usuwać dane oraz działać pod wybraną tożsamością. Selektor nie jest uwierzytelnieniem, a ukryty kosz zwykłej Mszy nie jest ograniczeniem uprawnień API.
+Wybór ministranta nadal nie jest uwierzytelnieniem. Każdy klient może odczytywać listy i zarządzać zapisami oraz stałymi dyżurami w modelu parafialnego zaufania. Zarządzanie osobami i nabożeństwami wymaga teraz sesji administratora weryfikowanej w bazie.
+
+Czterocyfrowy, wspólny PIN jest prostym zabezpieczeniem, nie odpowiednikiem indywidualnych kont administratorów. Początkowy PIN podany w tym repozytorium jest znany osobom mającym dostęp do kodu/instrukcji. Właściciel bazy może zmienić go przez SQL Editor, aktualizując `pin_hash = sha256(convert_to(salt || ':' || NOWY_PIN, 'UTF8'))` w `liturgy_private.admin_config` i usuwając stare sesje z `liturgy_private.admin_sessions`. Nie zmieniaj go w kodzie przeglądarki.
 
 ## Pliki
 

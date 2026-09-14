@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AlertCircle, ArrowRight, CalendarDays, CalendarPlus, Check, Church, CircleHelp, HeartHandshake, LoaderCircle, Plus, RefreshCw, Repeat2, Trash2, Users, X } from 'lucide-react';
+import { AlertCircle, ArrowRight, CalendarDays, CalendarPlus, Check, Church, CircleHelp, HeartHandshake, LoaderCircle, Plus, RefreshCw, Repeat2, Trash2, Users, X, ShieldCheck, LogOut } from 'lucide-react';
 import UserSelector, { readSelectedServer } from './components/UserSelector';
 import WeekNavigator from './components/WeekNavigator';
 import DaySelector from './components/DaySelector';
@@ -7,12 +7,16 @@ import MassCard from './components/MassCard';
 import type { MassAction } from './components/MassCard';
 import AddMassModal from './components/AddMassModal';
 import Modal from './components/Modal';
+import AdminLoginModal from './components/AdminLoginModal';
+import AdminServersModal from './components/AdminServersModal';
+import EditMassTimeModal from './components/EditMassTimeModal';
+import { logoutAdmin } from './lib/admin';
 import { dateKey, DAY_NAMES, monday, polishDate, shiftDate, timeSlot, weekday } from './lib/dates';
 import { matchesRule } from './lib/attendance';
-import { addMass, addRule, deleteMass, deleteRule, loadWeek, removeAttendance, setAttendance, subscribe } from './lib/repository';
+import { addMass, addRule, deleteMass, deleteRule, loadWeek, removeAttendance, setAttendance, subscribe, updateServer, updateMassTime } from './lib/repository';
 import type { SyncStatus } from './lib/repository';
 import { isDemo } from './lib/supabase';
-import type { Mass, NewMass, RecurringRule, ScheduleData } from './types/database';
+import type { AdminSession, AltarServer, Mass, NewMass, RecurringRule, ScheduleData } from './types/database';
 
 const EMPTY: ScheduleData = { servers: [], masses: [], rules: [], exceptions: [], attendees: [] };
 type Confirmation = { kind: 'mass'; mass: Mass } | { kind: 'rule'; rule: RecurringRule };
@@ -34,12 +38,42 @@ export default function App() {
   const [adding, setAdding] = useState(false);
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
   const [busy, setBusy] = useState(false);
+  const [adminSession, setAdminSession] = useState<AdminSession | null>(null);
+  const [adminLoginOpen, setAdminLoginOpen] = useState(false);
+  const [editingServers, setEditingServers] = useState(false);
+  const [editingMass, setEditingMass] = useState<Mass | null>(null);
   const mutationLock = useRef(false);
   const requestId = useRef(0);
   const data = snapshot?.week === week ? snapshot.data : EMPTY;
   const servers = snapshot?.data.servers ?? [];
   const activeServer = servers.find(server => server.id === selectedId);
   const activeId = activeServer?.id ?? '';
+
+  useEffect(() => {
+    if (!adminSession) return;
+    const expire = () => {
+      if (Date.parse(adminSession.expires_at) <= Date.now()) {
+        setAdminSession(null);
+        setEditingServers(false); setEditingMass(null); setAdding(false);
+        setConfirmation(current => current?.kind === 'mass' ? null : current);
+        setNotice('Sesja administratora wygasła. Aby edytować, wpisz PIN ponownie.');
+      }
+    };
+    const timer = window.setTimeout(expire, Math.max(0, Date.parse(adminSession.expires_at) - Date.now()));
+    window.addEventListener('focus', expire);
+    return () => { window.clearTimeout(timer); window.removeEventListener('focus', expire); };
+  }, [adminSession]);
+
+  async function leaveAdmin() {
+    const session = adminSession;
+    setAdminSession(null);
+    setEditingServers(false); setEditingMass(null); setAdding(false);
+    setConfirmation(current => current?.kind === 'mass' ? null : current);
+    if (session) {
+      try { await logoutAdmin(session); }
+      catch { setActionError('Tryb administratora wyłączono w tej karcie. Brak połączenia uniemożliwił unieważnienie sesji w bazie; wygaśnie po 30 minutach od logowania.'); }
+    }
+  }
 
   const refresh = useCallback(async () => {
     const request = ++requestId.current;
@@ -107,7 +141,7 @@ export default function App() {
   }
 
   async function handleAdd(mass: NewMass) {
-    await addMass(mass);
+    await addMass(mass, adminSession);
     const day = dateKey(mass.start_time);
     setNotice('Dodano nabożeństwo. Stałe dyżury są już uwzględnione.');
     if (monday(day) !== week) setWeek(monday(day));
@@ -115,10 +149,21 @@ export default function App() {
     setSelectedDay(day);
   }
 
+  async function handleServerEdit(server: AltarServer) {
+    await updateServer(server, adminSession);
+    await latestRefresh.current();
+  }
+
+  async function handleTimeEdit(id: string, startTime: string) {
+    await updateMassTime(id, startTime, adminSession);
+    setNotice('Zmieniono godzinę Mszy. Stałe dyżury dopasowano do nowej godziny.');
+    await latestRefresh.current();
+  }
+
   async function confirmDelete() {
     if (!confirmation) return;
     const target = confirmation;
-    const ok = await mutate(() => target.kind === 'mass' ? deleteMass(target.mass.id) : deleteRule(target.rule.id),
+    const ok = await mutate(() => target.kind === 'mass' ? deleteMass(target.mass.id, adminSession) : deleteRule(target.rule.id),
       target.kind === 'mass' ? 'Nabożeństwo zostało usunięte.' : 'Stały dyżur został usunięty.');
     if (ok) setConfirmation(null);
   }
@@ -141,6 +186,9 @@ export default function App() {
         </a>
         <div className="header-right"><span className="trust-label">Jedna wspólnota. Wspólna służba.</span>
           <UserSelector servers={servers} selectedId={selectedId} onChange={setSelectedId} />
+          <button className="button secondary admin-toggle" onClick={() => adminSession ? void leaveAdmin() : setAdminLoginOpen(true)}>
+            {adminSession ? <LogOut size={16} /> : <ShieldCheck size={16} />}{adminSession ? 'Wyjdź z trybu admina' : 'Administrator'}
+          </button>
         </div>
       </div>
     </header>
@@ -150,8 +198,11 @@ export default function App() {
       <section className="page-heading">
         <div><div className="eyebrow"><span />GRAFIK WSPÓLNOTY</div><h1>Mała służba.<br className="mobile-break" /> Wielka sprawa.</h1>
           <p>Grafik Służby Liturgicznej — znajdź swój czas przy ołtarzu.</p></div>
-        <button className="button primary add-mass-button" onClick={() => setAdding(true)} disabled={loading || !!loadError}><Plus size={18} />Dodaj Mszę / Nabożeństwo</button>
+        {adminSession && <button className="button primary add-mass-button" onClick={() => setAdding(true)} disabled={loading || !!loadError}><Plus size={18} />Dodaj Mszę / Nabożeństwo</button>}
       </section>
+
+      {adminSession && <div className="admin-toolbar"><span><ShieldCheck size={18} />Tryb administratora aktywny</span>
+        <button className="button secondary" disabled={loading || !!loadError} onClick={() => setEditingServers(true)}><Users size={16} />Edytuj ministrantów</button></div>}
 
       <div className="dashboard-layout">
         <section className="schedule-panel" aria-label="Grafik tygodniowy">
@@ -166,11 +217,12 @@ export default function App() {
           {actionError && !confirmation && <div className="error-banner" role="alert"><AlertCircle size={18} /><p>{actionError}</p><button className="icon-button" aria-label="Zamknij komunikat" onClick={() => setActionError('')}><X size={17} /></button></div>}
 
           {loading && snapshot?.week !== week ? <div className="loading-state" role="status"><LoaderCircle className="animate-spin" size={28} /><p>Przygotowujemy grafik…</p></div>
-            : !data.masses.length || (selectedDay && !counts[selectedDay]) ? <div className="empty-state"><CalendarPlus size={36} strokeWidth={1.3} /><h3>{loadError ? 'Grafik jest niedostępny' : 'Jeszcze bez nabożeństw'}</h3><p>{loadError ? 'Sprawdź połączenie i spróbuj ponownie.' : 'Nie dodano jeszcze terminów w tym widoku.'}</p>{!loadError && <button className="button secondary" onClick={() => setAdding(true)}><Plus size={16} />Dodaj nabożeństwo</button>}</div>
+            : !data.masses.length || (selectedDay && !counts[selectedDay]) ? <div className="empty-state"><CalendarPlus size={36} strokeWidth={1.3} /><h3>{loadError ? 'Grafik jest niedostępny' : 'Jeszcze bez nabożeństw'}</h3><p>{loadError ? 'Sprawdź połączenie i spróbuj ponownie.' : 'Nie dodano jeszcze terminów w tym widoku.'}</p>{!loadError && adminSession && <button className="button secondary" onClick={() => setAdding(true)}><Plus size={16} />Dodaj nabożeństwo</button>}</div>
             : <div className="day-groups">{shownDays.map(day => <section className="day-group" key={day} aria-label={DAY_NAMES[weekday(day)]}>
               <div className="day-heading"><h3>{DAY_NAMES[weekday(day)]}{' '}<span>{polishDate(day, { day: 'numeric', month: 'long' })}</span></h3>{day === dateKey() && <span className="today-badge">Dzisiaj</span>}<div className="day-heading-line" /><span className="day-count">{counts[day]} {counts[day] === 1 ? 'nabożeństwo' : counts[day] < 5 ? 'nabożeństwa' : 'nabożeństw'}</span></div>
               <div className="mass-grid">{data.masses.filter(m => dateKey(m.start_time) === day).map(mass => <MassCard key={mass.id} mass={mass}
                 attendees={data.attendees.filter(a => a.mass_id === mass.id)} rules={data.rules} exceptions={data.exceptions}
+                isAdmin={!!adminSession} onEditTime={setEditingMass}
                 activeId={activeId} busy={busy} onAction={(m, action) => void handleAction(m, action)} onDelete={m => { setActionError(''); setConfirmation({ kind: 'mass', mass: m }); }} />)}</div>
             </section>)}</div>}
           <div className="schedule-footnote"><HeartHandshake size={16} />Sugerowane miejsca to wskazówka. Dla Ciebie zawsze znajdzie się miejsce.</div>
@@ -199,7 +251,10 @@ export default function App() {
     </main>
 
     {notice && <div className="toast" role="status"><span><Check size={17} /></span><p>{notice}</p><button className="icon-button" aria-label="Zamknij powiadomienie" onClick={() => setNotice('')}><X size={16} /></button></div>}
-    {adding && <AddMassModal initialDate={selectedDay ?? (week === monday() ? dateKey() : week)} onClose={() => setAdding(false)} onSubmit={handleAdd} />}
+    {adminLoginOpen && <AdminLoginModal onClose={() => setAdminLoginOpen(false)} onLogin={session => { setAdminSession(session); setAdminLoginOpen(false); setActionError(''); }} />}
+    {adminSession && editingServers && <AdminServersModal servers={servers} onClose={() => setEditingServers(false)} onSave={handleServerEdit} />}
+    {adminSession && editingMass && <EditMassTimeModal mass={editingMass} onClose={() => setEditingMass(null)} onSave={handleTimeEdit} />}
+    {adminSession && adding && <AddMassModal initialDate={selectedDay ?? (week === monday() ? dateKey() : week)} onClose={() => setAdding(false)} onSubmit={handleAdd} />}
     {confirmation && <Modal title={confirmation.kind === 'mass' ? 'Usunąć nabożeństwo?' : 'Usunąć stały dyżur?'} onClose={() => { setConfirmation(null); setActionError(''); }} busy={busy}>
       <p className="confirmation-description">{confirmation.kind === 'mass'
         ? `${confirmation.mass.title} · ${polishDate(dateKey(confirmation.mass.start_time), { day: 'numeric', month: 'long' })}, ${timeSlot(confirmation.mass.start_time).slice(0, 5)}. Usuniemy ten termin wraz z jednorazowymi zapisami i nieobecnościami. Stałe dyżury pozostaną bez zmian.`

@@ -1,4 +1,4 @@
-import { Check, CirclePlus, Repeat2, Trash2, UserMinus, Users, Undo2, LoaderCircle } from 'lucide-react';
+import { Check, CirclePlus, Repeat2, Trash2, UserMinus, Users, Undo2, LoaderCircle, Clock3 } from 'lucide-react';
 import type { EffectiveAttendee, Mass, MassAttendee, RecurringRule } from '../types/database';
 import { dateKey, DAY_NAMES, timeSlot, weekday } from '../lib/dates';
 import { matchesRule } from '../lib/attendance';
@@ -13,9 +13,11 @@ interface Props {
   busy: boolean;
   onAction: (mass: Mass, action: MassAction) => void;
   onDelete: (mass: Mass) => void;
+  isAdmin?: boolean;
+  onEditTime?: (mass: Mass) => void;
 }
 
-export default function MassCard({ mass, attendees, rules, exceptions, activeId, busy, onAction, onDelete }: Props) {
+export default function MassCard({ mass, attendees, rules, exceptions, activeId, busy, onAction, onDelete, isAdmin = false, onEditTime }: Props) {
   const attendance = attendees.find(a => a.server_id === activeId);
   const hasRule = rules.some(r => r.server_id === activeId && matchesRule(mass, r));
   const excused = exceptions.some(a => a.mass_id === mass.id && a.server_id === activeId && a.type === 'excused');
@@ -35,8 +37,9 @@ export default function MassCard({ mass, attendees, rules, exceptions, activeId,
           {count}/{mass.suggested_spots} {extra > 0 ? `(+${extra} dodatkowy${extra > 1 ? 'ch' : ''})` : full ? '(pełna obstawa)' : 'miejsc'}
         </div>
       </div>
-      {mass.is_extra && <button className="icon-button delete-mass" aria-label={`Usuń nabożeństwo: ${mass.title}, ${time}`} disabled={busy} onClick={() => onDelete(mass)}><Trash2 size={17} /></button>}
+      {isAdmin && mass.is_extra && <button className="icon-button delete-mass" aria-label={`Usuń nabożeństwo: ${mass.title}, ${time}`} disabled={busy} onClick={() => onDelete(mass)}><Trash2 size={17} /></button>}
     </div>
+    {isAdmin && onEditTime && <button className="edit-time-button" disabled={busy} onClick={() => onEditTime(mass)}><Clock3 size={14} />Edytuj godzinę Mszy</button>}
     <div className="attendance-section">
       <div className="attendance-label"><Users size={14} /><span>Zadeklarowani</span><span>{count}</span>
         {attendance && <span className="you-attend"><Check size={12} />Służysz</span>}

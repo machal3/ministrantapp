@@ -1,7 +1,9 @@
 import { configurationError, isDemo, supabase } from './supabase';
 import { demoWeek, writeDemo } from './demo';
 import { weekBounds } from './dates';
-import type { AttendanceType, NewMass, RecurringRule, ScheduleData } from '../types/database';
+import { requireAdminSession } from './admin';
+import { RANKS } from '../types/database';
+import type { AdminSession, AltarServer, AttendanceType, NewMass, RecurringRule, ScheduleData } from '../types/database';
 
 function client() {
   if (!supabase) throw new Error(configurationError || 'Brak połączenia z Supabase.');
@@ -78,17 +80,43 @@ export async function deleteRule(id: string): Promise<void> {
   check((await client().from('recurring_rules').delete().eq('id', id)).error);
 }
 
-export async function addMass(mass: NewMass): Promise<void> {
+export async function addMass(mass: NewMass, session: AdminSession | null): Promise<void> {
+  const admin = await requireAdminSession(session);
   if (isDemo) return writeDemo(state => { state.masses.push({ ...mass, id: crypto.randomUUID() }); });
-  check((await client().from('masses').insert(mass)).error);
+  check((await client().rpc('admin_add_mass', { p_token: admin.token, p_start_time: mass.start_time, p_title: mass.title, p_suggested_spots: mass.suggested_spots })).error);
 }
 
-export async function deleteMass(id: string): Promise<void> {
+export async function deleteMass(id: string, session: AdminSession | null): Promise<void> {
+  const admin = await requireAdminSession(session);
   if (isDemo) return writeDemo(state => {
     state.masses = state.masses.filter(m => m.id !== id || !m.is_extra);
     state.exceptions = state.exceptions.filter(a => state.masses.some(m => m.id === a.mass_id));
   });
-  check((await client().from('masses').delete().eq('id', id).eq('is_extra', true)).error);
+  check((await client().rpc('admin_delete_mass', { p_token: admin.token, p_id: id })).error);
+}
+
+export async function updateServer(server: AltarServer, session: AdminSession | null): Promise<void> {
+  const admin = await requireAdminSession(session);
+  const name = server.name.trim();
+  if (!name || name.length > 100 || !RANKS.includes(server.rank)) throw new Error('Podaj imię, nazwisko i prawidłowy stopień.');
+  if (isDemo) return writeDemo(state => {
+    const found = state.servers.find(s => s.id === server.id);
+    if (!found) throw new Error('Ten ministrant już nie istnieje.');
+    found.name = name;
+    found.rank = server.rank;
+  });
+  check((await client().rpc('admin_update_server', { p_token: admin.token, p_id: server.id, p_name: name, p_rank: server.rank })).error);
+}
+
+export async function updateMassTime(id: string, startTime: string, session: AdminSession | null): Promise<void> {
+  const admin = await requireAdminSession(session);
+  if (!Number.isFinite(Date.parse(startTime))) throw new Error('Podaj prawidłową godzinę.');
+  if (isDemo) return writeDemo(state => {
+    const found = state.masses.find(m => m.id === id);
+    if (!found) throw new Error('To nabożeństwo już nie istnieje.');
+    found.start_time = startTime;
+  });
+  check((await client().rpc('admin_update_mass_time', { p_token: admin.token, p_id: id, p_start_time: startTime })).error);
 }
 
 export type SyncStatus = 'connecting' | 'live' | 'offline' | 'demo';

@@ -62,8 +62,10 @@ left join public.mass_attendees a on a.mass_id = c.mass_id and a.server_id = c.s
 where a.type is distinct from 'excused';
 
 grant usage on schema public to anon;
-grant select, insert, update, delete on public.altar_servers, public.masses,
-  public.recurring_rules, public.mass_attendees to anon;
+-- Management writes require the admin migration and a server-verified session.
+revoke insert, update, delete on public.altar_servers, public.masses from anon;
+grant select on public.altar_servers, public.masses to anon;
+grant select, insert, update, delete on public.recurring_rules, public.mass_attendees to anon;
 grant select on public.effective_attendees to anon;
 
 alter table public.altar_servers enable row level security;
@@ -72,9 +74,11 @@ alter table public.recurring_rules enable row level security;
 alter table public.mass_attendees enable row level security;
 
 drop policy if exists anon_full_access on public.altar_servers;
-create policy anon_full_access on public.altar_servers for all to anon using (true) with check (true);
+drop policy if exists anon_read on public.altar_servers;
+create policy anon_read on public.altar_servers for select to anon using (true);
 drop policy if exists anon_full_access on public.masses;
-create policy anon_full_access on public.masses for all to anon using (true) with check (true);
+drop policy if exists anon_read on public.masses;
+create policy anon_read on public.masses for select to anon using (true);
 drop policy if exists anon_full_access on public.recurring_rules;
 create policy anon_full_access on public.recurring_rules for all to anon using (true) with check (true);
 drop policy if exists anon_full_access on public.mass_attendees;
