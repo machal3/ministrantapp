@@ -1,0 +1,80 @@
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { monday, shiftDate, zonedIso } from '../src/lib/dates';
+import type { ScheduleData } from '../src/types/database';
+
+const repository = vi.hoisted(() => ({
+  loadWeek: vi.fn(), setAttendance: vi.fn(), addRule: vi.fn(), removeAttendance: vi.fn(),
+  addMass: vi.fn(), deleteMass: vi.fn(), deleteRule: vi.fn(), subscribe: vi.fn(),
+}));
+vi.mock('../src/lib/repository', () => repository);
+vi.mock('../src/lib/supabase', () => ({ isDemo: false }));
+import App from '../src/App';
+
+const start = monday();
+const next = shiftDate(start, 7);
+function weekData(week: string): ScheduleData {
+  return {
+    servers: [{ id: 'jan', name: 'Jan Kowalski', rank: 'Lektor' }],
+    masses: [{ id: week, start_time: zonedIso(week, '18:00'), title: `Nabożeństwo ${week}`, suggested_spots: 4, is_extra: false }],
+    rules: [], exceptions: [], attendees: [],
+  };
+}
+
+beforeEach(() => {
+  vi.resetAllMocks();
+  localStorage.setItem('liturgy.active-server', 'jan');
+  repository.loadWeek.mockImplementation(async (week: string) => weekData(week));
+  repository.subscribe.mockReturnValue(() => {});
+});
+afterEach(() => { cleanup(); localStorage.clear(); });
+
+it('refreshes the currently selected week after a delayed signup completes', async () => {
+  let finish!: () => void;
+  repository.setAttendance.mockImplementation(() => new Promise<void>(resolve => { finish = resolve; }));
+  render(<App />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Zapisz się jednorazowo' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Następny tydzień' }));
+  await screen.findByRole('heading', { name: `Nabożeństwo ${next}` });
+  await act(async () => finish());
+  await waitFor(() => expect(repository.loadWeek).toHaveBeenLastCalledWith(next));
+  expect(screen.getByRole('heading', { name: `Nabożeństwo ${next}` })).toBeTruthy();
+  expect(repository.setAttendance).toHaveBeenCalledWith(start, 'jan', 'single');
+});
+
+it('ignores an old week response that arrives after a newer response', async () => {
+  let finish!: (data: ScheduleData) => void;
+  repository.loadWeek.mockImplementation((week: string) => week === start
+    ? new Promise<ScheduleData>(resolve => { finish = resolve; })
+    : Promise.resolve(weekData(week)));
+  render(<App />);
+  fireEvent.click(screen.getByRole('button', { name: 'Następny tydzień' }));
+  await screen.findByRole('heading', { name: `Nabożeństwo ${next}` });
+  await act(async () => finish(weekData(start)));
+  expect(screen.getByRole('heading', { name: `Nabożeństwo ${next}` })).toBeTruthy();
+  expect(screen.queryByRole('heading', { name: `Nabożeństwo ${start}` })).toBeNull();
+});
+
+it('shows a failed write without a false success and allows retrying', async () => {
+  repository.setAttendance.mockRejectedValueOnce(new Error('Brak połączenia z bazą.'));
+  render(<App />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Zapisz się jednorazowo' }));
+  expect(await screen.findByRole('alert')).toHaveProperty('textContent', 'Brak połączenia z bazą.');
+  expect(screen.queryByRole('status')).toBeNull();
+  expect((screen.getByRole('button', { name: 'Zapisz się jednorazowo' }) as HTMLButtonElement).disabled).toBe(false);
+});
+
+it('refreshes when the realtime subscription reports a change and disposes the subscription', async () => {
+  let notify!: () => void;
+  const dispose = vi.fn();
+  repository.subscribe.mockImplementation((callback: () => void) => { notify = callback; return dispose; });
+  const { unmount } = render(<App />);
+  await screen.findByRole('heading', { name: `Nabożeństwo ${start}` });
+  const updated = weekData(start);
+  updated.masses[0].title = 'Zmienione nabożeństwo';
+  repository.loadWeek.mockResolvedValue(updated);
+  act(() => notify());
+  expect(await screen.findByRole('heading', { name: 'Zmienione nabożeństwo' })).toBeTruthy();
+  unmount();
+  expect(dispose).toHaveBeenCalledOnce();
+});
