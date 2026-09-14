@@ -14,10 +14,12 @@ interface Props {
   onAction: (mass: Mass, action: MassAction) => void;
   onDelete: (mass: Mass) => void;
   isAdmin?: boolean;
+  onEdit?: (mass: Mass) => void;
   onEditTime?: (mass: Mass) => void;
 }
 
-export default function MassCard({ mass, attendees, rules, exceptions, activeId, busy, onAction, onDelete, isAdmin = false, onEditTime }: Props) {
+export default function MassCard({ mass, attendees, rules, exceptions, activeId, busy, onAction, onDelete, isAdmin = false, onEdit, onEditTime }: Props) {
+  const handleEdit = onEdit ?? onEditTime;
   const attendance = attendees.find(a => a.server_id === activeId);
   const hasRule = rules.some(r => r.server_id === activeId && matchesRule(mass, r));
   const excused = exceptions.some(a => a.mass_id === mass.id && a.server_id === activeId && a.type === 'excused');
@@ -26,10 +28,11 @@ export default function MassCard({ mass, attendees, rules, exceptions, activeId,
   const extra = count - mass.suggested_spots;
   const time = timeSlot(mass.start_time).slice(0, 5);
   const recurringLabel = `${DAY_NAMES[weekday(dateKey(mass.start_time))]} · ${time}`;
+  const isDevotion = mass.is_extra;
 
   return <article className={`mass-card ${attendance ? 'my-mass' : ''}`} aria-label={`${mass.title}, ${time}`} aria-busy={busy}>
     <div className="mass-heading">
-      <div className="mass-time">{time}<span>{mass.is_extra ? 'DODATKOWA' : 'EUCHARYSTIA'}</span></div>
+      <div className="mass-time">{time}<span>{isDevotion ? 'NABOŻEŃSTWO' : 'MSZA ŚW.'}</span></div>
       <div className="min-w-0 flex-1">
         <h4>{mass.title}</h4>
         <div className={`capacity ${full ? 'filled' : 'open'}`}>
@@ -37,9 +40,9 @@ export default function MassCard({ mass, attendees, rules, exceptions, activeId,
           {count}/{mass.suggested_spots} {extra > 0 ? `(+${extra} dodatkowy${extra > 1 ? 'ch' : ''})` : full ? '(pełna obstawa)' : 'miejsc'}
         </div>
       </div>
-      {isAdmin && <button className="icon-button delete-mass" aria-label={`Usuń nabożeństwo: ${mass.title}, ${time}`} disabled={busy} onClick={() => onDelete(mass)}><Trash2 size={17} /></button>}
+      {isAdmin && <button className="icon-button delete-mass" aria-label={`Usuń ${isDevotion ? 'nabożeństwo' : 'Mszę Świętą'}: ${mass.title}, ${time}`} disabled={busy} onClick={() => onDelete(mass)}><Trash2 size={17} /></button>}
     </div>
-    {isAdmin && onEditTime && <button className="edit-time-button" disabled={busy} onClick={() => onEditTime(mass)}><Clock3 size={14} />Edytuj godzinę Mszy</button>}
+    {isAdmin && handleEdit && <button className="edit-time-button" disabled={busy} onClick={() => handleEdit(mass)}><Clock3 size={14} />Edytuj {isDevotion ? 'nabożeństwo' : 'Mszę'}</button>}
     <div className="attendance-section">
       <div className="attendance-label"><Users size={14} /><span>Zadeklarowani</span><span>{count}</span>
         {attendance && <span className="you-attend"><Check size={12} />Służysz</span>}

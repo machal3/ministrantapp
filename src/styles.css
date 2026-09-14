@@ -212,6 +212,44 @@ h1 { font-family: Georgia, "Times New Roman", serif; font-size: clamp(31px, 3vw,
 .radio-label strong { font-size: 13px; color: #2a3d2e; }
 .radio-label small { font-size: 11px; color: #72816d; line-height: 1.4; }
 .confirmation-footnote { font-size: 11px; color: #829177; line-height: 1.5; margin: 0; }
+.servers-list-view { display: flex; flex-direction: column; gap: 10px; }
+.servers-filter-bar { display: flex; flex-direction: column; gap: 8px; }
+.search-field { position: relative; width: 100%; }
+.search-field .search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
+.search-field input { width: 100%; padding-left: 36px !important; min-height: 38px; }
+.rank-filter-pills { display: flex; flex-wrap: wrap; gap: 5px; }
+.rank-pill { border: 1px solid var(--border); background: #fff; border-radius: 20px; padding: 4px 10px; font-size: 11px; font-weight: 500; color: #55624e; cursor: pointer; transition: all 0.15s ease; }
+.rank-pill:hover { background: #f2f6ee; border-color: #c8d8bd; }
+.rank-pill.active { background: var(--green); border-color: var(--green); color: #fff; font-weight: 600; }
+.servers-cards-list { display: flex; flex-direction: column; gap: 8px; max-height: 380px; overflow-y: auto; padding-right: 4px; margin: 0; list-style: none; }
+.server-admin-card { background: #fdfdfc; border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; transition: border-color 0.15s ease; }
+.server-admin-card:hover { border-color: #c8d8bd; }
+.server-card-content { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.server-card-info { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1; }
+.server-header-row { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.server-avatar { width: 30px; height: 30px; border-radius: 50%; background: #edf4e8; color: var(--green); display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; }
+.server-rank-badge { display: inline-block; font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 4px; background: #edf4e8; color: var(--green); margin-left: 8px; }
+.server-stats-pills { display: flex; flex-wrap: wrap; gap: 12px; font-size: 11px; color: #72816d; margin-top: 2px; }
+.server-stats-pills > span { display: inline-flex; align-items: center; gap: 4px; }
+.server-card-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+.delete-icon { color: #c25036; }
+.delete-icon:hover { background: #faedea; color: #a1361e; }
+.delete-confirm-box { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.server-edit-inline { width: 100%; }
+.servers-stats-tab { display: flex; flex-direction: column; gap: 14px; }
+.stat-card { background: #fbfcf9; border: 1px solid var(--border); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 2px; text-align: center; }
+.stat-label { font-size: 11px; color: var(--muted); font-weight: 500; }
+.stat-value { font-size: 20px; color: var(--green); font-weight: 700; }
+.stat-sub { font-size: 10px; color: #7c8870; }
+.stat-section { background: #fbfcf9; border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; }
+.stat-section h4 { font-size: 12px; font-weight: 600; color: #35492e; margin: 0 0 10px; }
+.stat-bar-track { height: 6px; background: #e6eee0; border-radius: 3px; overflow: hidden; }
+.stat-bar-fill { height: 100%; background: var(--green); border-radius: 3px; transition: width 0.3s ease; }
+.active-ranking-list { margin: 0; padding: 0; list-style: none; }
+.active-ranking-item { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px dashed #e4ebe0; }
+.active-ranking-item:last-child { border-bottom: none; }
+.ranking-name { color: #2e3e29; }
+.ranking-score { color: #6b7a65; }
 @media (max-width: 540px) { .admin-toolbar { align-items: stretch; flex-direction: column; }.admin-toggle { min-height: 38px; }.header-right { gap: 12px; }.edit-time-button { min-height: 44px; font-size: 12px; } }
 @media (min-width: 1600px) { .main-container, .header-inner { max-width: 1440px; } }
 @media (max-width: 1200px) {

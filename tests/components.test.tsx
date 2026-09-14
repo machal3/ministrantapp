@@ -31,12 +31,19 @@ describe('MassCard', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Przywróć obecność w tym dniu' }));
     expect(onAction).toHaveBeenLastCalledWith(mass, 'restore');
   });
-  it('offers deletion for any Mass when administrator, but hides for standard users', () => {
+  it('offers deletion for any Mass when administrator, but hides for standard users, and distinguishes Mass vs Devotion', () => {
     const props = { attendees: [], rules: [], exceptions: [], activeId: '', busy: false, onAction: vi.fn(), onDelete: vi.fn(), isAdmin: true };
     const { rerender } = render(<MassCard {...props} mass={mass} />);
+    expect(screen.getByText('MSZA ŚW.')).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Usuń Mszę Świętą/ })).toBeTruthy();
+
+    const devotion: Mass = { ...mass, is_extra: true, title: 'Droga Krzyżowa' };
+    rerender(<MassCard {...props} mass={devotion} />);
+    expect(screen.getByText('NABOŻEŃSTWO')).toBeTruthy();
     expect(screen.getByRole('button', { name: /Usuń nabożeństwo/ })).toBeTruthy();
+
     rerender(<MassCard {...props} isAdmin={false} mass={mass} />);
-    expect(screen.queryByRole('button', { name: /Usuń nabożeństwo/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Usuń Mszę Świętą/ })).toBeNull();
   });
 });
 

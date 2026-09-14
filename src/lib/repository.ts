@@ -3,7 +3,7 @@ import { demoWeek, writeDemo } from './demo';
 import { dateKey, shiftDate, timeSlot, weekday, weekBounds, zonedIso } from './dates';
 import { requireAdminSession } from './admin';
 import { RANKS } from '../types/database';
-import type { AdminSession, AltarServer, AttendanceType, NewMass, RecurringMassesInput, RecurringRule, ScheduleData } from '../types/database';
+import type { AdminSession, AltarServer, AttendanceType, MassEditInput, NewMass, RecurringMassesInput, RecurringRule, ScheduleData } from '../types/database';
 
 function client() {
   if (!supabase) throw new Error(configurationError || 'Brak połączenia z Supabase.');
@@ -97,6 +97,7 @@ export async function addRecurringMasses(input: RecurringMassesInput, session: A
   if (isDemo) {
     let count = 0;
     writeDemo(state => {
+      const series_id = crypto.randomUUID();
       let curr = input.start_date;
       while (curr <= input.end_date) {
         if (input.days.includes(weekday(curr))) {
@@ -107,6 +108,7 @@ export async function addRecurringMasses(input: RecurringMassesInput, session: A
             start_time: startTime,
             suggested_spots: input.suggested_spots,
             is_extra: input.is_extra,
+            series_id,
           });
           count++;
         }
@@ -134,17 +136,21 @@ export async function deleteMass(id: string, session: AdminSession | null, scope
   const admin = await requireAdminSession(session);
   if (isDemo) return writeDemo(state => {
     const target = state.masses.find(m => m.id === id);
-    if (!target) throw new Error('Nie znaleziono nabożeństwa do usunięcia.');
+    if (!target) throw new Error('Nie znaleziono terminu do usunięcia.');
     if (scope === 'future') {
-      const targetTime = timeSlot(target.start_time);
-      const targetDow = weekday(dateKey(target.start_time));
-      state.masses = state.masses.filter(m => !(
-        m.start_time >= target.start_time &&
-        dateKey(m.start_time) >= dateKey(target.start_time) &&
-        weekday(dateKey(m.start_time)) === targetDow &&
-        timeSlot(m.start_time) === targetTime &&
-        m.title === target.title
-      ));
+      if (target.series_id) {
+        state.masses = state.masses.filter(m => !(m.series_id === target.series_id && m.start_time >= target.start_time));
+      } else {
+        const targetTime = timeSlot(target.start_time);
+        const targetDow = weekday(dateKey(target.start_time));
+        state.masses = state.masses.filter(m => !(
+          m.start_time >= target.start_time &&
+          dateKey(m.start_time) >= dateKey(target.start_time) &&
+          weekday(dateKey(m.start_time)) === targetDow &&
+          timeSlot(m.start_time) === targetTime &&
+          m.title === target.title
+        ));
+      }
     } else {
       state.masses = state.masses.filter(m => m.id !== id);
     }
@@ -155,6 +161,23 @@ export async function deleteMass(id: string, session: AdminSession | null, scope
   } else {
     check((await client().rpc('admin_delete_mass', { p_token: admin.token, p_id: id })).error);
   }
+}
+
+export async function addServer(server: Omit<AltarServer, 'id'>, session: AdminSession | null): Promise<string> {
+  const admin = await requireAdminSession(session);
+  const name = server.name.trim();
+  if (!name || name.length > 100 || !RANKS.includes(server.rank)) throw new Error('Podaj imię, nazwisko i prawidłowy stopień.');
+  if (isDemo) {
+    const id = `demo-server-${crypto.randomUUID()}`;
+    writeDemo(state => {
+      state.servers.push({ id, name, rank: server.rank });
+      state.servers.sort((a, b) => a.name.localeCompare(b.name, 'pl'));
+    });
+    return id;
+  }
+  const { data, error } = await client().rpc('admin_add_server', { p_token: admin.token, p_name: name, p_rank: server.rank });
+  check(error);
+  return data!;
 }
 
 export async function updateServer(server: AltarServer, session: AdminSession | null): Promise<void> {
@@ -170,15 +193,71 @@ export async function updateServer(server: AltarServer, session: AdminSession | 
   check((await client().rpc('admin_update_server', { p_token: admin.token, p_id: server.id, p_name: name, p_rank: server.rank })).error);
 }
 
-export async function updateMassTime(id: string, startTime: string, session: AdminSession | null): Promise<void> {
+export async function deleteServer(id: string, session: AdminSession | null): Promise<void> {
   const admin = await requireAdminSession(session);
-  if (!Number.isFinite(Date.parse(startTime))) throw new Error('Podaj prawidłową godzinę.');
   if (isDemo) return writeDemo(state => {
-    const found = state.masses.find(m => m.id === id);
-    if (!found) throw new Error('To nabożeństwo już nie istnieje.');
-    found.start_time = startTime;
+    state.servers = state.servers.filter(s => s.id !== id);
+    state.rules = state.rules.filter(r => r.server_id !== id);
+    state.exceptions = state.exceptions.filter(e => e.server_id !== id);
   });
-  check((await client().rpc('admin_update_mass_time', { p_token: admin.token, p_id: id, p_start_time: startTime })).error);
+  check((await client().rpc('admin_delete_server', { p_token: admin.token, p_id: id })).error);
+}
+
+export async function updateMass(id: string, input: MassEditInput, session: AdminSession | null): Promise<number> {
+  const admin = await requireAdminSession(session);
+  const title = input.title.trim();
+  if (!title || title.length > 160) throw new Error('Wpisz nazwę (1-160 znaków).');
+  if (!Number.isInteger(input.suggested_spots) || input.suggested_spots < 1) {
+    throw new Error('Sugerowana liczba miejsc musi być dodatnią liczbą całkowitą.');
+  }
+  const time = input.time.trim();
+  if (!/^\d{2}:\d{2}$/.test(time)) throw new Error('Podaj prawidłową godzinę w formacie GG:MM.');
+
+  if (isDemo) {
+    let updatedCount = 0;
+    writeDemo(state => {
+      const target = state.masses.find(m => m.id === id);
+      if (!target) throw new Error('Ten termin już nie istnieje.');
+      if (input.scope === 'future') {
+        const targets = target.series_id
+          ? state.masses.filter(m => m.series_id === target.series_id && m.start_time >= target.start_time)
+          : state.masses.filter(m => m.start_time >= target.start_time && m.title === target.title && timeSlot(m.start_time).slice(0, 5) === timeSlot(target.start_time).slice(0, 5));
+        for (const m of targets) {
+          const date = dateKey(m.start_time);
+          m.start_time = zonedIso(date, time);
+          m.title = title;
+          m.suggested_spots = input.suggested_spots;
+          m.is_extra = input.is_extra;
+          updatedCount++;
+        }
+      } else {
+        const date = dateKey(target.start_time);
+        target.start_time = zonedIso(date, time);
+        target.title = title;
+        target.suggested_spots = input.suggested_spots;
+        target.is_extra = input.is_extra;
+        updatedCount = 1;
+      }
+    });
+    return updatedCount;
+  }
+
+  const { data, error } = await client().rpc('admin_update_mass', {
+    p_token: admin.token,
+    p_id: id,
+    p_scope: input.scope,
+    p_title: title,
+    p_time: time.length === 5 ? `${time}:00` : time,
+    p_suggested_spots: input.suggested_spots,
+    p_is_extra: input.is_extra,
+  });
+  check(error);
+  return data ?? 1;
+}
+
+export async function updateMassTime(id: string, startTime: string, session: AdminSession | null): Promise<void> {
+  const time = timeSlot(startTime).slice(0, 5);
+  await updateMass(id, { title: 'Msza Święta', time, suggested_spots: 4, is_extra: false, scope: 'single' }, session);
 }
 
 export type SyncStatus = 'connecting' | 'live' | 'offline' | 'demo';

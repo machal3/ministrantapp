@@ -20,6 +20,12 @@ beforeAll(async () => {
   const recurring = await readFile(new URL('../supabase/migrations/202609140002_recurring_masses.sql', import.meta.url), 'utf8');
   await db.exec(recurring);
   await db.exec(recurring);
+  const management = await readFile(new URL('../supabase/migrations/202609140003_altar_servers_management.sql', import.meta.url), 'utf8');
+  await db.exec(management);
+  await db.exec(management);
+  const seriesAndDistinction = await readFile(new URL('../supabase/migrations/202609140004_series_and_mass_distinction.sql', import.meta.url), 'utf8');
+  await db.exec(seriesAndDistinction);
+  await db.exec(seriesAndDistinction);
 });
 afterAll(async () => { await db?.close(); });
 
@@ -124,21 +130,107 @@ describe.sequential('PostgreSQL model with actual RLS and SQL view', () => {
     expect(recurringMasses.rows).toHaveLength(4);
 
     // Delete future masses starting from the second Monday (index 2: 2026-05-11 18:00)
+    // Deletes both the Monday and the Wednesday of that week since they share the same series_id!
     const secondMonday = recurringMasses.rows[2];
     const delRes = await db.query<{ admin_delete_future_masses: number }>(
       "select admin_delete_future_masses($1, $2)",
       [token, secondMonday.id]
     );
-    expect(delRes.rows[0].admin_delete_future_masses).toBe(1);
+    expect(delRes.rows[0].admin_delete_future_masses).toBe(2);
 
     await db.exec("reset role; delete from masses where title = 'Msza Wieczorna'; set role anon;");
   });
-  it('seeds six ranks and only the current week idempotently', async () => {
+
+  it('updates single mass and entire series without removing attendee declarations', async () => {
+    const { rows } = await db.query<{ token: string }>("select * from admin_login('0403')");
+    const token = rows[0].token;
+
+    // Create a series on Mon (1), Wed (3), Fri (5)
+    await db.query(
+      "select admin_add_recurring_masses($1, 'Msza Poranna', 4, false, array[1, 3, 5], time '07:00', date '2026-06-01', date '2026-06-07')",
+      [token]
+    );
+
+    const seriesMasses = await db.query<{ id: string; start_time: string; title: string; series_id: string }>(
+      "select id, start_time, title, series_id from masses where title = 'Msza Poranna' order by start_time"
+    );
+    expect(seriesMasses.rows).toHaveLength(3); // Mon, Wed, Fri
+    const firstMass = seriesMasses.rows[0];
+    const secondMass = seriesMasses.rows[1];
+
+    // Verify all 3 masses share the exact same series_id
+    expect(seriesMasses.rows[0].series_id).toBeTruthy();
+    expect(seriesMasses.rows[1].series_id).toBe(seriesMasses.rows[0].series_id);
+    expect(seriesMasses.rows[2].series_id).toBe(seriesMasses.rows[0].series_id);
+
+    // Register an altar server for the second mass (Wed)
+    await db.query("insert into mass_attendees (mass_id, server_id, type) values ($1, $2, 'single')", [secondMass.id, server]);
+
+    // 1. Single edit on firstMass (Mon): change title to 'Msza Wotywna' and time to 07:30
+    const singleUpdateRes = await db.query<{ admin_update_mass: number }>(
+      "select admin_update_mass($1, $2, 'single', 'Msza Wotywna', time '07:30', 5, false)",
+      [token, firstMass.id]
+    );
+    expect(singleUpdateRes.rows[0].admin_update_mass).toBe(1);
+
+    const firstCheck = await db.query<{ title: string; start_time: string; suggested_spots: number }>(
+      "select title, start_time, suggested_spots from masses where id = $1",
+      [firstMass.id]
+    );
+    expect(firstCheck.rows[0].title).toBe('Msza Wotywna');
+    expect(firstCheck.rows[0].suggested_spots).toBe(5);
+
+    // 2. Future series edit starting from secondMass (Wed): change title to 'Msza Wspólna' and time to 08:00
+    // Should update Wed and Fri (2 masses), leaving Mon untouched
+    const futureUpdateRes = await db.query<{ admin_update_mass: number }>(
+      "select admin_update_mass($1, $2, 'future', 'Msza Wspólna', time '08:00', 6, false)",
+      [token, secondMass.id]
+    );
+    expect(futureUpdateRes.rows[0].admin_update_mass).toBe(2);
+
+    const afterFuture = await db.query<{ id: string; title: string; start_time: string }>(
+      "select id, title, start_time from masses where series_id = $1 order by start_time",
+      [firstMass.series_id]
+    );
+    expect(afterFuture.rows[0].title).toBe('Msza Wotywna'); // Mon stayed as single edit
+    expect(afterFuture.rows[1].title).toBe('Msza Wspólna'); // Wed updated
+    expect(afterFuture.rows[2].title).toBe('Msza Wspólna'); // Fri updated
+
+    // Verify attendee declaration is STILL intact on Wed mass
+    const attendeeCheck = await db.query(
+      "select * from mass_attendees where mass_id = $1 and server_id = $2",
+      [secondMass.id, server]
+    );
+    expect(attendeeCheck.rows).toHaveLength(1);
+
+    await db.exec("reset role; delete from masses where series_id is not null; set role anon;");
+  });
+  it('adds and deletes altar servers via admin RPCs', async () => {
+    const { rows } = await db.query<{ token: string }>("select * from admin_login('0403')");
+    const token = rows[0].token;
+
+    const addRes = await db.query<{ admin_add_server: string }>(
+      "select admin_add_server($1, 'Nowy Ministrant', 'Szafarz')",
+      [token]
+    );
+    const newId = addRes.rows[0].admin_add_server;
+    expect(newId).toBeTruthy();
+
+    const serverCheck = await db.query("select * from altar_servers where id = $1", [newId]);
+    expect(serverCheck.rows).toHaveLength(1);
+    expect(serverCheck.rows[0]).toMatchObject({ name: 'Nowy Ministrant', rank: 'Szafarz' });
+
+    await db.query("select admin_delete_server($1, $2)", [token, newId]);
+    const deletedCheck = await db.query("select * from altar_servers where id = $1", [newId]);
+    expect(deletedCheck.rows).toHaveLength(0);
+  });
+
+  it('seeds five ranks and only the current week idempotently', async () => {
     await db.exec('reset role; truncate altar_servers, masses cascade;');
     const seed = await readFile(new URL('../supabase/seed.sql', import.meta.url), 'utf8');
     await db.exec(seed);
     await db.exec(seed);
-    expect((await db.query('select distinct rank from altar_servers')).rows).toHaveLength(6);
+    expect((await db.query('select distinct rank from altar_servers')).rows).toHaveLength(5);
     expect((await db.query('select * from masses')).rows).toHaveLength(16);
     expect((await db.query('select * from mass_attendees')).rows).toHaveLength(0);
     expect((await db.query("select * from masses where date_trunc('week', start_time at time zone 'Europe/Warsaw') <> date_trunc('week', now() at time zone 'Europe/Warsaw')")).rows).toHaveLength(0);

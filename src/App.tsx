@@ -9,17 +9,30 @@ import AddMassModal from './components/AddMassModal';
 import Modal from './components/Modal';
 import AdminLoginModal from './components/AdminLoginModal';
 import AdminServersModal from './components/AdminServersModal';
-import EditMassTimeModal from './components/EditMassTimeModal';
+import EditMassModal from './components/EditMassModal';
 import { logoutAdmin } from './lib/admin';
 import { dateKey, DAY_NAMES, monday, polishDate, shiftDate, timeSlot, weekday } from './lib/dates';
 import { matchesRule } from './lib/attendance';
-import { addMass, addRecurringMasses, addRule, deleteMass, deleteRule, loadWeek, removeAttendance, setAttendance, subscribe, updateServer, updateMassTime } from './lib/repository';
+import { addMass, addRecurringMasses, addRule, addServer, deleteMass, deleteRule, deleteServer, loadWeek, removeAttendance, setAttendance, subscribe, updateServer, updateMass } from './lib/repository';
 import type { SyncStatus } from './lib/repository';
 import { isDemo } from './lib/supabase';
-import type { AdminSession, AltarServer, Mass, NewMass, RecurringMassesInput, RecurringRule, ScheduleData } from './types/database';
+import type { AdminSession, AltarServer, Mass, MassEditInput, NewMass, RecurringMassesInput, RecurringRule, ScheduleData } from './types/database';
 
 const EMPTY: ScheduleData = { servers: [], masses: [], rules: [], exceptions: [], attendees: [] };
 type Confirmation = { kind: 'mass'; mass: Mass } | { kind: 'rule'; rule: RecurringRule };
+
+function formatLiturgyCount(masses: Mass[]): string {
+  const total = masses.length;
+  const devotions = masses.filter(m => m.is_extra).length;
+  const eucharists = total - devotions;
+  if (devotions === 0) {
+    return `${eucharists} ${eucharists === 1 ? 'Msza Święta' : eucharists < 5 ? 'Msze Święte' : 'Mszy Świętych'}`;
+  }
+  if (eucharists === 0) {
+    return `${devotions} ${devotions === 1 ? 'nabożeństwo' : devotions < 5 ? 'nabożeństwa' : 'nabożeństw'}`;
+  }
+  return `${eucharists} ${eucharists === 1 ? 'Msza' : eucharists < 5 ? 'Msze' : 'Mszy'}, ${devotions} ${devotions === 1 ? 'nabożeństwo' : devotions < 5 ? 'nabożeństwa' : 'nabożeństw'}`;
+}
 
 function messageFrom(error: unknown): string {
   return error instanceof Error ? error.message : 'Nie udało się wykonać operacji. Spróbuj ponownie.';
@@ -127,8 +140,10 @@ export default function App() {
     if (!activeId) return;
     const serverId = activeId;
     const hasRule = data.rules.some(rule => rule.server_id === serverId && matchesRule(mass, rule));
+    const isDevotion = mass.is_extra;
+    const noun = isDevotion ? 'nabożeństwo' : 'Mszę Świętą';
     const messages: Record<MassAction, string> = {
-      single: 'Zapisano Cię na nabożeństwo. Do zobaczenia!',
+      single: `Zapisano Cię na ${noun}. Do zobaczenia!`,
       recurring: 'Stały dyżur został ustawiony. Obowiązuje również dla nowych terminów.',
       withdraw: 'Usunięto Twój jednorazowy zapis.',
       excuse: 'Zgłoszono nieobecność tylko w tym terminie. Twój stały dyżur pozostaje aktywny.',
@@ -144,7 +159,8 @@ export default function App() {
   async function handleAdd(mass: NewMass) {
     await addMass(mass, adminSession);
     const day = dateKey(mass.start_time);
-    setNotice('Dodano nabożeństwo. Stałe dyżury są już uwzględnione.');
+    const noun = mass.is_extra ? 'nabożeństwo' : 'Mszę Świętą';
+    setNotice(`Dodano ${noun}. Stałe dyżury są już uwzględnione.`);
     if (monday(day) !== week) setWeek(monday(day));
     else await refresh();
     setSelectedDay(day);
@@ -152,7 +168,10 @@ export default function App() {
 
   async function handleAddRecurring(input: RecurringMassesInput): Promise<number> {
     const count = await addRecurringMasses(input, adminSession);
-    setNotice(`Utworzono serię nabożeństw (${count} ${count === 1 ? 'termin' : count < 5 ? 'terminy' : 'terminów'}). Stałe dyżury są już uwzględnione.`);
+    const noun = input.is_extra
+      ? (count === 1 ? 'nabożeństwo' : count < 5 ? 'nabożeństwa' : 'nabożeństw')
+      : (count === 1 ? 'Mszę Świętą' : count < 5 ? 'Msze Święte' : 'Mszy Świętych');
+    setNotice(`Utworzono serię (${count} ${noun}). Stałe dyżury są już uwzględnione.`);
     await latestRefresh.current();
     return count;
   }
@@ -162,21 +181,49 @@ export default function App() {
     await latestRefresh.current();
   }
 
-  async function handleTimeEdit(id: string, startTime: string) {
-    await updateMassTime(id, startTime, adminSession);
-    setNotice('Zmieniono godzinę Mszy. Stałe dyżury dopasowano do nowej godziny.');
+  async function handleAddServer(server: Omit<AltarServer, 'id'>): Promise<string> {
+    const id = await addServer(server, adminSession);
+    setNotice(`Dodano ministranta: ${server.name}.`);
     await latestRefresh.current();
+    return id;
+  }
+
+  async function handleDeleteServer(id: string): Promise<void> {
+    await deleteServer(id, adminSession);
+    setNotice('Usunięto ministranta ze wspólnoty.');
+    if (selectedId === id) {
+      setSelectedId('');
+    }
+    await latestRefresh.current();
+  }
+
+  async function handleMassEdit(id: string, input: MassEditInput): Promise<number> {
+    const count = await updateMass(id, input, adminSession);
+    if (input.scope === 'future') {
+      const noun = input.is_extra
+        ? (count === 1 ? 'nabożeństwo' : count < 5 ? 'nabożeństwa' : 'nabożeństw')
+        : (count === 1 ? 'Mszę Świętą' : count < 5 ? 'Msze Święte' : 'Mszy Świętych');
+      setNotice(`Zaktualizowano całą serię (${count} ${noun}). Zadeklarowane obecności pozostały zachowane.`);
+    } else {
+      const noun = input.is_extra ? 'nabożeństwo' : 'Mszę Świętą';
+      setNotice(`Zapisano zmiany: ${noun}.`);
+    }
+    await latestRefresh.current();
+    return count;
   }
 
   async function confirmDelete() {
     if (!confirmation) return;
     const target = confirmation;
+    const isDevotion = target.kind === 'mass' && target.mass.is_extra;
     const ok = await mutate(
       () => target.kind === 'mass'
         ? deleteMass(target.mass.id, adminSession, deleteScope)
         : deleteRule(target.rule.id),
       target.kind === 'mass'
-        ? (deleteScope === 'future' ? 'Nabożeństwa z tej serii zostały usunięte.' : 'Nabożeństwo zostało usunięte.')
+        ? (deleteScope === 'future'
+            ? (isDevotion ? 'Nabożeństwa z tej serii zostały usunięte.' : 'Msze Święte z tej serii zostały usunięte.')
+            : (isDevotion ? 'Nabożeństwo zostało usunięte.' : 'Msza Święta została usunięta.'))
         : 'Stały dyżur został usunięty.'
     );
     if (ok) setConfirmation(null);
@@ -231,12 +278,12 @@ export default function App() {
           {actionError && !confirmation && <div className="error-banner" role="alert"><AlertCircle size={18} /><p>{actionError}</p><button className="icon-button" aria-label="Zamknij komunikat" onClick={() => setActionError('')}><X size={17} /></button></div>}
 
           {loading && snapshot?.week !== week ? <div className="loading-state" role="status"><LoaderCircle className="animate-spin" size={28} /><p>Przygotowujemy grafik…</p></div>
-            : !data.masses.length || (selectedDay && !counts[selectedDay]) ? <div className="empty-state"><CalendarPlus size={36} strokeWidth={1.3} /><h3>{loadError ? 'Grafik jest niedostępny' : 'Jeszcze bez nabożeństw'}</h3><p>{loadError ? 'Sprawdź połączenie i spróbuj ponownie.' : 'Nie dodano jeszcze terminów w tym widoku.'}</p>{!loadError && adminSession && <button className="button secondary" onClick={() => setAdding(true)}><Plus size={16} />Dodaj nabożeństwo</button>}</div>
+            : !data.masses.length || (selectedDay && !counts[selectedDay]) ? <div className="empty-state"><CalendarPlus size={36} strokeWidth={1.3} /><h3>{loadError ? 'Grafik jest niedostępny' : 'Brak zaplanowanych Mszy i nabożeństw'}</h3><p>{loadError ? 'Sprawdź połączenie i spróbuj ponownie.' : 'Nie dodano jeszcze terminów w tym widoku.'}</p>{!loadError && adminSession && <button className="button secondary" onClick={() => setAdding(true)}><Plus size={16} />Dodaj Mszę / Nabożeństwo</button>}</div>
             : <div className="day-groups">{shownDays.map(day => <section className="day-group" key={day} aria-label={DAY_NAMES[weekday(day)]}>
-              <div className="day-heading"><h3>{DAY_NAMES[weekday(day)]}{' '}<span>{polishDate(day, { day: 'numeric', month: 'long' })}</span></h3>{day === dateKey() && <span className="today-badge">Dzisiaj</span>}<div className="day-heading-line" /><span className="day-count">{counts[day]} {counts[day] === 1 ? 'nabożeństwo' : counts[day] < 5 ? 'nabożeństwa' : 'nabożeństw'}</span></div>
+              <div className="day-heading"><h3>{DAY_NAMES[weekday(day)]}{' '}<span>{polishDate(day, { day: 'numeric', month: 'long' })}</span></h3>{day === dateKey() && <span className="today-badge">Dzisiaj</span>}<div className="day-heading-line" /><span className="day-count">{formatLiturgyCount(data.masses.filter(m => dateKey(m.start_time) === day))}</span></div>
               <div className="mass-grid">{data.masses.filter(m => dateKey(m.start_time) === day).map(mass => <MassCard key={mass.id} mass={mass}
                 attendees={data.attendees.filter(a => a.mass_id === mass.id)} rules={data.rules} exceptions={data.exceptions}
-                isAdmin={!!adminSession} onEditTime={setEditingMass}
+                isAdmin={!!adminSession} onEdit={setEditingMass} onEditTime={setEditingMass}
                 activeId={activeId} busy={busy} onAction={(m, action) => void handleAction(m, action)} onDelete={m => { setActionError(''); setDeleteScope('single'); setConfirmation({ kind: 'mass', mass: m }); }} />)}</div>
             </section>)}</div>}
           <div className="schedule-footnote"><HeartHandshake size={16} />Sugerowane miejsca to wskazówka. Dla Ciebie zawsze znajdzie się miejsce.</div>
@@ -247,7 +294,7 @@ export default function App() {
             <div className="personal-intro"><span className="personal-icon"><HeartHandshake size={23} strokeWidth={1.5} /></span><span>TWÓJ CZAS, TWOJA SŁUŻBA</span></div>
             <h2>{activeServer ? `Dobrze, że jesteś, ${activeServer.name.split(' ')[0]}.` : 'Dobrze, że jesteś.'}</h2>
             <p>{activeServer ? 'Każda obecność ma znaczenie. Dziękujemy, że współtworzysz naszą wspólnotę.' : 'Wybierz swoje imię w nagłówku, aby zaplanować służbę i zobaczyć swoje dyżury.'}</p>
-            <div className="personal-summary"><span>Twoje nabożeństwa w tym tygodniu</span><strong>{activeId ? ownMasses.length.toString().padStart(2, '0') : '—'}</strong></div>
+            <div className="personal-summary"><span>Twoje służby w tym tygodniu</span><strong>{activeId ? ownMasses.length.toString().padStart(2, '0') : '—'}</strong></div>
             {ownMasses.length > 0 && <button className="personal-link" onClick={() => setSelectedDay(dateKey(ownMasses[0].start_time))}>Zobacz pierwszy termin<ArrowRight size={15} /></button>}
           </section>
 
@@ -257,7 +304,7 @@ export default function App() {
             <div className="rules-tip"><CircleHelp size={15} /><p>Nie możesz przyjść? Zgłoś nieobecność przy danej Mszy. Pozostałe dyżury zostaną bez zmian.</p></div>
           </section>
 
-          <section className="sidebar-panel week-summary"><h2>Ten tydzień we wspólnocie</h2><div><span><CalendarDays size={16} />Nabożeństwa</span><strong>{data.masses.length}</strong></div><div><span><Users size={16} />Ministranci w naszej wspólnocie</span><strong>{servers.length}</strong></div><div><span><Check size={16} />Pełna obstawa</span><strong>{fullMasses}<small> / {data.masses.length}</small></strong></div></section>
+          <section className="sidebar-panel week-summary"><h2>Ten tydzień we wspólnocie</h2><div><span><CalendarDays size={16} />Msze i nabożeństwa</span><strong>{data.masses.length}</strong></div><div><span><Users size={16} />Ministranci w naszej wspólnocie</span><strong>{servers.length}</strong></div><div><span><Check size={16} />Pełna obstawa</span><strong>{fullMasses}<small> / {data.masses.length}</small></strong></div></section>
           <div className="open-invitation"><Church size={28} strokeWidth={1.2} /><p>„Służcie Panu z weselem!”</p><span>Ps 100, 2</span></div>
         </aside>
       </div>
@@ -266,10 +313,20 @@ export default function App() {
 
     {notice && <div className="toast" role="status"><span><Check size={17} /></span><p>{notice}</p><button className="icon-button" aria-label="Zamknij powiadomienie" onClick={() => setNotice('')}><X size={16} /></button></div>}
     {adminLoginOpen && <AdminLoginModal onClose={() => setAdminLoginOpen(false)} onLogin={session => { setAdminSession(session); setAdminLoginOpen(false); setActionError(''); }} />}
-    {adminSession && editingServers && <AdminServersModal servers={servers} onClose={() => setEditingServers(false)} onSave={handleServerEdit} />}
-    {adminSession && editingMass && <EditMassTimeModal mass={editingMass} onClose={() => setEditingMass(null)} onSave={handleTimeEdit} />}
+    {adminSession && editingServers && (
+      <AdminServersModal
+        servers={servers}
+        rules={data.rules}
+        attendees={data.attendees}
+        onClose={() => setEditingServers(false)}
+        onSave={handleServerEdit}
+        onAdd={handleAddServer}
+        onDelete={handleDeleteServer}
+      />
+    )}
+    {adminSession && editingMass && <EditMassModal mass={editingMass} onClose={() => setEditingMass(null)} onSave={handleMassEdit} />}
     {adminSession && adding && <AddMassModal initialDate={selectedDay ?? (week === monday() ? dateKey() : week)} onClose={() => setAdding(false)} onSubmit={handleAdd} onSubmitRecurring={handleAddRecurring} />}
-    {confirmation && <Modal title={confirmation.kind === 'mass' ? 'Usunąć nabożeństwo?' : 'Usunąć stały dyżur?'} onClose={() => { setConfirmation(null); setActionError(''); }} busy={busy}>
+    {confirmation && <Modal title={confirmation.kind === 'mass' ? (confirmation.mass.is_extra ? 'Usunąć nabożeństwo?' : 'Usunąć Mszę Świętą?') : 'Usunąć stały dyżur?'} onClose={() => { setConfirmation(null); setActionError(''); }} busy={busy}>
       {confirmation.kind === 'mass' ? <>
         <p className="confirmation-description">
           {confirmation.mass.title} · {polishDate(dateKey(confirmation.mass.start_time), { day: 'numeric', month: 'long' })}, {timeSlot(confirmation.mass.start_time).slice(0, 5)}.
@@ -299,8 +356,8 @@ export default function App() {
               disabled={busy}
             />
             <span>
-              <strong>Ten i wszystkie przyszłe terminy o tej porze</strong>
-              <small>Usunięte zostaną wszystkie przyszłe Msze „{confirmation.mass.title}” w każdy {DAY_NAMES[weekday(dateKey(confirmation.mass.start_time))]} o {timeSlot(confirmation.mass.start_time).slice(0, 5)} od tej daty w przód.</small>
+              <strong>Ten i wszystkie przyszłe terminy z serii</strong>
+              <small>Usunięte zostaną wszystkie przyszłe terminy „{confirmation.mass.title}” z tej serii od tej daty w przód (niezależnie od dnia tygodnia).</small>
             </span>
           </label>
         </div>
@@ -309,7 +366,7 @@ export default function App() {
         {DAY_NAMES[confirmation.rule.day_of_week]} o {confirmation.rule.time_slot.slice(0, 5)}. Przestaniesz automatycznie pojawiać się na liście obecności o tej porze we wszystkich tygodniach. Twoje osobne zapisy jednorazowe i zgłoszenia nieobecności pozostaną zapisane.
       </p>}
       {actionError && <p className="form-error" role="alert">{actionError}</p>}
-      <div className="modal-actions"><button className="button secondary" disabled={busy} onClick={() => setConfirmation(null)}>Anuluj</button><button className="button danger" disabled={busy} onClick={() => void confirmDelete()}>{busy ? <LoaderCircle size={16} className="animate-spin" /> : <Trash2 size={16} />}{confirmation.kind === 'mass' ? (deleteScope === 'future' ? 'Usuń przyszłe terminy' : 'Usuń nabożeństwo') : 'Usuń dyżur'}</button></div>
+      <div className="modal-actions"><button className="button secondary" disabled={busy} onClick={() => setConfirmation(null)}>Anuluj</button><button className="button danger" disabled={busy} onClick={() => void confirmDelete()}>{busy ? <LoaderCircle size={16} className="animate-spin" /> : <Trash2 size={16} />}{confirmation.kind === 'mass' ? (deleteScope === 'future' ? (confirmation.mass.is_extra ? 'Usuń przyszłe nabożeństwa z serii' : 'Usuń przyszłe Msze z serii') : (confirmation.mass.is_extra ? 'Usuń nabożeństwo' : 'Usuń Mszę Świętą')) : 'Usuń dyżur'}</button></div>
     </Modal>}
   </div>;
 }

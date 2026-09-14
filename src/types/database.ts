@@ -1,6 +1,6 @@
-export type Rank = 'Kandydat' | 'Choirzysta' | 'Ministrant Światła' | 'Ministrant Krzyża' | 'Lektor' | 'Ceremoniarz';
+export type Rank = 'Kandydat' | 'Ministrant' | 'Lektor' | 'Ceremoniarz' | 'Szafarz';
 export type AttendanceType = 'single' | 'excused';
-export const RANKS: Rank[] = ['Kandydat', 'Choirzysta', 'Ministrant Światła', 'Ministrant Krzyża', 'Lektor', 'Ceremoniarz'];
+export const RANKS: Rank[] = ['Kandydat', 'Ministrant', 'Lektor', 'Ceremoniarz', 'Szafarz'];
 export type AdminSession = { token: string; expires_at: string };
 
 export type AltarServer = {
@@ -15,6 +15,15 @@ export type Mass = {
   title: string;
   suggested_spots: number;
   is_extra: boolean;
+  series_id?: string | null;
+};
+
+export type MassEditInput = {
+  title: string;
+  time: string;
+  suggested_spots: number;
+  is_extra: boolean;
+  scope: 'single' | 'future';
 };
 
 export type RecurringRule = {
@@ -99,8 +108,22 @@ export type Database = {
     Functions: {
       admin_login: { Args: { p_pin: string }; Returns: AdminSession[] };
       admin_logout: { Args: { p_token: string }; Returns: undefined };
+      admin_add_server: { Args: { p_token: string; p_name: string; p_rank: string }; Returns: string };
       admin_update_server: { Args: { p_token: string; p_id: string; p_name: string; p_rank: string }; Returns: undefined };
+      admin_delete_server: { Args: { p_token: string; p_id: string }; Returns: undefined };
       admin_update_mass_time: { Args: { p_token: string; p_id: string; p_start_time: string }; Returns: undefined };
+      admin_update_mass: {
+        Args: {
+          p_token: string;
+          p_id: string;
+          p_scope: string;
+          p_title: string;
+          p_time: string;
+          p_suggested_spots: number;
+          p_is_extra: boolean;
+        };
+        Returns: number;
+      };
       admin_add_mass: { Args: { p_token: string; p_start_time: string; p_title: string; p_suggested_spots: number }; Returns: undefined };
       admin_delete_mass: { Args: { p_token: string; p_id: string }; Returns: undefined };
       admin_add_recurring_masses: {

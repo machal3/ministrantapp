@@ -3,9 +3,9 @@ begin;
 insert into public.altar_servers (id, name, rank) values
   ('00000000-0000-4000-8000-000000000001', 'Jan Kowalski', 'Lektor'),
   ('00000000-0000-4000-8000-000000000002', 'Piotr Nowak', 'Ceremoniarz'),
-  ('00000000-0000-4000-8000-000000000003', 'Antoni Wiśniewski', 'Ministrant Światła'),
-  ('00000000-0000-4000-8000-000000000004', 'Jakub Wójcik', 'Ministrant Krzyża'),
-  ('00000000-0000-4000-8000-000000000005', 'Michał Kamiński', 'Choirzysta'),
+  ('00000000-0000-4000-8000-000000000003', 'Antoni Wiśniewski', 'Ministrant'),
+  ('00000000-0000-4000-8000-000000000004', 'Jakub Wójcik', 'Ministrant'),
+  ('00000000-0000-4000-8000-000000000005', 'Michał Kamiński', 'Szafarz'),
   ('00000000-0000-4000-8000-000000000006', 'Franciszek Zieliński', 'Kandydat')
 on conflict (id) do nothing;
 

@@ -4,7 +4,7 @@ create table if not exists public.altar_servers (
   id uuid primary key default gen_random_uuid(),
   name text not null check (length(btrim(name)) between 1 and 100),
   rank text not null check (rank in (
-    'Kandydat', 'Choirzysta', 'Ministrant Światła', 'Ministrant Krzyża', 'Lektor', 'Ceremoniarz'
+    'Kandydat', 'Ministrant', 'Lektor', 'Ceremoniarz', 'Szafarz'
   ))
 );
 
@@ -13,7 +13,8 @@ create table if not exists public.masses (
   start_time timestamptz not null,
   title text not null default 'Msza Święta' check (length(btrim(title)) between 1 and 160),
   suggested_spots integer not null default 4 check (suggested_spots > 0),
-  is_extra boolean not null default false
+  is_extra boolean not null default false,
+  series_id uuid
 );
 
 create table if not exists public.recurring_rules (
@@ -33,6 +34,7 @@ create table if not exists public.mass_attendees (
 );
 
 create index if not exists masses_start_time_idx on public.masses (start_time);
+create index if not exists masses_series_id_idx on public.masses (series_id);
 create index if not exists recurring_rules_slot_idx on public.recurring_rules (day_of_week, time_slot);
 create index if not exists mass_attendees_server_id_idx on public.mass_attendees (server_id);
 
