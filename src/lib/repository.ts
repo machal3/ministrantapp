@@ -29,16 +29,19 @@ export async function loadWeek(start: string): Promise<ScheduleData> {
   const [from, to] = weekBounds(start);
   if (isDemo) return demoWeek(from, to);
   const db = client();
+  const from30 = zonedIso(shiftDate(dateKey(), -30), '00:00');
+  const to30 = zonedIso(shiftDate(dateKey(), 1), '00:00');
   const results = await Promise.allSettled([
     allRows((a, b) => db.from('altar_servers').select('*').order('name').order('id').range(a, b)),
     allRows((a, b) => db.from('masses').select('*').gte('start_time', from).lt('start_time', to).order('start_time').order('id').range(a, b)),
     allRows((a, b) => db.from('recurring_rules').select('*').order('id').range(a, b)),
     allRows((a, b) => db.from('mass_attendees').select('*, masses!inner(start_time)')
       .gte('masses.start_time', from).lt('masses.start_time', to).order('id').range(a, b)),
+    allRows((a, b) => db.from('masses').select('id').gte('start_time', from30).lt('start_time', to30).range(a, b)),
   ] as const);
   for (const result of results) if (result.status === 'rejected') throw result.reason;
-  const [serversResult, massesResult, rulesResult, exceptionsResult] = results;
-  if (serversResult.status !== 'fulfilled' || massesResult.status !== 'fulfilled' || rulesResult.status !== 'fulfilled' || exceptionsResult.status !== 'fulfilled') throw new Error('Nie udało się pobrać grafiku.');
+  const [serversResult, massesResult, rulesResult, exceptionsResult, recentMassesResult] = results;
+  if (serversResult.status !== 'fulfilled' || massesResult.status !== 'fulfilled' || rulesResult.status !== 'fulfilled' || exceptionsResult.status !== 'fulfilled' || recentMassesResult.status !== 'fulfilled') throw new Error('Nie udało się pobrać grafiku.');
   const masses = massesResult.value;
   const attendees: ScheduleData['attendees'] = [];
   // Chunk IDs to keep REST URLs bounded. Ordering is stable for pagination.
@@ -48,7 +51,20 @@ export async function loadWeek(start: string): Promise<ScheduleData> {
       .order('mass_id').order('server_id').range(a, b)));
   }
   attendees.sort((a, b) => a.name.localeCompare(b.name, 'pl'));
-  return { servers: serversResult.value, masses, rules: rulesResult.value, exceptions: exceptionsResult.value, attendees };
+
+  const recentMasses = recentMassesResult.value;
+  const recentAttendance: Record<string, number> = {};
+  for (let index = 0; index < recentMasses.length; index += 80) {
+    const batch = recentMasses.slice(index, index + 80).map(m => m.id);
+    const rows = await allRows((a, b) => db.from('effective_attendees').select('server_id')
+      .in('mass_id', batch)
+      .range(a, b));
+    for (const row of rows) {
+      recentAttendance[row.server_id] = (recentAttendance[row.server_id] ?? 0) + 1;
+    }
+  }
+
+  return { servers: serversResult.value, masses, rules: rulesResult.value, exceptions: exceptionsResult.value, attendees, recentAttendance };
 }
 
 export async function setAttendance(massId: string, serverId: string, type: AttendanceType): Promise<void> {

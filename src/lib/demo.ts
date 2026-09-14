@@ -1,7 +1,7 @@
 import { RANKS } from '../types/database';
 import type { AltarServer, Mass, MassAttendee, RecurringRule, ScheduleData } from '../types/database';
 import { aggregateAttendees } from './attendance';
-import { monday, shiftDate, weekday, zonedIso } from './dates';
+import { dateKey, monday, shiftDate, weekday, zonedIso } from './dates';
 
 export type DemoState = Pick<ScheduleData, 'servers' | 'masses' | 'rules' | 'exceptions'>;
 const KEY = 'liturgy.demo.v1';
@@ -20,7 +20,8 @@ function initialDemo(): DemoState {
     { id: crypto.randomUUID(), server_id: servers[5].id, day_of_week: 5, time_slot: '18:00:00' },
   ];
   const weekdaySeriesId = crypto.randomUUID();
-  const masses: Mass[] = Array.from({ length: 7 }, (_, i) => shiftDate(monday(), i)).flatMap(day => {
+  const startDay = shiftDate(monday(), -35);
+  const masses: Mass[] = Array.from({ length: 56 }, (_, i) => shiftDate(startDay, i)).flatMap(day => {
     const isSun = weekday(day) === 0;
     const isFri = weekday(day) === 5;
     const times = isSun ? ['08:00', '10:30', '12:00', '18:00'] : ['07:00', '18:00'];
@@ -77,5 +78,18 @@ export function demoWeek(from: string, to: string): ScheduleData {
   const masses = data.masses.filter(m => m.start_time >= from && m.start_time < to)
     .sort((a, b) => a.start_time.localeCompare(b.start_time));
   const exceptions: MassAttendee[] = data.exceptions.filter(a => masses.some(m => m.id === a.mass_id));
-  return { ...data, masses, exceptions, attendees: aggregateAttendees(masses, data.servers, data.rules, exceptions) };
+  const attendees = aggregateAttendees(masses, data.servers, data.rules, exceptions);
+
+  const from30 = zonedIso(shiftDate(dateKey(), -30), '00:00');
+  const to30 = zonedIso(shiftDate(dateKey(), 1), '00:00');
+  const recentMasses = data.masses.filter(m => m.start_time >= from30 && m.start_time < to30);
+  const recentExceptions = data.exceptions.filter(a => recentMasses.some(m => m.id === a.mass_id));
+  const recentAttendees = aggregateAttendees(recentMasses, data.servers, data.rules, recentExceptions);
+  const recentAttendance: Record<string, number> = {};
+  for (const a of recentAttendees) {
+    recentAttendance[a.server_id] = (recentAttendance[a.server_id] ?? 0) + 1;
+  }
+
+  return { ...data, masses, exceptions, attendees, recentAttendance };
 }
+

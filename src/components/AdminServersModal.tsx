@@ -10,13 +10,14 @@ interface Props {
   servers: AltarServer[];
   rules: RecurringRule[];
   attendees: EffectiveAttendee[];
+  recentAttendance?: Record<string, number>;
   onClose: () => void;
   onSave: (server: AltarServer) => Promise<void>;
   onAdd: (server: Omit<AltarServer, 'id'>) => Promise<string>;
   onDelete: (id: string) => Promise<void>;
 }
 
-export default function AdminServersModal({ servers, rules, attendees, onClose, onSave, onAdd, onDelete }: Props) {
+export default function AdminServersModal({ servers, rules, attendees, recentAttendance, onClose, onSave, onAdd, onDelete }: Props) {
   const [tab, setTab] = useState<'list' | 'add' | 'stats'>('list');
   const [search, setSearch] = useState('');
   const [rankFilter, setRankFilter] = useState<string>('all');
@@ -114,10 +115,9 @@ export default function AdminServersModal({ servers, rules, attendees, onClose, 
   const stats = useMemo(() => {
     const totalServers = servers.length;
     const serversWithRules = new Set(rules.map(r => r.server_id)).size;
-    const rankCounts = Object.fromEntries(RANKS.map(r => [r, servers.filter(s => s.rank === r).length])) as Record<Rank, number>;
 
-    // Activity counts in current view
-    const weekAttendanceCount = attendees.reduce<Record<string, number>>((acc, a) => {
+    // Activity counts in the last 30 days
+    const attendanceCount = recentAttendance ?? attendees.reduce<Record<string, number>>((acc, a) => {
       acc[a.server_id] = (acc[a.server_id] ?? 0) + 1;
       return acc;
     }, {});
@@ -126,13 +126,14 @@ export default function AdminServersModal({ servers, rules, attendees, onClose, 
     const topActive = [...servers]
       .map(s => ({
         server: s,
-        count: weekAttendanceCount[s.id] ?? 0,
+        count: attendanceCount[s.id] ?? 0,
         rulesCount: rules.filter(r => r.server_id === s.id).length,
       }))
       .sort((a, b) => b.count - a.count || b.rulesCount - a.rulesCount || a.server.name.localeCompare(b.server.name, 'pl'));
 
-    return { totalServers, serversWithRules, rankCounts, topActive, totalRules: rules.length };
-  }, [servers, rules, attendees]);
+    return { totalServers, serversWithRules, topActive, totalRules: rules.length };
+  }, [servers, rules, attendees, recentAttendance]);
+
 
   // Filtered servers
   const filteredServers = useMemo(() => {
@@ -216,7 +217,7 @@ export default function AdminServersModal({ servers, rules, attendees, onClose, 
           <ul className="servers-cards-list">
             {filteredServers.map(server => {
               const serverRules = rules.filter(r => r.server_id === server.id);
-              const serverAttendances = attendees.filter(a => a.server_id === server.id).length;
+              const serverAttendances = (recentAttendance ? recentAttendance[server.id] : attendees.filter(a => a.server_id === server.id).length) ?? 0;
               const isEditing = editingId === server.id;
               const isDeleting = deletingId === server.id;
 
@@ -272,8 +273,8 @@ export default function AdminServersModal({ servers, rules, attendees, onClose, 
                               ? 'Brak stałych dyżurów'
                               : `${serverRules.length} ${serverRules.length === 1 ? 'stały dyżur' : 'stałe dyżury'} (${serverRules.map(r => `${DAY_SHORT[r.day_of_week]} ${r.time_slot.slice(0, 5)}`).join(', ')})`}
                           </span>
-                          <span title="Służby w bieżącym tygodniu">
-                            <Users size={13} /> {serverAttendances} {serverAttendances === 1 ? 'służba w tym tyg.' : 'służb w tym tyg.'}
+                          <span title="Służby w ciągu ostatniego miesiąca (30 dni)">
+                            <Users size={13} /> {serverAttendances} {serverAttendances === 1 ? 'służba (ost. 30 dni)' : 'służb (ost. 30 dni)'}
                           </span>
                         </div>
                       </div>
@@ -382,28 +383,7 @@ export default function AdminServersModal({ servers, rules, attendees, onClose, 
         </div>
 
         <div className="stat-section">
-          <h4>Podział według stopni liturgicznych</h4>
-          <div className="rank-breakdown-list space-y-2">
-            {RANKS.map(r => {
-              const count = stats.rankCounts[r];
-              const percent = stats.totalServers ? Math.round((count / stats.totalServers) * 100) : 0;
-              return (
-                <div key={r} className="rank-bar-item">
-                  <div className="flex justify-between text-xs mb-1">
-                    <span className="font-semibold text-[var(--green)]">{r}</span>
-                    <span className="text-[var(--muted)]">{count} ({percent}%)</span>
-                  </div>
-                  <div className="stat-bar-track">
-                    <div className="stat-bar-fill" style={{ width: `${percent}%` }} />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="stat-section">
-          <h4>Aktywność w tym tygodniu (grafik)</h4>
+          <h4>Aktywność w ciągu ostatniego miesiąca (30 dni)</h4>
           <ul className="active-ranking-list space-y-2">
             {stats.topActive.slice(0, 5).map(({ server, count, rulesCount }) => (
               <li key={server.id} className="active-ranking-item">

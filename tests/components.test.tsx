@@ -45,6 +45,21 @@ describe('MassCard', () => {
     rerender(<MassCard {...props} isAdmin={false} mass={mass} />);
     expect(screen.queryByRole('button', { name: /Usuń Mszę Świętą/ })).toBeNull();
   });
+
+  it('sets capacity indicator class to empty (0), partial (50%), and filled (100%)', () => {
+    const props = { mass: { ...mass, suggested_spots: 4 }, rules: [], exceptions: [], activeId: '', busy: false, onAction: vi.fn(), onDelete: vi.fn() };
+    const { rerender, container } = render(<MassCard {...props} attendees={[]} />);
+    const capacityBadge = container.querySelector('.capacity');
+    expect(capacityBadge?.classList.contains('empty')).toBe(true);
+
+    // 2 out of 4 (50%)
+    rerender(<MassCard {...props} attendees={attendees.slice(0, 2)} />);
+    expect(capacityBadge?.classList.contains('partial')).toBe(true);
+
+    // 4 out of 4 (100%)
+    rerender(<MassCard {...props} attendees={attendees.slice(0, 4)} />);
+    expect(capacityBadge?.classList.contains('filled')).toBe(true);
+  });
 });
 
 it('remembers identity in localStorage', () => {

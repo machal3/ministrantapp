@@ -40,7 +40,12 @@ function messageFrom(error: unknown): string {
 
 export default function App() {
   const [week, setWeek] = useState(() => monday());
-  const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  const [selectedDay, setSelectedDay] = useState<string>(() => {
+    const today = dateKey();
+    const currentWeekMonday = monday();
+    const daysInCurrentWeek = Array.from({ length: 7 }, (_, i) => shiftDate(currentWeekMonday, i));
+    return daysInCurrentWeek.includes(today) ? today : currentWeekMonday;
+  });
   const [selectedId, setSelectedId] = useState(readSelectedServer);
   const [snapshot, setSnapshot] = useState<{ week: string; data: ScheduleData } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -120,7 +125,12 @@ export default function App() {
     return () => window.clearTimeout(timeout);
   }, [notice]);
 
-  function changeWeek(next: string) { setWeek(next); setSelectedDay(null); }
+  function changeWeek(next: string) {
+    setWeek(next);
+    const today = dateKey();
+    const nextWeekDays = Array.from({ length: 7 }, (_, i) => shiftDate(next, i));
+    setSelectedDay(nextWeekDays.includes(today) ? today : next);
+  }
 
   async function mutate(action: () => Promise<void>, success: string): Promise<boolean> {
     if (mutationLock.current) return false;
@@ -165,6 +175,7 @@ export default function App() {
     else await refresh();
     setSelectedDay(day);
   }
+
 
   async function handleAddRecurring(input: RecurringMassesInput): Promise<number> {
     const count = await addRecurringMasses(input, adminSession);
@@ -235,7 +246,7 @@ export default function App() {
   const fullMasses = data.masses.filter(m => data.attendees.filter(a => a.mass_id === m.id).length >= m.suggested_spots).length;
   const days = Array.from({ length: 7 }, (_, i) => shiftDate(week, i));
   const counts = Object.fromEntries(days.map(day => [day, data.masses.filter(m => dateKey(m.start_time) === day).length]));
-  const shownDays = selectedDay ? [selectedDay] : days.filter(day => counts[day]);
+  const dayMasses = data.masses.filter(m => dateKey(m.start_time) === selectedDay);
   const syncLabel: Record<SyncStatus, string> = { connecting: 'Łączenie…', live: 'Grafik na żywo', offline: 'Synchronizacja opóźniona', demo: 'Podgląd lokalny' };
 
   return <div className="app-shell">
@@ -243,7 +254,7 @@ export default function App() {
       <div className="header-inner">
         <a href="#grafik" className="brand" aria-label="Służba liturgiczna — grafik">
           <span className="brand-mark"><Church size={25} strokeWidth={1.5} /></span>
-          <span><strong>Służba liturgiczna</strong><small>Wspólnie przy ołtarzu</small></span>
+          <strong>Służba liturgiczna</strong>
         </a>
         <div className="header-right"><span className="trust-label">Jedna wspólnota. Wspólna służba.</span>
           <UserSelector servers={servers} selectedId={selectedId} onChange={setSelectedId} />
@@ -257,7 +268,7 @@ export default function App() {
     <main className="main-container" id="grafik">
       {isDemo && <div className="demo-banner"><span><strong>Tryb demonstracyjny</strong> · Dane przykładowe zapisują się tylko w tej przeglądarce.</span><span>Podłącz Supabase zgodnie z README, aby udostępnić grafik wspólnocie.</span></div>}
       <section className="page-heading">
-        <div><div className="eyebrow"><span />GRAFIK WSPÓLNOTY</div><h1>Mała służba.<br className="mobile-break" /> Wielka sprawa.</h1>
+        <div><h1>Tabelka służby liturgicznej</h1>
           <p>Grafik Służby Liturgicznej — znajdź swój czas przy ołtarzu.</p></div>
         {adminSession && <button className="button primary add-mass-button" onClick={() => setAdding(true)} disabled={loading || !!loadError}><Plus size={18} />Dodaj Mszę / Nabożeństwo</button>}
       </section>
@@ -277,25 +288,58 @@ export default function App() {
           {loadError && <div className="error-banner" role="alert"><AlertCircle size={19} /><div><strong>Nie udało się odświeżyć grafiku</strong><p>{loadError}</p>{snapshot?.week === week && <p>Wyświetlane dane mogą być nieaktualne.</p>}</div><button className="button secondary" onClick={() => void refresh()}><RefreshCw size={14} />Ponów</button></div>}
           {actionError && !confirmation && <div className="error-banner" role="alert"><AlertCircle size={18} /><p>{actionError}</p><button className="icon-button" aria-label="Zamknij komunikat" onClick={() => setActionError('')}><X size={17} /></button></div>}
 
-          {loading && snapshot?.week !== week ? <div className="loading-state" role="status"><LoaderCircle className="animate-spin" size={28} /><p>Przygotowujemy grafik…</p></div>
-            : !data.masses.length || (selectedDay && !counts[selectedDay]) ? <div className="empty-state"><CalendarPlus size={36} strokeWidth={1.3} /><h3>{loadError ? 'Grafik jest niedostępny' : 'Brak zaplanowanych Mszy i nabożeństw'}</h3><p>{loadError ? 'Sprawdź połączenie i spróbuj ponownie.' : 'Nie dodano jeszcze terminów w tym widoku.'}</p>{!loadError && adminSession && <button className="button secondary" onClick={() => setAdding(true)}><Plus size={16} />Dodaj Mszę / Nabożeństwo</button>}</div>
-            : <div className="day-groups">{shownDays.map(day => <section className="day-group" key={day} aria-label={DAY_NAMES[weekday(day)]}>
-              <div className="day-heading"><h3>{DAY_NAMES[weekday(day)]}{' '}<span>{polishDate(day, { day: 'numeric', month: 'long' })}</span></h3>{day === dateKey() && <span className="today-badge">Dzisiaj</span>}<div className="day-heading-line" /><span className="day-count">{formatLiturgyCount(data.masses.filter(m => dateKey(m.start_time) === day))}</span></div>
-              <div className="mass-grid">{data.masses.filter(m => dateKey(m.start_time) === day).map(mass => <MassCard key={mass.id} mass={mass}
-                attendees={data.attendees.filter(a => a.mass_id === mass.id)} rules={data.rules} exceptions={data.exceptions}
-                isAdmin={!!adminSession} onEdit={setEditingMass} onEditTime={setEditingMass}
-                activeId={activeId} busy={busy} onAction={(m, action) => void handleAction(m, action)} onDelete={m => { setActionError(''); setDeleteScope('single'); setConfirmation({ kind: 'mass', mass: m }); }} />)}</div>
-            </section>)}</div>}
-          <div className="schedule-footnote"><HeartHandshake size={16} />Sugerowane miejsca to wskazówka. Dla Ciebie zawsze znajdzie się miejsce.</div>
+          {loading && snapshot?.week !== week ? (
+            <div className="loading-state" role="status"><LoaderCircle className="animate-spin" size={28} /><p>Przygotowujemy grafik…</p></div>
+          ) : dayMasses.length === 0 ? (
+            <div className="empty-state">
+              <CalendarPlus size={36} strokeWidth={1.3} />
+              <h3>{loadError ? 'Grafik jest niedostępny' : 'Brak zaplanowanych Mszy i nabożeństw'}</h3>
+              <p>{loadError ? 'Sprawdź połączenie i spróbuj ponownie.' : 'Nie dodano jeszcze terminów w tym dniu.'}</p>
+              {!loadError && adminSession && <button className="button secondary" onClick={() => setAdding(true)}><Plus size={16} />Dodaj Mszę / Nabożeństwo</button>}
+            </div>
+          ) : (
+            <div className="day-groups">
+              <section className="day-group" key={selectedDay} aria-label={DAY_NAMES[weekday(selectedDay)]}>
+                <div className="day-heading">
+                  <h3>{DAY_NAMES[weekday(selectedDay)]}{' '}<span>{polishDate(selectedDay, { day: 'numeric', month: 'long' })}</span></h3>
+                  {selectedDay === dateKey() && <span className="today-badge">Dzisiaj</span>}
+                  <div className="day-heading-line" />
+                  <span className="day-count">{formatLiturgyCount(dayMasses)}</span>
+                </div>
+                <div className="mass-grid">
+                  {dayMasses.map(mass => (
+                    <MassCard
+                      key={mass.id}
+                      mass={mass}
+                      attendees={data.attendees.filter(a => a.mass_id === mass.id)}
+                      rules={data.rules}
+                      exceptions={data.exceptions}
+                      isAdmin={!!adminSession}
+                      onEdit={setEditingMass}
+                      onEditTime={setEditingMass}
+                      activeId={activeId}
+                      busy={busy}
+                      onAction={(m, action) => void handleAction(m, action)}
+                      onDelete={m => {
+                        setActionError('');
+                        setDeleteScope('single');
+                        setConfirmation({ kind: 'mass', mass: m });
+                      }}
+                    />
+                  ))}
+                </div>
+              </section>
+            </div>
+          )}
         </section>
 
         <aside className="sidebar" aria-label="Twoja służba i informacje">
           <section className="personal-panel">
-            <div className="personal-intro"><span className="personal-icon"><HeartHandshake size={23} strokeWidth={1.5} /></span><span>TWÓJ CZAS, TWOJA SŁUŻBA</span></div>
+            <div className="personal-icon"><HeartHandshake size={22} strokeWidth={1.5} /></div>
             <h2>{activeServer ? `Dobrze, że jesteś, ${activeServer.name.split(' ')[0]}.` : 'Dobrze, że jesteś.'}</h2>
-            <p>{activeServer ? 'Każda obecność ma znaczenie. Dziękujemy, że współtworzysz naszą wspólnotę.' : 'Wybierz swoje imię w nagłówku, aby zaplanować służbę i zobaczyć swoje dyżury.'}</p>
-            <div className="personal-summary"><span>Twoje służby w tym tygodniu</span><strong>{activeId ? ownMasses.length.toString().padStart(2, '0') : '—'}</strong></div>
-            {ownMasses.length > 0 && <button className="personal-link" onClick={() => setSelectedDay(dateKey(ownMasses[0].start_time))}>Zobacz pierwszy termin<ArrowRight size={15} /></button>}
+            {!activeServer && <p>Wybierz swoje imię w nagłówku, aby zaplanować służbę i zobaczyć swoje dyżury.</p>}
+            <div className="personal-summary"><span>Twoje służby w ciągu ostatniego miesiąca (30 dni)</span><strong>{activeId ? ((data.recentAttendance ? data.recentAttendance[activeId] : ownMasses.length) ?? 0).toString().padStart(2, '0') : '—'}</strong></div>
+            {ownMasses.length > 0 && <button className="personal-link" onClick={() => { const d = dateKey(ownMasses[0].start_time); if (monday(d) !== week) setWeek(monday(d)); setSelectedDay(d); }}>Zobacz pierwszy termin<ArrowRight size={15} /></button>}
           </section>
 
           <section className="sidebar-panel rules-panel"><h2><Repeat2 size={18} />Moje stałe dyżury<span>{ownRules.length}</span></h2>
@@ -308,7 +352,6 @@ export default function App() {
           <div className="open-invitation"><Church size={28} strokeWidth={1.2} /><p>„Służcie Panu z weselem!”</p><span>Ps 100, 2</span></div>
         </aside>
       </div>
-      <footer className="site-footer"><span><Church size={15} />Grafik Służby Liturgicznej</span><span>Razem tworzymy wspólnotę.<span className="footer-dot">·</span>Czas polski</span></footer>
     </main>
 
     {notice && <div className="toast" role="status"><span><Check size={17} /></span><p>{notice}</p><button className="icon-button" aria-label="Zamknij powiadomienie" onClick={() => setNotice('')}><X size={16} /></button></div>}
@@ -318,6 +361,7 @@ export default function App() {
         servers={servers}
         rules={data.rules}
         attendees={data.attendees}
+        recentAttendance={data.recentAttendance}
         onClose={() => setEditingServers(false)}
         onSave={handleServerEdit}
         onAdd={handleAddServer}
@@ -325,7 +369,8 @@ export default function App() {
       />
     )}
     {adminSession && editingMass && <EditMassModal mass={editingMass} onClose={() => setEditingMass(null)} onSave={handleMassEdit} />}
-    {adminSession && adding && <AddMassModal initialDate={selectedDay ?? (week === monday() ? dateKey() : week)} onClose={() => setAdding(false)} onSubmit={handleAdd} onSubmitRecurring={handleAddRecurring} />}
+    {adminSession && adding && <AddMassModal initialDate={selectedDay} onClose={() => setAdding(false)} onSubmit={handleAdd} onSubmitRecurring={handleAddRecurring} />}
+
     {confirmation && <Modal title={confirmation.kind === 'mass' ? (confirmation.mass.is_extra ? 'Usunąć nabożeństwo?' : 'Usunąć Mszę Świętą?') : 'Usunąć stały dyżur?'} onClose={() => { setConfirmation(null); setActionError(''); }} busy={busy}>
       {confirmation.kind === 'mass' ? <>
         <p className="confirmation-description">

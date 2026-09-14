@@ -29,15 +29,19 @@ export default function MassCard({ mass, attendees, rules, exceptions, activeId,
   const time = timeSlot(mass.start_time).slice(0, 5);
   const recurringLabel = `${DAY_NAMES[weekday(dateKey(mass.start_time))]} · ${time}`;
   const isDevotion = mass.is_extra;
+  const capacityState = count === 0 ? 'empty' : full ? 'filled' : 'partial';
 
   return <article className={`mass-card ${attendance ? 'my-mass' : ''}`} aria-label={`${mass.title}, ${time}`} aria-busy={busy}>
     <div className="mass-heading">
-      <div className="mass-time">{time}<span>{isDevotion ? 'NABOŻEŃSTWO' : 'MSZA ŚW.'}</span></div>
-      <div className="min-w-0 flex-1">
+      <div className="mass-time">
+        <span className="mass-time-digits">{time}</span>
+        <span className="mass-type-label">{isDevotion ? 'NABOŻEŃSTWO' : 'MSZA ŚW.'}</span>
+      </div>
+      <div className="mass-meta">
         <h4>{mass.title}</h4>
-        <div className={`capacity ${full ? 'filled' : 'open'}`}>
+        <div className={`capacity ${capacityState} ${full ? 'filled' : 'open'}`}>
           <span className="status-dot" />
-          {count}/{mass.suggested_spots} {extra > 0 ? `(+${extra} dodatkowy${extra > 1 ? 'ch' : ''})` : full ? '(pełna obstawa)' : 'miejsc'}
+          <span>{count}/{mass.suggested_spots} {extra > 0 ? `(+${extra} dodatkowy${extra > 1 ? 'ch' : ''})` : full ? '(pełna obstawa)' : 'miejsc'}</span>
         </div>
       </div>
       {isAdmin && <button className="icon-button delete-mass" aria-label={`Usuń ${isDevotion ? 'nabożeństwo' : 'Mszę Świętą'}: ${mass.title}, ${time}`} disabled={busy} onClick={() => onDelete(mass)}><Trash2 size={17} /></button>}
@@ -67,9 +71,16 @@ export default function MassCard({ mass, attendees, rules, exceptions, activeId,
           </button> : <button className="button primary w-full" disabled={busy} onClick={() => onAction(mass, 'single')}>
             {busy ? <LoaderCircle size={16} className="animate-spin" /> : <CirclePlus size={16} />}Zapisz się jednorazowo
           </button>}
-        {!hasRule && <button className="recurring-button" disabled={busy} onClick={() => onAction(mass, 'recurring')}>
-          <Repeat2 size={15} /><span>Ustaw jako mój stały dyżur<small>{recurringLabel}</small></span>
-        </button>}
+        {!hasRule && (
+          <button
+            type="button"
+            className="button secondary recurring-button w-full"
+            disabled={busy}
+            onClick={() => onAction(mass, 'recurring')}
+          >
+            <Repeat2 size={16} />Ustaw jako mój stały dyżur
+          </button>
+        )}
         {hasRule && <p className="recurring-note"><Repeat2 size={13} />Twój stały dyżur · {recurringLabel}</p>}
       </>}
     </div>

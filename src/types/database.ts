@@ -152,4 +152,6 @@ export interface ScheduleData {
   rules: RecurringRule[];
   exceptions: MassAttendee[];
   attendees: EffectiveAttendee[];
+  recentAttendance?: Record<string, number>;
 }
+

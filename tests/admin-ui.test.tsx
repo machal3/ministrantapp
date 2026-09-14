@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { monday, zonedIso } from '../src/lib/dates';
+import { dateKey, zonedIso } from '../src/lib/dates';
 import type { ScheduleData } from '../src/types/database';
 
 const api = vi.hoisted(() => ({ loginAdmin: vi.fn(), logoutAdmin: vi.fn(), loadWeek: vi.fn(), subscribe: vi.fn(), updateServer: vi.fn(), addServer: vi.fn(), deleteServer: vi.fn(), updateMass: vi.fn(), updateMassTime: vi.fn(), addRecurringMasses: vi.fn(), deleteMass: vi.fn() }));
@@ -15,7 +15,7 @@ beforeEach(() => {
   vi.resetAllMocks();
   HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', ''); };
   HTMLDialogElement.prototype.close = function () { this.removeAttribute('open'); };
-  data = { servers: [{ id: 'jan', name: 'Jan Kowalski', rank: 'Lektor' }], masses: [{ id: 'mass', title: 'Msza Święta', start_time: zonedIso(monday(), '18:00'), suggested_spots: 4, is_extra: false }], rules: [], attendees: [], exceptions: [] };
+  data = { servers: [{ id: 'jan', name: 'Jan Kowalski', rank: 'Lektor' }], masses: [{ id: 'mass', title: 'Msza Święta', start_time: zonedIso(dateKey(), '18:00'), suggested_spots: 4, is_extra: false }], rules: [], attendees: [], exceptions: [] };
   api.loadWeek.mockImplementation(async () => structuredClone(data));
   api.subscribe.mockReturnValue(() => {});
   api.loginAdmin.mockResolvedValue(session);
@@ -77,29 +77,31 @@ it('adds a new server with one of the 5 ranks', async () => {
   expect((await screen.findAllByText('Dodano ministranta: Adam Nowy.')).length).toBeGreaterThan(0);
 });
 
-it('displays community statistics and rank breakdown in admin servers modal', async () => {
+it('displays community statistics in admin servers modal without rank breakdown', async () => {
   render(<App />);
   await screen.findByRole('heading', { name: 'Msza Święta' });
+  expect(screen.getByText('Twoje służby w ciągu ostatniego miesiąca (30 dni)')).toBeTruthy();
   await unlock();
   fireEvent.click(screen.getByRole('button', { name: 'Edytuj ministrantów' }));
   fireEvent.click(screen.getByRole('button', { name: /Statystyki służby/ }));
-  expect(screen.getByText('Podział według stopni liturgicznych')).toBeTruthy();
-  expect(screen.getByText('Aktywność w tym tygodniu (grafik)')).toBeTruthy();
+  expect(screen.queryByText('Podział według stopni liturgicznych')).toBeNull();
+  expect(screen.getByText('Aktywność w ciągu ostatniego miesiąca (30 dni)')).toBeTruthy();
 });
 
 it('changes mass details with scope choice, then locks management on logout', async () => {
   api.updateMass.mockImplementation(async (_id, input) => {
-    data.masses[0].start_time = zonedIso(monday(), input.time);
+    data.masses[0].start_time = zonedIso(dateKey(), input.time);
     data.masses[0].title = input.title;
     return 1;
   });
   render(<App />);
   await screen.findByRole('heading', { name: 'Msza Święta' });
   await unlock();
+  fireEvent.click(screen.getByRole('heading', { name: 'Msza Święta' }));
   fireEvent.click(screen.getByRole('button', { name: 'Edytuj Mszę' }));
   fireEvent.change(screen.getByLabelText('Godzina'), { target: { value: '19:30' } });
   fireEvent.click(screen.getByRole('button', { name: 'Zapisz zmiany' }));
-  await screen.findByRole('article', { name: 'Msza Święta, 19:30' });
+  await screen.findByText('19:30');
   expect(api.updateMass).toHaveBeenCalledWith('mass', {
     title: 'Msza Święta',
     time: '19:30',
@@ -118,6 +120,7 @@ it('edits entire future series when future scope is selected in EditMassModal', 
   render(<App />);
   await screen.findByRole('heading', { name: 'Msza Święta' });
   await unlock();
+  fireEvent.click(screen.getByRole('heading', { name: 'Msza Święta' }));
   fireEvent.click(screen.getByRole('button', { name: 'Edytuj Mszę' }));
   fireEvent.change(screen.getByLabelText('Godzina'), { target: { value: '18:30' } });
   fireEvent.click(screen.getByLabelText(/Ten i wszystkie przyszłe terminy z serii/));
@@ -137,6 +140,7 @@ it('retains the editing dialog and entered values if the backend rejects a write
   render(<App />);
   await screen.findByRole('heading', { name: 'Msza Święta' });
   await unlock();
+  fireEvent.click(screen.getByRole('heading', { name: 'Msza Święta' }));
   fireEvent.click(screen.getByRole('button', { name: 'Edytuj Mszę' }));
   fireEvent.change(screen.getByLabelText('Godzina'), { target: { value: '19:30' } });
   fireEvent.click(screen.getByRole('button', { name: 'Zapisz zmiany' }));
@@ -161,6 +165,7 @@ it('offers delete scope choice and deletes future masses when selected', async (
   render(<App />);
   await screen.findByRole('heading', { name: 'Msza Święta' });
   await unlock();
+  fireEvent.click(screen.getByRole('heading', { name: 'Msza Święta' }));
   fireEvent.click(screen.getByRole('button', { name: /Usuń Mszę Świętą/ }));
   expect(screen.getByLabelText(/Tylko ten termin/)).toBeTruthy();
   const futureRadio = screen.getByLabelText(/Ten i wszystkie przyszłe terminy/);

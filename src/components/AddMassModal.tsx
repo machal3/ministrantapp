@@ -7,6 +7,7 @@ import type { NewMass, RecurringMassesInput } from '../types/database';
 
 interface Props {
   initialDate: string;
+  initialTime?: string;
   onClose: () => void;
   onSubmit: (mass: NewMass) => Promise<void>;
   onSubmitRecurring?: (input: RecurringMassesInput) => Promise<number>;
@@ -33,7 +34,7 @@ function countOccurrences(start: string, end: string, days: number[]): number {
   return count;
 }
 
-export default function AddMassModal({ initialDate, onClose, onSubmit, onSubmitRecurring }: Props) {
+export default function AddMassModal({ initialDate, initialTime, onClose, onSubmit, onSubmitRecurring }: Props) {
   const [mode, setMode] = useState<'single' | 'recurring'>('single');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -211,7 +212,7 @@ export default function AddMassModal({ initialDate, onClose, onSubmit, onSubmitR
           <div className="grid grid-cols-2 gap-4">
             <label className="field">Data<input type="date" name="date" required defaultValue={initialDate} /></label>
             <label className="field" htmlFor={timeId}>Godzina
-              <input id={timeId} type="time" name="time" required defaultValue="18:00" step={60} />
+              <input id={timeId} type="time" name="time" required defaultValue={initialTime ?? '18:00'} step={60} />
             </label>
           </div>
         ) : (
@@ -239,8 +240,9 @@ export default function AddMassModal({ initialDate, onClose, onSubmit, onSubmitR
 
             <div className="grid grid-cols-2 gap-4">
               <label className="field">Godzina
-                <input type="time" name="time" required defaultValue="18:00" step={60} />
+                <input type="time" name="time" required defaultValue={initialTime ?? '18:00'} step={60} />
               </label>
+
               <label className="field">Od dnia
                 <input
                   type="date"
