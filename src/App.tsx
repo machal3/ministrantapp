@@ -13,10 +13,10 @@ import EditMassTimeModal from './components/EditMassTimeModal';
 import { logoutAdmin } from './lib/admin';
 import { dateKey, DAY_NAMES, monday, polishDate, shiftDate, timeSlot, weekday } from './lib/dates';
 import { matchesRule } from './lib/attendance';
-import { addMass, addRule, deleteMass, deleteRule, loadWeek, removeAttendance, setAttendance, subscribe, updateServer, updateMassTime } from './lib/repository';
+import { addMass, addRecurringMasses, addRule, deleteMass, deleteRule, loadWeek, removeAttendance, setAttendance, subscribe, updateServer, updateMassTime } from './lib/repository';
 import type { SyncStatus } from './lib/repository';
 import { isDemo } from './lib/supabase';
-import type { AdminSession, AltarServer, Mass, NewMass, RecurringRule, ScheduleData } from './types/database';
+import type { AdminSession, AltarServer, Mass, NewMass, RecurringMassesInput, RecurringRule, ScheduleData } from './types/database';
 
 const EMPTY: ScheduleData = { servers: [], masses: [], rules: [], exceptions: [], attendees: [] };
 type Confirmation = { kind: 'mass'; mass: Mass } | { kind: 'rule'; rule: RecurringRule };
@@ -37,6 +37,7 @@ export default function App() {
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('connecting');
   const [adding, setAdding] = useState(false);
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
+  const [deleteScope, setDeleteScope] = useState<'single' | 'future'>('single');
   const [busy, setBusy] = useState(false);
   const [adminSession, setAdminSession] = useState<AdminSession | null>(null);
   const [adminLoginOpen, setAdminLoginOpen] = useState(false);
@@ -149,6 +150,13 @@ export default function App() {
     setSelectedDay(day);
   }
 
+  async function handleAddRecurring(input: RecurringMassesInput): Promise<number> {
+    const count = await addRecurringMasses(input, adminSession);
+    setNotice(`Utworzono serię nabożeństw (${count} ${count === 1 ? 'termin' : count < 5 ? 'terminy' : 'terminów'}). Stałe dyżury są już uwzględnione.`);
+    await latestRefresh.current();
+    return count;
+  }
+
   async function handleServerEdit(server: AltarServer) {
     await updateServer(server, adminSession);
     await latestRefresh.current();
@@ -163,8 +171,14 @@ export default function App() {
   async function confirmDelete() {
     if (!confirmation) return;
     const target = confirmation;
-    const ok = await mutate(() => target.kind === 'mass' ? deleteMass(target.mass.id, adminSession) : deleteRule(target.rule.id),
-      target.kind === 'mass' ? 'Nabożeństwo zostało usunięte.' : 'Stały dyżur został usunięty.');
+    const ok = await mutate(
+      () => target.kind === 'mass'
+        ? deleteMass(target.mass.id, adminSession, deleteScope)
+        : deleteRule(target.rule.id),
+      target.kind === 'mass'
+        ? (deleteScope === 'future' ? 'Nabożeństwa z tej serii zostały usunięte.' : 'Nabożeństwo zostało usunięte.')
+        : 'Stały dyżur został usunięty.'
+    );
     if (ok) setConfirmation(null);
   }
 
@@ -223,7 +237,7 @@ export default function App() {
               <div className="mass-grid">{data.masses.filter(m => dateKey(m.start_time) === day).map(mass => <MassCard key={mass.id} mass={mass}
                 attendees={data.attendees.filter(a => a.mass_id === mass.id)} rules={data.rules} exceptions={data.exceptions}
                 isAdmin={!!adminSession} onEditTime={setEditingMass}
-                activeId={activeId} busy={busy} onAction={(m, action) => void handleAction(m, action)} onDelete={m => { setActionError(''); setConfirmation({ kind: 'mass', mass: m }); }} />)}</div>
+                activeId={activeId} busy={busy} onAction={(m, action) => void handleAction(m, action)} onDelete={m => { setActionError(''); setDeleteScope('single'); setConfirmation({ kind: 'mass', mass: m }); }} />)}</div>
             </section>)}</div>}
           <div className="schedule-footnote"><HeartHandshake size={16} />Sugerowane miejsca to wskazówka. Dla Ciebie zawsze znajdzie się miejsce.</div>
         </section>
@@ -254,13 +268,48 @@ export default function App() {
     {adminLoginOpen && <AdminLoginModal onClose={() => setAdminLoginOpen(false)} onLogin={session => { setAdminSession(session); setAdminLoginOpen(false); setActionError(''); }} />}
     {adminSession && editingServers && <AdminServersModal servers={servers} onClose={() => setEditingServers(false)} onSave={handleServerEdit} />}
     {adminSession && editingMass && <EditMassTimeModal mass={editingMass} onClose={() => setEditingMass(null)} onSave={handleTimeEdit} />}
-    {adminSession && adding && <AddMassModal initialDate={selectedDay ?? (week === monday() ? dateKey() : week)} onClose={() => setAdding(false)} onSubmit={handleAdd} />}
+    {adminSession && adding && <AddMassModal initialDate={selectedDay ?? (week === monday() ? dateKey() : week)} onClose={() => setAdding(false)} onSubmit={handleAdd} onSubmitRecurring={handleAddRecurring} />}
     {confirmation && <Modal title={confirmation.kind === 'mass' ? 'Usunąć nabożeństwo?' : 'Usunąć stały dyżur?'} onClose={() => { setConfirmation(null); setActionError(''); }} busy={busy}>
-      <p className="confirmation-description">{confirmation.kind === 'mass'
-        ? `${confirmation.mass.title} · ${polishDate(dateKey(confirmation.mass.start_time), { day: 'numeric', month: 'long' })}, ${timeSlot(confirmation.mass.start_time).slice(0, 5)}. Usuniemy ten termin wraz z jednorazowymi zapisami i nieobecnościami. Stałe dyżury pozostaną bez zmian.`
-        : `${DAY_NAMES[confirmation.rule.day_of_week]} o ${confirmation.rule.time_slot.slice(0, 5)}. Przestaniesz automatycznie pojawiać się na liście obecności o tej porze we wszystkich tygodniach. Twoje osobne zapisy jednorazowe i zgłoszenia nieobecności pozostaną zapisane.`}</p>
+      {confirmation.kind === 'mass' ? <>
+        <p className="confirmation-description">
+          {confirmation.mass.title} · {polishDate(dateKey(confirmation.mass.start_time), { day: 'numeric', month: 'long' })}, {timeSlot(confirmation.mass.start_time).slice(0, 5)}.
+        </p>
+        <div className="delete-scope-options mt-4 mb-4">
+          <label className="radio-label">
+            <input
+              type="radio"
+              name="delete-scope"
+              value="single"
+              checked={deleteScope === 'single'}
+              onChange={() => setDeleteScope('single')}
+              disabled={busy}
+            />
+            <span>
+              <strong>Tylko ten termin</strong>
+              <small>Usunięty zostanie wyłącznie termin {polishDate(dateKey(confirmation.mass.start_time), { day: 'numeric', month: 'long' })}, {timeSlot(confirmation.mass.start_time).slice(0, 5)}.</small>
+            </span>
+          </label>
+          <label className="radio-label">
+            <input
+              type="radio"
+              name="delete-scope"
+              value="future"
+              checked={deleteScope === 'future'}
+              onChange={() => setDeleteScope('future')}
+              disabled={busy}
+            />
+            <span>
+              <strong>Ten i wszystkie przyszłe terminy o tej porze</strong>
+              <small>Usunięte zostaną wszystkie przyszłe Msze „{confirmation.mass.title}” w każdy {DAY_NAMES[weekday(dateKey(confirmation.mass.start_time))]} o {timeSlot(confirmation.mass.start_time).slice(0, 5)} od tej daty w przód.</small>
+            </span>
+          </label>
+        </div>
+        <p className="confirmation-footnote">Jednorazowe zapisy na usuwane terminy zostaną skasowane. Stałe dyżury ministrantów pozostaną zachowane w bazie.</p>
+      </> : <p className="confirmation-description">
+        {DAY_NAMES[confirmation.rule.day_of_week]} o {confirmation.rule.time_slot.slice(0, 5)}. Przestaniesz automatycznie pojawiać się na liście obecności o tej porze we wszystkich tygodniach. Twoje osobne zapisy jednorazowe i zgłoszenia nieobecności pozostaną zapisane.
+      </p>}
       {actionError && <p className="form-error" role="alert">{actionError}</p>}
-      <div className="modal-actions"><button className="button secondary" disabled={busy} onClick={() => setConfirmation(null)}>Anuluj</button><button className="button danger" disabled={busy} onClick={() => void confirmDelete()}>{busy ? <LoaderCircle size={16} className="animate-spin" /> : <Trash2 size={16} />}Usuń {confirmation.kind === 'mass' ? 'nabożeństwo' : 'dyżur'}</button></div>
+      <div className="modal-actions"><button className="button secondary" disabled={busy} onClick={() => setConfirmation(null)}>Anuluj</button><button className="button danger" disabled={busy} onClick={() => void confirmDelete()}>{busy ? <LoaderCircle size={16} className="animate-spin" /> : <Trash2 size={16} />}{confirmation.kind === 'mass' ? (deleteScope === 'future' ? 'Usuń przyszłe terminy' : 'Usuń nabożeństwo') : 'Usuń dyżur'}</button></div>
     </Modal>}
   </div>;
 }

@@ -37,7 +37,7 @@ export default function MassCard({ mass, attendees, rules, exceptions, activeId,
           {count}/{mass.suggested_spots} {extra > 0 ? `(+${extra} dodatkowy${extra > 1 ? 'ch' : ''})` : full ? '(pełna obstawa)' : 'miejsc'}
         </div>
       </div>
-      {isAdmin && mass.is_extra && <button className="icon-button delete-mass" aria-label={`Usuń nabożeństwo: ${mass.title}, ${time}`} disabled={busy} onClick={() => onDelete(mass)}><Trash2 size={17} /></button>}
+      {isAdmin && <button className="icon-button delete-mass" aria-label={`Usuń nabożeństwo: ${mass.title}, ${time}`} disabled={busy} onClick={() => onDelete(mass)}><Trash2 size={17} /></button>}
     </div>
     {isAdmin && onEditTime && <button className="edit-time-button" disabled={busy} onClick={() => onEditTime(mass)}><Clock3 size={14} />Edytuj godzinę Mszy</button>}
     <div className="attendance-section">

@@ -31,13 +31,11 @@ describe('MassCard', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Przywróć obecność w tym dniu' }));
     expect(onAction).toHaveBeenLastCalledWith(mass, 'restore');
   });
-  it('offers deletion only for an extra Mass', () => {
+  it('offers deletion for any Mass when administrator, but hides for standard users', () => {
     const props = { attendees: [], rules: [], exceptions: [], activeId: '', busy: false, onAction: vi.fn(), onDelete: vi.fn(), isAdmin: true };
     const { rerender } = render(<MassCard {...props} mass={mass} />);
-    expect(screen.queryByRole('button', { name: /Usuń nabożeństwo/ })).toBeNull();
-    rerender(<MassCard {...props} mass={{ ...mass, is_extra: true }} />);
     expect(screen.getByRole('button', { name: /Usuń nabożeństwo/ })).toBeTruthy();
-    rerender(<MassCard {...props} isAdmin={false} mass={{ ...mass, is_extra: true }} />);
+    rerender(<MassCard {...props} isAdmin={false} mass={mass} />);
     expect(screen.queryByRole('button', { name: /Usuń nabożeństwo/ })).toBeNull();
   });
 });

@@ -41,6 +41,16 @@ export type EffectiveAttendee = {
 
 export type NewMass = Omit<Mass, 'id'>;
 
+export type RecurringMassesInput = {
+  title: string;
+  suggested_spots: number;
+  is_extra: boolean;
+  days: number[];
+  time: string;
+  start_date: string;
+  end_date: string;
+};
+
 type Relation<Name extends string, Column extends string, Table extends string> = {
   foreignKeyName: Name;
   columns: [Column];
@@ -93,6 +103,20 @@ export type Database = {
       admin_update_mass_time: { Args: { p_token: string; p_id: string; p_start_time: string }; Returns: undefined };
       admin_add_mass: { Args: { p_token: string; p_start_time: string; p_title: string; p_suggested_spots: number }; Returns: undefined };
       admin_delete_mass: { Args: { p_token: string; p_id: string }; Returns: undefined };
+      admin_add_recurring_masses: {
+        Args: {
+          p_token: string;
+          p_title: string;
+          p_suggested_spots: number;
+          p_is_extra: boolean;
+          p_days: number[];
+          p_time: string;
+          p_start_date: string;
+          p_end_date: string;
+        };
+        Returns: number;
+      };
+      admin_delete_future_masses: { Args: { p_token: string; p_id: string }; Returns: number };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;

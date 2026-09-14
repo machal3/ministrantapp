@@ -17,6 +17,9 @@ beforeAll(async () => {
   const admin = await readFile(new URL('../supabase/migrations/202609140001_admin.sql', import.meta.url), 'utf8');
   await db.exec(admin);
   await db.exec(admin);
+  const recurring = await readFile(new URL('../supabase/migrations/202609140002_recurring_masses.sql', import.meta.url), 'utf8');
+  await db.exec(recurring);
+  await db.exec(recurring);
 });
 afterAll(async () => { await db?.close(); });
 
@@ -98,16 +101,37 @@ describe.sequential('PostgreSQL model with actual RLS and SQL view', () => {
     expect((await db.query("select * from admin_login('0403')")).rows).toHaveLength(1);
   });
 
-  it('requires a session to add/delete masses and protects regular masses', async () => {
+  it('requires a session to add/delete masses and manages recurring series', async () => {
     await expect(db.exec("select admin_add_mass(null, now(), 'Dodatkowa', 4)")).rejects.toThrow('Sesja administratora');
     const { rows } = await db.query<{ token: string }>("select * from admin_login('0403')");
     const token = rows[0].token;
     await db.query("select admin_add_mass($1, '2026-04-01 18:00 Europe/Warsaw', 'Dodatkowa', 4)", [token]);
     const masses = await db.query<{ id: string }>("select id from masses where title = 'Dodatkowa'");
     expect(masses.rows).toHaveLength(1);
-    await expect(db.query('select admin_delete_mass($1, $2)', [token, mass2])).rejects.toThrow('Nie znaleziono');
     await db.query('select admin_delete_mass($1, $2)', [token, masses.rows[0].id]);
     expect((await db.query("select id from masses where title = 'Dodatkowa'")).rows).toHaveLength(0);
+
+    // Test recurring series: Mondays (1) and Wednesdays (3) from 2026-05-04 to 2026-05-17 -> 4 masses
+    const addedRes = await db.query<{ admin_add_recurring_masses: number }>(
+      "select admin_add_recurring_masses($1, 'Msza Wieczorna', 4, false, array[1, 3], time '18:00', date '2026-05-04', date '2026-05-17')",
+      [token]
+    );
+    expect(addedRes.rows[0].admin_add_recurring_masses).toBe(4);
+
+    const recurringMasses = await db.query<{ id: string; start_time: string }>(
+      "select id, start_time from masses where title = 'Msza Wieczorna' order by start_time"
+    );
+    expect(recurringMasses.rows).toHaveLength(4);
+
+    // Delete future masses starting from the second Monday (index 2: 2026-05-11 18:00)
+    const secondMonday = recurringMasses.rows[2];
+    const delRes = await db.query<{ admin_delete_future_masses: number }>(
+      "select admin_delete_future_masses($1, $2)",
+      [token, secondMonday.id]
+    );
+    expect(delRes.rows[0].admin_delete_future_masses).toBe(1);
+
+    await db.exec("reset role; delete from masses where title = 'Msza Wieczorna'; set role anon;");
   });
   it('seeds six ranks and only the current week idempotently', async () => {
     await db.exec('reset role; truncate altar_servers, masses cascade;');

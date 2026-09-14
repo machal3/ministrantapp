@@ -3,9 +3,9 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { monday, zonedIso } from '../src/lib/dates';
 import type { ScheduleData } from '../src/types/database';
 
-const api = vi.hoisted(() => ({ loginAdmin: vi.fn(), logoutAdmin: vi.fn(), loadWeek: vi.fn(), subscribe: vi.fn(), updateServer: vi.fn(), updateMassTime: vi.fn() }));
+const api = vi.hoisted(() => ({ loginAdmin: vi.fn(), logoutAdmin: vi.fn(), loadWeek: vi.fn(), subscribe: vi.fn(), updateServer: vi.fn(), updateMassTime: vi.fn(), addRecurringMasses: vi.fn(), deleteMass: vi.fn() }));
 vi.mock('../src/lib/admin', () => ({ loginAdmin: api.loginAdmin, logoutAdmin: api.logoutAdmin }));
-vi.mock('../src/lib/repository', () => ({ ...api, addMass: vi.fn(), addRule: vi.fn(), deleteMass: vi.fn(), deleteRule: vi.fn(), removeAttendance: vi.fn(), setAttendance: vi.fn() }));
+vi.mock('../src/lib/repository', () => ({ ...api, addMass: vi.fn(), addRule: vi.fn(), deleteRule: vi.fn(), removeAttendance: vi.fn(), setAttendance: vi.fn() }));
 vi.mock('../src/lib/supabase', () => ({ isDemo: false }));
 import App from '../src/App';
 
@@ -85,3 +85,30 @@ it('retains the editing dialog and entered values if the backend rejects a write
   expect(await screen.findByRole('alert')).toHaveProperty('textContent', 'Sesja administratora wygasła.');
   expect(screen.getByLabelText('Nowa godzina')).toHaveProperty('value', '19:30');
 });
+
+it('adds recurring masses via calendar mode and refreshes schedule', async () => {
+  api.addRecurringMasses.mockResolvedValue(12);
+  render(<App />);
+  await screen.findByRole('heading', { name: 'Msza Święta' });
+  await unlock();
+  fireEvent.click(screen.getByRole('button', { name: 'Dodaj Mszę / Nabożeństwo' }));
+  fireEvent.click(screen.getByRole('button', { name: /Seria regularna/ }));
+  expect(screen.getByText('Podsumowanie serii:')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: /Utwórz \d+ nabożeństw/ }));
+  await waitFor(() => expect(api.addRecurringMasses).toHaveBeenCalled());
+  expect(await screen.findByText(/Utworzono serię nabożeństw/)).toBeTruthy();
+});
+
+it('offers delete scope choice and deletes future masses when selected', async () => {
+  render(<App />);
+  await screen.findByRole('heading', { name: 'Msza Święta' });
+  await unlock();
+  fireEvent.click(screen.getByRole('button', { name: /Usuń nabożeństwo/ }));
+  expect(screen.getByLabelText(/Tylko ten termin/)).toBeTruthy();
+  const futureRadio = screen.getByLabelText(/Ten i wszystkie przyszłe terminy/);
+  expect(futureRadio).toBeTruthy();
+  fireEvent.click(futureRadio);
+  fireEvent.click(screen.getByRole('button', { name: 'Usuń przyszłe terminy' }));
+  await waitFor(() => expect(api.deleteMass).toHaveBeenCalledWith('mass', session, 'future'));
+});
+

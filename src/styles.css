@@ -192,6 +192,26 @@ h1 { font-family: Georgia, "Times New Roman", serif; font-size: clamp(31px, 3vw,
 .edit-time-button { display: flex; align-items: center; gap: 7px; border: 0; background: #f0f5eb; color: var(--green); padding: 10px 18px; width: 100%; font-size: 11px; text-align: left; }
 .edit-time-button:hover { background: #e3eedb; }
 .field select { width: 100%; min-width: 0; min-height: 43px; border: 1px solid #dae1d3; background: #fcfdf9; border-radius: 6px; padding: 10px 12px; font-size: 14px; font-weight: 400; color: #35492e; }
+.recurrence-mode-tabs { display: flex; gap: 8px; border-bottom: 1px solid var(--border); padding-bottom: 12px; }
+.recurrence-tab { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; font-size: 12px; font-weight: 500; border: 1px solid var(--border); background: #fcfdf9; border-radius: 6px; color: var(--muted); }
+.recurrence-tab.active { background: #edf4e8; border-color: #c8d8bd; color: var(--green); font-weight: 600; }
+.weekday-selector-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-top: 6px; }
+.weekday-pill { padding: 8px 0; font-size: 12px; font-weight: 600; text-align: center; border: 1px solid #dae1d3; background: #fff; border-radius: 6px; color: #55624e; }
+.weekday-pill.active { background: var(--green); border-color: var(--green); color: #fff; }
+.preset-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.preset-chips button { border: 1px solid #dae1d3; background: #f7f9f4; border-radius: 4px; padding: 4px 8px; font-size: 10px; font-weight: 500; color: #55624e; }
+.preset-chips button:hover { background: #edf2e8; }
+.recurrence-summary-box { background: #f5f8f2; border: 1px solid #dae5d3; border-radius: 6px; padding: 10px 12px; font-size: 12px; color: #3b5037; display: flex; flex-direction: column; gap: 3px; }
+.checkbox-field { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #43543d; cursor: pointer; }
+.checkbox-field input { width: 16px; height: 16px; accent-color: var(--green); }
+.delete-scope-options { display: flex; flex-direction: column; gap: 10px; }
+.radio-label { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 7px; background: #fdfdfc; cursor: pointer; }
+.radio-label:has(input:checked) { border-color: #c8d8bd; background: #f4f8f0; }
+.radio-label input { margin-top: 3px; accent-color: var(--green); }
+.radio-label span { display: flex; flex-direction: column; gap: 2px; }
+.radio-label strong { font-size: 13px; color: #2a3d2e; }
+.radio-label small { font-size: 11px; color: #72816d; line-height: 1.4; }
+.confirmation-footnote { font-size: 11px; color: #829177; line-height: 1.5; margin: 0; }
 @media (max-width: 540px) { .admin-toolbar { align-items: stretch; flex-direction: column; }.admin-toggle { min-height: 38px; }.header-right { gap: 12px; }.edit-time-button { min-height: 44px; font-size: 12px; } }
 @media (min-width: 1600px) { .main-container, .header-inner { max-width: 1440px; } }
 @media (max-width: 1200px) {

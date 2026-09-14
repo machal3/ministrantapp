@@ -1,9 +1,9 @@
 import { configurationError, isDemo, supabase } from './supabase';
 import { demoWeek, writeDemo } from './demo';
-import { weekBounds } from './dates';
+import { dateKey, shiftDate, timeSlot, weekday, weekBounds, zonedIso } from './dates';
 import { requireAdminSession } from './admin';
 import { RANKS } from '../types/database';
-import type { AdminSession, AltarServer, AttendanceType, NewMass, RecurringRule, ScheduleData } from '../types/database';
+import type { AdminSession, AltarServer, AttendanceType, NewMass, RecurringMassesInput, RecurringRule, ScheduleData } from '../types/database';
 
 function client() {
   if (!supabase) throw new Error(configurationError || 'Brak połączenia z Supabase.');
@@ -86,13 +86,75 @@ export async function addMass(mass: NewMass, session: AdminSession | null): Prom
   check((await client().rpc('admin_add_mass', { p_token: admin.token, p_start_time: mass.start_time, p_title: mass.title, p_suggested_spots: mass.suggested_spots })).error);
 }
 
-export async function deleteMass(id: string, session: AdminSession | null): Promise<void> {
+export async function addRecurringMasses(input: RecurringMassesInput, session: AdminSession | null): Promise<number> {
+  const admin = await requireAdminSession(session);
+  const title = input.title.trim();
+  if (!title) throw new Error('Wpisz nazwę nabożeństwa.');
+  if (input.suggested_spots < 1) throw new Error('Sugerowana liczba miejsc musi być dodatnią liczbą całkowitą.');
+  if (!input.days.length) throw new Error('Wybierz co najmniej jeden dzień tygodnia.');
+  if (input.end_date < input.start_date) throw new Error('Data końcowa musi być późniejsza lub równa dacie początkowej.');
+
+  if (isDemo) {
+    let count = 0;
+    writeDemo(state => {
+      let curr = input.start_date;
+      while (curr <= input.end_date) {
+        if (input.days.includes(weekday(curr))) {
+          const startTime = zonedIso(curr, input.time);
+          state.masses.push({
+            id: crypto.randomUUID(),
+            title,
+            start_time: startTime,
+            suggested_spots: input.suggested_spots,
+            is_extra: input.is_extra,
+          });
+          count++;
+        }
+        curr = shiftDate(curr, 1);
+      }
+    });
+    return count;
+  }
+
+  const { data, error } = await client().rpc('admin_add_recurring_masses', {
+    p_token: admin.token,
+    p_title: title,
+    p_suggested_spots: input.suggested_spots,
+    p_is_extra: input.is_extra,
+    p_days: input.days,
+    p_time: input.time.length === 5 ? `${input.time}:00` : input.time,
+    p_start_date: input.start_date,
+    p_end_date: input.end_date,
+  });
+  check(error);
+  return data ?? 0;
+}
+
+export async function deleteMass(id: string, session: AdminSession | null, scope: 'single' | 'future' = 'single'): Promise<void> {
   const admin = await requireAdminSession(session);
   if (isDemo) return writeDemo(state => {
-    state.masses = state.masses.filter(m => m.id !== id || !m.is_extra);
+    const target = state.masses.find(m => m.id === id);
+    if (!target) throw new Error('Nie znaleziono nabożeństwa do usunięcia.');
+    if (scope === 'future') {
+      const targetTime = timeSlot(target.start_time);
+      const targetDow = weekday(dateKey(target.start_time));
+      state.masses = state.masses.filter(m => !(
+        m.start_time >= target.start_time &&
+        dateKey(m.start_time) >= dateKey(target.start_time) &&
+        weekday(dateKey(m.start_time)) === targetDow &&
+        timeSlot(m.start_time) === targetTime &&
+        m.title === target.title
+      ));
+    } else {
+      state.masses = state.masses.filter(m => m.id !== id);
+    }
     state.exceptions = state.exceptions.filter(a => state.masses.some(m => m.id === a.mass_id));
   });
-  check((await client().rpc('admin_delete_mass', { p_token: admin.token, p_id: id })).error);
+  if (scope === 'future') {
+    check((await client().rpc('admin_delete_future_masses', { p_token: admin.token, p_id: id })).error);
+  } else {
+    check((await client().rpc('admin_delete_mass', { p_token: admin.token, p_id: id })).error);
+  }
 }
 
 export async function updateServer(server: AltarServer, session: AdminSession | null): Promise<void> {
