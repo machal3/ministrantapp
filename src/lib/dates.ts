@@ -22,9 +22,11 @@ export function shiftDate(date: string, days: number): string {
   return result.toISOString().slice(0, 10);
 }
 
-export function monday(date = dateKey()): string {
-  return shiftDate(date, -((weekday(date) + 6) % 7));
+export function weekStart(date = dateKey()): string {
+  return shiftDate(date, -(weekday(date)));
 }
+/** @deprecated use weekStart */
+export const monday = weekStart;
 
 export function polishDate(date: string, options: Intl.DateTimeFormatOptions): string {
   return new Intl.DateTimeFormat('pl-PL', { ...options, timeZone: 'UTC' })

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { ChevronDown, UserRound } from 'lucide-react';
-import type { AltarServer } from '../types/database';
+import { ChevronDown, LogOut, ShieldCheck, UserRound } from 'lucide-react';
+import type { AltarServer, AdminSession } from '../types/database';
 
 const STORAGE_KEY = 'liturgy.active-server';
 
@@ -12,9 +12,11 @@ interface Props {
   servers: AltarServer[];
   selectedId: string;
   onChange: (id: string) => void;
+  adminSession: AdminSession | null;
+  onAdminToggle: () => void;
 }
 
-export default function UserSelector({ servers, selectedId, onChange }: Props) {
+export default function UserSelector({ servers, selectedId, onChange, adminSession, onAdminToggle }: Props) {
   const [storageError, setStorageError] = useState(false);
   useEffect(() => {
     const sync = (event: StorageEvent) => {
@@ -36,7 +38,6 @@ export default function UserSelector({ servers, selectedId, onChange }: Props) {
     <div className="user-selector">
       <span className="user-icon"><UserRound size={20} strokeWidth={1.7} /></span>
       <div className="min-w-0 flex-1">
-        <label htmlFor="active-server">Służę jako</label>
         <div className="relative">
           <select id="active-server" value={servers.some(s => s.id === selectedId) ? selectedId : ''}
             onChange={event => select(event.target.value)}>
@@ -46,7 +47,11 @@ export default function UserSelector({ servers, selectedId, onChange }: Props) {
           <ChevronDown size={15} className="pointer-events-none absolute right-0 top-1.5" />
         </div>
       </div>
+      <button className={`admin-toggle-btn ${adminSession ? 'active' : ''}`} onClick={onAdminToggle} aria-label={adminSession ? 'Wyłącz tryb admina' : 'Włącz tryb admina'} title={adminSession ? 'Wyłącz tryb admina' : 'Tryb administratora'}>
+        {adminSession ? <LogOut size={15} /> : <ShieldCheck size={15} />}
+      </button>
     </div>
     {storageError && <p className="text-xs text-amber-800" role="status">Wybór działa, ale przeglądarka nie pozwala go zapamiętać.</p>}
   </div>;
 }
+

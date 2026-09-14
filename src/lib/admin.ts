@@ -12,7 +12,7 @@ export async function loginAdmin(pin: string): Promise<AdminSession> {
     if (error.code === 'PGRST202') throw new Error('Tryb administratora wymaga aktualizacji bazy. Uruchom skrypt 202609140001_admin.sql w Supabase.');
     throw new Error(error.message);
   }
-  if (!data?.[0]) throw new Error('Nieprawidłowy PIN lub czasowa blokada. Po 5 błędnych próbach odczekaj 10 minut.');
+  if (!data?.[0]) throw new Error('Nieprawidłowy PIN. Spróbuj ponownie.');
   return data[0];
 }
 

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AlertCircle, ArrowRight, CalendarDays, CalendarPlus, Check, Church, CircleHelp, HeartHandshake, LoaderCircle, Plus, RefreshCw, Repeat2, Trash2, Users, X, ShieldCheck, LogOut } from 'lucide-react';
+import { AlertCircle, ArrowRight, CalendarDays, CalendarPlus, Check, Church, CircleHelp, HeartHandshake, LoaderCircle, Plus, RefreshCw, Repeat2, Trash2, Users, X, ShieldCheck } from 'lucide-react';
 import UserSelector, { readSelectedServer } from './components/UserSelector';
 import WeekNavigator from './components/WeekNavigator';
 import DaySelector from './components/DaySelector';
@@ -11,7 +11,7 @@ import AdminLoginModal from './components/AdminLoginModal';
 import AdminServersModal from './components/AdminServersModal';
 import EditMassModal from './components/EditMassModal';
 import { logoutAdmin } from './lib/admin';
-import { dateKey, DAY_NAMES, monday, polishDate, shiftDate, timeSlot, weekday } from './lib/dates';
+import { dateKey, DAY_NAMES, weekStart, polishDate, shiftDate, timeSlot, weekday } from './lib/dates';
 import { matchesRule } from './lib/attendance';
 import { addMass, addRecurringMasses, addRule, addServer, deleteMass, deleteRule, deleteServer, loadWeek, removeAttendance, setAttendance, subscribe, updateServer, updateMass } from './lib/repository';
 import type { SyncStatus } from './lib/repository';
@@ -39,12 +39,12 @@ function messageFrom(error: unknown): string {
 }
 
 export default function App() {
-  const [week, setWeek] = useState(() => monday());
+  const [week, setWeek] = useState(() => weekStart());
   const [selectedDay, setSelectedDay] = useState<string>(() => {
     const today = dateKey();
-    const currentWeekMonday = monday();
-    const daysInCurrentWeek = Array.from({ length: 7 }, (_, i) => shiftDate(currentWeekMonday, i));
-    return daysInCurrentWeek.includes(today) ? today : currentWeekMonday;
+    const currentWeekStart = weekStart();
+    const daysInCurrentWeek = Array.from({ length: 7 }, (_, i) => shiftDate(currentWeekStart, i));
+    return daysInCurrentWeek.includes(today) ? today : currentWeekStart;
   });
   const [selectedId, setSelectedId] = useState(readSelectedServer);
   const [snapshot, setSnapshot] = useState<{ week: string; data: ScheduleData } | null>(null);
@@ -171,7 +171,7 @@ export default function App() {
     const day = dateKey(mass.start_time);
     const noun = mass.is_extra ? 'nabożeństwo' : 'Mszę Świętą';
     setNotice(`Dodano ${noun}. Stałe dyżury są już uwzględnione.`);
-    if (monday(day) !== week) setWeek(monday(day));
+    if (weekStart(day) !== week) setWeek(weekStart(day));
     else await refresh();
     setSelectedDay(day);
   }
@@ -257,10 +257,7 @@ export default function App() {
           <strong>Służba liturgiczna</strong>
         </a>
         <div className="header-right"><span className="trust-label">Jedna wspólnota. Wspólna służba.</span>
-          <UserSelector servers={servers} selectedId={selectedId} onChange={setSelectedId} />
-          <button className="button secondary admin-toggle" onClick={() => adminSession ? void leaveAdmin() : setAdminLoginOpen(true)}>
-            {adminSession ? <LogOut size={16} /> : <ShieldCheck size={16} />}{adminSession ? 'Wyjdź z trybu admina' : 'Administrator'}
-          </button>
+          <UserSelector servers={servers} selectedId={selectedId} onChange={setSelectedId} adminSession={adminSession} onAdminToggle={() => adminSession ? void leaveAdmin() : setAdminLoginOpen(true)} />
         </div>
       </div>
     </header>
@@ -339,7 +336,7 @@ export default function App() {
             <h2>{activeServer ? `Dobrze, że jesteś, ${activeServer.name.split(' ')[0]}.` : 'Dobrze, że jesteś.'}</h2>
             {!activeServer && <p>Wybierz swoje imię w nagłówku, aby zaplanować służbę i zobaczyć swoje dyżury.</p>}
             <div className="personal-summary"><span>Twoje służby w ciągu ostatniego miesiąca (30 dni)</span><strong>{activeId ? ((data.recentAttendance ? data.recentAttendance[activeId] : ownMasses.length) ?? 0).toString().padStart(2, '0') : '—'}</strong></div>
-            {ownMasses.length > 0 && <button className="personal-link" onClick={() => { const d = dateKey(ownMasses[0].start_time); if (monday(d) !== week) setWeek(monday(d)); setSelectedDay(d); }}>Zobacz pierwszy termin<ArrowRight size={15} /></button>}
+            {ownMasses.length > 0 && <button className="personal-link" onClick={() => { const d = dateKey(ownMasses[0].start_time); if (weekStart(d) !== week) setWeek(weekStart(d)); setSelectedDay(d); }}>Zobacz pierwszy termin<ArrowRight size={15} /></button>}
           </section>
 
           <section className="sidebar-panel rules-panel"><h2><Repeat2 size={18} />Moje stałe dyżury<span>{ownRules.length}</span></h2>

@@ -34,10 +34,10 @@ describe('Polish calendar', () => {
   it('uses Warsaw instead of the machine timezone around midnight', () => {
     expect(dateKey('2026-09-20T22:30:00Z')).toBe('2026-09-21');
     expect(timeSlot('2026-09-20T22:30:00Z')).toBe('00:30:00');
-    expect(monday('2026-09-20')).toBe('2026-09-14');
+    expect(monday('2026-09-20')).toBe('2026-09-20');
   });
   it('handles year boundaries and leap days', () => {
-    expect(monday('2027-01-01')).toBe('2026-12-28');
+    expect(monday('2027-01-01')).toBe('2026-12-27');
     expect(shiftDate('2028-02-28', 1)).toBe('2028-02-29');
   });
   it('uses exclusive next-Monday boundaries even in a 167-hour week', () => {
