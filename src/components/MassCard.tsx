@@ -1,3 +1,5 @@
+import { peopleWord } from '../lib/people';
+import { eventCategory } from '../lib/eventCategory';
 import { Check, CirclePlus, Repeat2, Trash2, UserMinus, Users, Undo2, LoaderCircle, Clock3 } from 'lucide-react';
 import type { EffectiveAttendee, Mass, MassAttendee, RecurringRule } from '../types/database';
 import { dateKey, DAY_NAMES, timeSlot, weekday } from '../lib/dates';
@@ -25,29 +27,30 @@ export default function MassCard({ mass, attendees, rules, exceptions, activeId,
   const hasRule = rules.some(r => r.server_id === activeId && matchesRule(mass, r));
   const excused = exceptions.some(a => a.mass_id === mass.id && a.server_id === activeId && a.type === 'excused');
   const count = attendees.length;
-  const full = count >= mass.suggested_spots;
-  const extra = count - mass.suggested_spots;
+  const full = mass.suggested_spots !== null && count >= mass.suggested_spots;
+  const extra = mass.suggested_spots === null ? 0 : count - mass.suggested_spots;
   const time = timeSlot(mass.start_time).slice(0, 5);
   const recurringLabel = `${DAY_NAMES[weekday(dateKey(mass.start_time))]} · ${time}`;
-  const isDevotion = mass.is_extra;
+  const isOther = eventCategory(mass) === 'other';
+  const isDevotion = eventCategory(mass) === 'devotion';
   const capacityState = count === 0 ? 'empty' : full ? 'filled' : 'partial';
 
-  return <article className={`mass-card ${attendance ? 'my-mass' : ''}`} aria-label={`${mass.title}, ${time}`} aria-busy={busy}>
+  return <article className={`mass-card ${isOther ? 'other-card' : isDevotion ? 'devotion-card' : 'eucharist-card'} ${attendance ? 'my-mass' : ''}`} aria-label={`${mass.title}, ${time}`} aria-busy={busy}>
     <div className="mass-heading">
       <div className="mass-time">
         <span className="mass-time-digits">{time}</span>
-        <span className="mass-type-label">{isDevotion ? 'NABOŻEŃSTWO' : 'MSZA ŚW.'}</span>
+        <span className="mass-type-label">{isOther ? 'INNE' : isDevotion ? 'NABOŻEŃSTWO' : 'MSZA ŚW.'}</span>
       </div>
       <div className="mass-meta">
         <h4>{mass.title}</h4>
         <div className={`capacity ${capacityState} ${full ? 'filled' : 'open'}`}>
           <span className="status-dot" />
-          <span>{count}/{mass.suggested_spots} {extra > 0 ? `(+${extra} dodatkowy${extra > 1 ? 'ch' : ''})` : full ? '(pełna obstawa)' : 'miejsc'}</span>
+          <span>{mass.suggested_spots === null ? `${count} ${peopleWord(count)}` : `${count}/${mass.suggested_spots} ${peopleWord(mass.suggested_spots)}`}{extra > 0 ? ` (+${extra})` : full ? ' (pełna obstawa)' : ''}</span>
         </div>
       </div>
-      {isAdmin && <button className="icon-button delete-mass" aria-label={`Usuń ${isDevotion ? 'nabożeństwo' : 'Mszę Świętą'}: ${mass.title}, ${time}`} disabled={busy} onClick={() => onDelete(mass)}><Trash2 size={17} /></button>}
+      {isAdmin && <button className="icon-button delete-mass" aria-label={`Usuń ${isOther ? 'wydarzenie' : isDevotion ? 'nabożeństwo' : 'Mszę Świętą'}: ${mass.title}, ${time}`} disabled={busy} onClick={() => onDelete(mass)}><Trash2 size={17} /></button>}
     </div>
-    {isAdmin && handleEdit && <button className="edit-time-button" disabled={busy} onClick={() => handleEdit(mass)}><Clock3 size={14} />Edytuj {isDevotion ? 'nabożeństwo' : 'Mszę'}</button>}
+    {isAdmin && handleEdit && <button className="edit-time-button" disabled={busy} onClick={() => handleEdit(mass)}><Clock3 size={14} />Edytuj {isOther ? 'wydarzenie' : isDevotion ? 'nabożeństwo' : 'Mszę'}</button>}
     <div className="attendance-section">
       <div className="attendance-label"><Users size={14} /><span>Zadeklarowani</span><span>{count}</span>
         {attendance && <span className="you-attend"><Check size={12} />Służysz</span>}

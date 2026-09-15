@@ -94,6 +94,11 @@ h1 { font-family: Georgia, "Times New Roman", serif; font-size: clamp(31px, 3vw,
 .mass-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; align-items: start; }
 .mass-card { background: white; border: 1px solid var(--border); border-radius: 9px; overflow: hidden; box-shadow: 0 2px 3px #273f2203; }
 .mass-card.my-mass { border-color: #becfb1; }
+.eucharist-card { --liturgy-accent: #617852; --liturgy-tint: #f5f8f1; --liturgy-edge: #c2d0b5; }
+.devotion-card { --liturgy-accent: #8b683e; --liturgy-tint: #fcf8f0; --liturgy-edge: #deccb0; }
+.mass-card .mass-heading { background: var(--liturgy-tint); box-shadow: inset 0 3px var(--liturgy-edge); }
+.mass-card .mass-type-label { display: flex; align-items: center; gap: 4px; color: var(--liturgy-accent); letter-spacing: .5px; }
+.other-card { --liturgy-accent: #586a80; --liturgy-tint: #f3f6fa; --liturgy-edge: #c4cedd; }
 .mass-heading { display: flex; align-items: center; gap: 18px; padding: 18px 20px; }
 .mass-time { display: flex; flex-direction: column; justify-content: center; align-items: flex-start; min-width: 100px; padding-right: 20px; border-right: 1px solid var(--border); font-family: 'Plus Jakarta Sans', var(--font-sans); font-size: 28px; font-weight: 600; letter-spacing: -0.8px; line-height: 1; color: #15241b; font-variant-numeric: tabular-nums; flex-shrink: 0; }
 .mass-time-digits { display: block; font-size: inherit; font-weight: inherit; line-height: inherit; letter-spacing: inherit; color: inherit; }
@@ -234,8 +239,9 @@ h1 { font-family: Georgia, "Times New Roman", serif; font-size: clamp(31px, 3vw,
 .header-right .trust-label { display: none; }
 .admin-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 22px; padding: 12px 16px; border: 1px solid #c8d8bd; border-radius: 9px; background: #edf4e8; }
 .admin-toolbar > span { display: flex; align-items: center; gap: 9px; color: var(--green); font-size: 13px; font-weight: 600; }
-.edit-time-button { display: flex; align-items: center; gap: 7px; border: 0; background: #f0f5eb; color: var(--green); padding: 10px 18px; width: 100%; font-size: 11px; text-align: left; }
-.edit-time-button:hover { background: #e3eedb; }
+.edit-time-button { display: flex; align-items: center; gap: 7px; border: 0; border-top: 1px solid var(--liturgy-edge); border-bottom: 1px solid var(--border); background: var(--liturgy-tint); color: var(--liturgy-accent); padding: 10px 18px; width: 100%; min-height: 40px; font-size: 11px; font-weight: 600; text-align: left; transition: background .15s; }
+.edit-time-button:hover:not(:disabled) { background: var(--liturgy-edge); }
+.edit-time-button:focus-visible { outline: 2px solid var(--liturgy-accent); outline-offset: -3px; }
 .field select { width: 100%; min-width: 0; min-height: 43px; border: 1px solid #dae1d3; background: #fcfdf9; border-radius: 6px; padding: 10px 12px; font-size: 14px; font-weight: 400; color: #35492e; }
 .recurrence-mode-tabs { display: flex; gap: 8px; border-bottom: 1px solid var(--border); padding-bottom: 12px; }
 .recurrence-tab { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; font-size: 12px; font-weight: 500; border: 1px solid var(--border); background: #fcfdf9; border-radius: 6px; color: var(--muted); }
@@ -348,3 +354,5 @@ h1 { font-family: Georgia, "Times New Roman", serif; font-size: clamp(31px, 3vw,
 .rules-panel li > div { min-width: 0; }
 .rules-panel li .icon-button { flex-shrink: 0; min-width: 34px; min-height: 38px; }
 @media(max-width: 420px) { .rule-form-grid { grid-template-columns: 1fr; gap: 18px; }.month-week-options > div { grid-template-columns: 1fr 1fr; } }
+
+.capacity-option { display: flex; align-items: center; gap: 9px; font-size: 12px; color: #526348; cursor: pointer; }.capacity-option input { accent-color: var(--green); width: 16px; height: 16px; }

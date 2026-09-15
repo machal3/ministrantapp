@@ -13,16 +13,18 @@ export type Mass = {
   id: string;
   start_time: string;
   title: string;
-  suggested_spots: number;
+  suggested_spots: number | null;
   is_extra: boolean;
+  category?: 'mass' | 'devotion' | 'other';
   series_id?: string | null;
 };
 
 export type MassEditInput = {
   title: string;
   time: string;
-  suggested_spots: number;
+  suggested_spots: number | null;
   is_extra: boolean;
+  category?: 'mass' | 'devotion' | 'other';
   scope: 'single' | 'future';
 };
 
@@ -61,8 +63,9 @@ export type RecurringMassesInput = {
   interval_months?: number;
   month_weeks?: number[];
   title: string;
-  suggested_spots: number;
+  suggested_spots: number | null;
   is_extra: boolean;
+  category?: 'mass' | 'devotion' | 'other';
   days: number[];
   time: string;
   start_date: string;
@@ -121,6 +124,7 @@ export type Database = {
       admin_update_server: { Args: { p_token: string; p_id: string; p_name: string; p_rank: string }; Returns: undefined };
       admin_delete_server: { Args: { p_token: string; p_id: string }; Returns: undefined };
       admin_update_mass_time: { Args: { p_token: string; p_id: string; p_start_time: string }; Returns: undefined };
+      admin_update_event: { Args: { p_token: string; p_id: string; p_scope: string; p_title: string; p_time: string; p_suggested_spots: number | null; p_is_extra: boolean; p_category: string }; Returns: number };
       admin_update_mass: {
         Args: {
           p_token: string;
@@ -128,22 +132,24 @@ export type Database = {
           p_scope: string;
           p_title: string;
           p_time: string;
-          p_suggested_spots: number;
+          p_suggested_spots: number | null;
           p_is_extra: boolean;
         };
         Returns: number;
       };
-      admin_add_mass: { Args: { p_token: string; p_start_time: string; p_title: string; p_suggested_spots: number }; Returns: undefined };
+      admin_add_event: { Args: { p_token: string; p_start_time: string; p_title: string; p_suggested_spots: number | null; p_category: string }; Returns: undefined };
+      admin_add_mass: { Args: { p_token: string; p_start_time: string; p_title: string; p_suggested_spots: number | null }; Returns: undefined };
       admin_delete_mass: { Args: { p_token: string; p_id: string }; Returns: undefined };
+      admin_add_pattern_events: { Args: { p_token: string; p_title: string; p_suggested_spots: number | null; p_is_extra: boolean; p_category: string; p_days: number[]; p_time: string; p_start_date: string; p_end_date: string; p_frequency: string; p_interval_weeks: number; p_interval_months: number; p_month_weeks: number[] }; Returns: number };
       admin_add_pattern_masses: {
-        Args: { p_token: string; p_title: string; p_suggested_spots: number; p_is_extra: boolean; p_days: number[]; p_time: string; p_start_date: string; p_end_date: string; p_frequency: string; p_interval_weeks: number; p_interval_months: number; p_month_weeks: number[] };
+        Args: { p_token: string; p_title: string; p_suggested_spots: number | null; p_is_extra: boolean; p_days: number[]; p_time: string; p_start_date: string; p_end_date: string; p_frequency: string; p_interval_weeks: number; p_interval_months: number; p_month_weeks: number[] };
         Returns: number;
       };
       admin_add_recurring_masses: {
         Args: {
           p_token: string;
           p_title: string;
-          p_suggested_spots: number;
+          p_suggested_spots: number | null;
           p_is_extra: boolean;
           p_days: number[];
           p_time: string;

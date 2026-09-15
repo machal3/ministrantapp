@@ -15,13 +15,16 @@ export default function EditMassModal({ mass, onClose, onSave }: Props) {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [isExtra, setIsExtra] = useState(mass.is_extra);
+  const [isOther, setIsOther] = useState(mass.category === 'other');
   const [title, setTitle] = useState(mass.title);
   const [time, setTime] = useState(() => timeSlot(mass.start_time).slice(0, 5));
-  const [spots, setSpots] = useState(mass.suggested_spots);
+  const [spots, setSpots] = useState(mass.suggested_spots ?? 4);
+  const [noSpots, setNoSpots] = useState(mass.suggested_spots === null);
   const [scope, setScope] = useState<'single' | 'future'>('single');
   const lock = useRef(false);
 
   function handleTypeChange(devotion: boolean) {
+    setIsOther(false);
     setIsExtra(devotion);
     if (devotion) {
       if (title === 'Msza Święta' || title === '') setTitle('Różaniec');
@@ -35,10 +38,10 @@ export default function EditMassModal({ mass, onClose, onSave }: Props) {
     if (lock.current) return;
     const trimmedTitle = title.trim();
     if (!trimmedTitle) {
-      setError(isExtra ? 'Wpisz nazwę nabożeństwa.' : 'Wpisz nazwę Mszy Świętej.');
+      setError(isOther ? 'Wpisz nazwę wydarzenia.' : isExtra ? 'Wpisz nazwę nabożeństwa.' : 'Wpisz nazwę Mszy Świętej.');
       return;
     }
-    if (!Number.isInteger(spots) || spots < 1) {
+    if (!noSpots && (!Number.isInteger(spots) || spots < 1)) {
       setError('Sugerowana liczba miejsc musi być dodatnią liczbą całkowitą.');
       return;
     }
@@ -55,8 +58,8 @@ export default function EditMassModal({ mass, onClose, onSave }: Props) {
       await onSave(mass.id, {
         title: trimmedTitle,
         time,
-        suggested_spots: spots,
-        is_extra: isExtra,
+        suggested_spots: noSpots ? null : spots,
+        is_extra: isExtra, category: isOther ? 'other' : isExtra ? 'devotion' : 'mass',
         scope,
       });
       onClose();
@@ -69,7 +72,7 @@ export default function EditMassModal({ mass, onClose, onSave }: Props) {
   }
 
   return (
-    <Modal title={isExtra ? 'Edytuj nabożeństwo' : 'Edytuj Mszę Świętą'} onClose={onClose} busy={busy}>
+    <Modal title={isOther ? 'Edytuj wydarzenie' : isExtra ? 'Edytuj nabożeństwo' : 'Edytuj Mszę Świętą'} onClose={onClose} busy={busy}>
       <p className="mb-4 text-sm text-[var(--muted)]">
         {mass.title} · {polishDate(dateKey(mass.start_time), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}, godz. {timeSlot(mass.start_time).slice(0, 5)}
       </p>
@@ -77,7 +80,7 @@ export default function EditMassModal({ mass, onClose, onSave }: Props) {
       <div className="recurrence-mode-tabs mb-4">
         <button
           type="button"
-          className={`recurrence-tab ${!isExtra ? 'active' : ''}`}
+          className={`recurrence-tab ${!isExtra && !isOther ? 'active' : ''}`}
           onClick={() => handleTypeChange(false)}
           disabled={busy}
         >
@@ -91,13 +94,14 @@ export default function EditMassModal({ mass, onClose, onSave }: Props) {
         >
           <Flame size={15} /> Nabożeństwo
         </button>
+        <button type="button" className={`recurrence-tab ${isOther ? 'active' : ''}`} disabled={busy} onClick={() => { setIsOther(true); setIsExtra(false); if (['Msza Święta','Różaniec',''].includes(title)) setTitle('Spotkanie'); }}>Inne</button>
       </div>
 
       <form onSubmit={submit}>
         <fieldset disabled={busy} className="space-y-4">
           <div>
             <label className="field">
-              {isExtra ? 'Nazwa nabożeństwa' : 'Nazwa Mszy Świętej'}
+              {isOther ? 'Nazwa wydarzenia' : isExtra ? 'Nazwa nabożeństwa' : 'Nazwa Mszy Świętej'}
               <input
                 name="title"
                 required
@@ -108,7 +112,7 @@ export default function EditMassModal({ mass, onClose, onSave }: Props) {
               />
             </label>
             <div className="preset-chips">
-              {(!isExtra
+              {(isOther ? ['Spotkanie', 'Zbiórka ministrantów', 'Próba', 'Wyjazd'] : !isExtra
                 ? ['Msza Święta', 'Msza roratnia', 'Msza niedzielna', 'Msza z udziałem dzieci']
                 : ['Różaniec', 'Droga Krzyżowa', 'Gorzkie Żale', 'Nabożeństwo majowe', 'Adoracja']
               ).map(preset => (
@@ -124,6 +128,7 @@ export default function EditMassModal({ mass, onClose, onSave }: Props) {
             </div>
           </div>
 
+          <label className="capacity-option"><input type="checkbox" checked={noSpots} onChange={e => setNoSpots(e.target.checked)} />Bez określonej liczby osób</label>
           <div className="grid grid-cols-2 gap-4">
             <label className="field">
               Godzina
@@ -140,13 +145,14 @@ export default function EditMassModal({ mass, onClose, onSave }: Props) {
               Sugerowana liczba miejsc
               <input
                 type="number"
+                disabled={noSpots}
                 name="spots"
                 min={1}
                 max={2147483647}
                 step={1}
                 value={spots}
                 onChange={e => setSpots(Number(e.target.value))}
-                required
+                required={!noSpots}
               />
             </label>
           </div>

@@ -36,6 +36,12 @@ beforeAll(async () => {
   const massPatterns = await readFile(new URL('../supabase/migrations/202609150003_mass_patterns.sql', import.meta.url), 'utf8');
   await db.exec(massPatterns);
   await db.exec(massPatterns);
+  const categories = await readFile(new URL('../supabase/migrations/202609150004_event_categories.sql', import.meta.url), 'utf8');
+  await db.exec(categories);
+  await db.exec(categories);
+  const capacity = await readFile(new URL('../supabase/migrations/202609150005_optional_capacity.sql', import.meta.url), 'utf8');
+  await db.exec(capacity);
+  await db.exec(capacity);
 });
 afterAll(async () => { await db?.close(); });
 
@@ -276,4 +282,39 @@ it('creates monthly Mass series with matching preview dates and requires an admi
   await expect(db.query("select admin_add_pattern_masses($1,'Invalid',4,false,array[5],'18:00','2026-01-01','2026-03-31','monthly',1,1,array[]::integer[])",[rows[0].token])).rejects.toThrow();
   await db.query("select admin_add_pattern_masses($1,'Ostatnia test',4,true,array[0],'18:00','2028-02-01','2028-03-31','monthly',1,1,array[5,-1])",[rows[0].token]);
   expect((await db.query("select id from masses where title='Ostatnia test'")).rows).toHaveLength(2);
+});
+
+it('persists all event categories and changes a whole series category', async () => {
+  await db.exec('reset role;');
+  const {rows} = await db.query<{token:string}>("select * from admin_login('0403')");
+  await db.exec('set role anon;');
+  const token=rows[0].token;
+  for (const category of ['mass','devotion','other']) {
+    await db.query("select admin_add_event($1,'2026-10-01 18:00 Europe/Warsaw',$2,4,$3)",[token,'Category '+category,category]);
+    const result=await db.query<{category:string,is_extra:boolean}>("select category,is_extra from masses where title=$1",['Category '+category]);
+    expect(result.rows).toEqual([{category,is_extra:category==='devotion'}]);
+  }
+  await db.query("select admin_add_pattern_events($1,'Other series',4,false,array[5],'18:00','2026-01-01','2026-03-31','monthly',1,1,array[1],'other')",[token]);
+  const series=await db.query<{id:string}>("select id from masses where title='Other series' order by start_time");
+  expect(series.rows).toHaveLength(3);
+  await db.query("select admin_update_event($1,$2,'future','Updated other', '18:00',4,false,'devotion')",[token,series.rows[0].id]);
+  expect((await db.query("select id from masses where title='Updated other' and category='devotion' and is_extra")).rows).toHaveLength(3);
+  await expect(db.query("select admin_add_event(null,now(),'Bad',4,'other')")).rejects.toThrow();
+  await expect(db.query("select admin_add_event($1,now(),'Bad',4,'invalid')",[token])).rejects.toThrow();
+});
+
+it('allows optional capacity for single events, series and edits while rejecting zero', async () => {
+  await db.exec('reset role;');
+  const {rows}=await db.query<{token:string}>("select * from admin_login('0403')");
+  await db.exec('set role anon;');
+  const token=rows[0].token;
+  await db.query("select admin_add_event($1,now(),'No capacity',null,'other')",[token]);
+  const result=await db.query<{id:string,suggested_spots:number|null}>("select id,suggested_spots from masses where title='No capacity'");
+  expect(result.rows[0].suggested_spots).toBeNull();
+  await db.query("select admin_update_event($1,$2,'single','No capacity','18:00',2,false,'other')",[token,result.rows[0].id]);
+  await db.query("select admin_update_event($1,$2,'single','No capacity','18:00',null,false,'other')",[token,result.rows[0].id]);
+  expect((await db.query<{suggested_spots:null}>("select suggested_spots from masses where id=$1",[result.rows[0].id])).rows[0].suggested_spots).toBeNull();
+  await db.query("select admin_add_pattern_events($1,'Open series',null,false,array[5],'18:00','2026-01-01','2026-03-31','monthly',1,1,array[1],'other')",[token]);
+  expect((await db.query("select id from masses where title='Open series' and suggested_spots is null")).rows).toHaveLength(3);
+  await expect(db.query("select admin_add_event($1,now(),'Invalid capacity',0,'other')",[token])).rejects.toThrow();
 });

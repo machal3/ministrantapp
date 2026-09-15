@@ -34,7 +34,7 @@ it('hides management before PIN verification and shows errors without unlocking'
   render(<App />);
   await screen.findByRole('heading', { name: 'Msza Święta' });
   expect(screen.queryByRole('button', { name: 'Edytuj godzinę Mszy' })).toBeNull();
-  expect(screen.queryByRole('button', { name: 'Dodaj Mszę / Nabożeństwo' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Dodaj Mszę / wydarzenie' })).toBeNull();
   fireEvent.click(screen.getByRole('button', { name: 'Administrator' }));
   fireEvent.change(screen.getByLabelText('PIN administratora'), { target: { value: '0000' } });
   fireEvent.click(screen.getByRole('button', { name: 'Odblokuj' }));
@@ -106,7 +106,7 @@ it('changes mass details with scope choice, then locks management on logout', as
     title: 'Msza Święta',
     time: '19:30',
     suggested_spots: 4,
-    is_extra: false,
+    is_extra: false, category: 'mass',
     scope: 'single',
   }, session);
   fireEvent.click(screen.getByRole('button', { name: 'Wyłącz tryb admina' }));
@@ -129,7 +129,7 @@ it('edits entire future series when future scope is selected in EditMassModal', 
     title: 'Msza Święta',
     time: '18:30',
     suggested_spots: 4,
-    is_extra: false,
+    is_extra: false, category: 'mass',
     scope: 'future',
   }, session));
   expect(await screen.findByText(/Zaktualizowano całą serię/)).toBeTruthy();
@@ -153,7 +153,7 @@ it('adds recurring masses via calendar mode and refreshes schedule', async () =>
   render(<App />);
   await screen.findByRole('heading', { name: 'Msza Święta' });
   await unlock();
-  fireEvent.click(screen.getByRole('button', { name: 'Dodaj Mszę / Nabożeństwo' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Dodaj Mszę / wydarzenie' }));
   fireEvent.click(screen.getByRole('button', { name: /Seria regularna/ }));
   expect(screen.getByText('Podsumowanie serii:')).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: /Utwórz \d+ Msz/ }));

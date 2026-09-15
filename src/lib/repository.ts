@@ -1,3 +1,4 @@
+import { eventCategory } from './eventCategory';
 import { massOccurrenceDates } from './massRecurrence';
 import { configurationError, isDemo, supabase } from './supabase';
 import { demoWeek, writeDemo } from './demo';
@@ -11,7 +12,8 @@ function client() {
   return supabase;
 }
 
-function check(error: { message: string } | null): void {
+function check(error: { message: string; code?: string } | null): void {
+  if (error?.code === 'PGRST202') throw new Error('Ta operacja wymaga aktualizacji bazy. Uruchom najnowsze migracje Supabase, w tym 202609150005_optional_capacity.sql.');
   if (error) throw new Error(error.message);
 }
 
@@ -115,14 +117,14 @@ export async function deleteRule(id: string): Promise<void> {
 export async function addMass(mass: NewMass, session: AdminSession | null): Promise<void> {
   const admin = await requireAdminSession(session);
   if (isDemo) return writeDemo(state => { state.masses.push({ ...mass, id: crypto.randomUUID() }); });
-  check((await client().rpc('admin_add_mass', { p_token: admin.token, p_start_time: mass.start_time, p_title: mass.title, p_suggested_spots: mass.suggested_spots })).error);
+  check((await client().rpc('admin_add_event', { p_category: eventCategory(mass), p_token: admin.token, p_start_time: mass.start_time, p_title: mass.title, p_suggested_spots: mass.suggested_spots })).error);
 }
 
 export async function addRecurringMasses(input: RecurringMassesInput, session: AdminSession | null): Promise<number> {
   const admin = await requireAdminSession(session);
   const title = input.title.trim();
   if (!title) throw new Error('Wpisz nazwę nabożeństwa.');
-  if (input.suggested_spots < 1) throw new Error('Sugerowana liczba miejsc musi być dodatnią liczbą całkowitą.');
+  if (input.suggested_spots !== null && (!Number.isInteger(input.suggested_spots) || input.suggested_spots < 1)) throw new Error('Sugerowana liczba miejsc musi być dodatnią liczbą całkowitą.');
   if (!input.days.length) throw new Error('Wybierz co najmniej jeden dzień tygodnia.');
   if (input.end_date < input.start_date) throw new Error('Data końcowa musi być późniejsza lub równa dacie początkowej.');
 
@@ -139,7 +141,7 @@ export async function addRecurringMasses(input: RecurringMassesInput, session: A
             title,
             start_time: startTime,
             suggested_spots: input.suggested_spots,
-            is_extra: input.is_extra,
+            is_extra: input.is_extra, category: eventCategory(input),
             series_id,
           });
           count++;
@@ -148,7 +150,7 @@ export async function addRecurringMasses(input: RecurringMassesInput, session: A
     return count;
   }
 
-  const { data, error } = await client().rpc('admin_add_pattern_masses', {
+  const { data, error } = await client().rpc('admin_add_pattern_events', { p_category: eventCategory(input),
     p_frequency: input.frequency ?? 'weekly',
     p_interval_weeks: input.interval_weeks ?? 1,
     p_interval_months: input.interval_months ?? 1,
@@ -162,7 +164,7 @@ export async function addRecurringMasses(input: RecurringMassesInput, session: A
     p_start_date: input.start_date,
     p_end_date: input.end_date,
   });
-  if (error?.code === 'PGRST202') throw new Error('Dodawanie serii wymaga migracji 202609150003_mass_patterns.sql w Supabase.');
+  if (error?.code === 'PGRST202') throw new Error('Dodawanie serii wymaga migracji 202609150005_optional_capacity.sql w Supabase.');
   check(error);
   return data ?? 0;
 }
@@ -242,7 +244,7 @@ export async function updateMass(id: string, input: MassEditInput, session: Admi
   const admin = await requireAdminSession(session);
   const title = input.title.trim();
   if (!title || title.length > 160) throw new Error('Wpisz nazwę (1-160 znaków).');
-  if (!Number.isInteger(input.suggested_spots) || input.suggested_spots < 1) {
+  if (input.suggested_spots !== null && (!Number.isInteger(input.suggested_spots) || input.suggested_spots < 1)) {
     throw new Error('Sugerowana liczba miejsc musi być dodatnią liczbą całkowitą.');
   }
   const time = input.time.trim();
@@ -262,7 +264,7 @@ export async function updateMass(id: string, input: MassEditInput, session: Admi
           m.start_time = zonedIso(date, time);
           m.title = title;
           m.suggested_spots = input.suggested_spots;
-          m.is_extra = input.is_extra;
+          m.is_extra = input.is_extra; m.category = eventCategory(input);
           updatedCount++;
         }
       } else {
@@ -270,14 +272,14 @@ export async function updateMass(id: string, input: MassEditInput, session: Admi
         target.start_time = zonedIso(date, time);
         target.title = title;
         target.suggested_spots = input.suggested_spots;
-        target.is_extra = input.is_extra;
+        target.is_extra = input.is_extra; target.category = eventCategory(input);
         updatedCount = 1;
       }
     });
     return updatedCount;
   }
 
-  const { data, error } = await client().rpc('admin_update_mass', {
+  const { data, error } = await client().rpc('admin_update_event', { p_category: eventCategory(input),
     p_token: admin.token,
     p_id: id,
     p_scope: input.scope,

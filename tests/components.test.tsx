@@ -15,7 +15,7 @@ describe('MassCard', () => {
     render(<MassCard mass={mass} attendees={attendees} rules={[]} exceptions={[]} activeId="new" busy={false} onAction={onAction} onDelete={vi.fn()} />);
     const button = screen.getByRole('button', { name: 'Zapisz się jednorazowo' }) as HTMLButtonElement;
     expect(button.disabled).toBe(false);
-    expect(screen.getByText('5/4 (+1 dodatkowy)')).toBeTruthy();
+    expect(screen.getByText('5/4 osoby (+1)')).toBeTruthy();
     expect(screen.getAllByText('Lektor')).toHaveLength(5);
     for (let i = 0; i < 5; i++) expect(screen.getByText(`Osoba ${i}`)).toBeTruthy();
     fireEvent.click(button);

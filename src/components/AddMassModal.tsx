@@ -28,10 +28,12 @@ export default function AddMassModal({ initialDate, initialTime, onClose, onSubm
   const [mode, setMode] = useState<'single' | 'recurring'>('single');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [noSpots, setNoSpots] = useState(false);
   const submitting = useRef(false);
 
   // Liturgy type: false = Msza Święta, true = Nabożeństwo
   const [isExtra, setIsExtra] = useState(false);
+  const [isOther, setIsOther] = useState(false);
   const [title, setTitle] = useState('Msza Święta');
 
   // Recurring form state
@@ -54,6 +56,7 @@ export default function AddMassModal({ initialDate, initialTime, onClose, onSubm
   const occurrences = dates.length;
 
   function handleTypeChange(devotion: boolean) {
+    setIsOther(false);
     setIsExtra(devotion);
     if (devotion) {
       if (title === 'Msza Święta' || title === '') setTitle('Różaniec');
@@ -90,11 +93,11 @@ export default function AddMassModal({ initialDate, initialTime, onClose, onSubm
     try {
       const finalTitle = String(form.get('title')).trim();
       const rawSpots = String(form.get('spots')).trim();
-      const suggestedSpots = rawSpots === '' ? 4 : Number(rawSpots);
+      const suggestedSpots = noSpots ? null : rawSpots === '' ? 4 : Number(rawSpots);
       const time = String(form.get('time'));
 
-      if (!finalTitle) throw new Error(isExtra ? 'Wpisz nazwę nabożeństwa.' : 'Wpisz nazwę Mszy Świętej.');
-      if (!Number.isInteger(suggestedSpots) || suggestedSpots < 1 || suggestedSpots > 2147483647) {
+      if (!finalTitle) throw new Error(isOther ? 'Wpisz nazwę wydarzenia.' : isExtra ? 'Wpisz nazwę nabożeństwa.' : 'Wpisz nazwę Mszy Świętej.');
+      if (suggestedSpots !== null && (!Number.isInteger(suggestedSpots) || suggestedSpots < 1 || suggestedSpots > 2147483647)) {
         throw new Error('Sugerowana liczba miejsc musi być dodatnią liczbą całkowitą.');
       }
 
@@ -103,7 +106,7 @@ export default function AddMassModal({ initialDate, initialTime, onClose, onSubm
 
       if (mode === 'single') {
         const startTime = zonedIso(String(form.get('date')), time);
-        await onSubmit({ title: finalTitle, start_time: startTime, suggested_spots: suggestedSpots, is_extra: isExtra });
+        await onSubmit({ title: finalTitle, start_time: startTime, suggested_spots: suggestedSpots, is_extra: isExtra, category: isOther ? 'other' : isExtra ? 'devotion' : 'mass' });
       } else {
         if (!onSubmitRecurring) throw new Error('Dodawanie cyklicznych Mszy jest niedostępne.');
         if (!selectedDays.length) throw new Error('Wybierz co najmniej jeden dzień tygodnia.');
@@ -114,7 +117,7 @@ export default function AddMassModal({ initialDate, initialTime, onClose, onSubm
           frequency, interval_weeks: intervalWeeks, interval_months: intervalMonths, month_weeks: monthWeeks,
           title: finalTitle,
           suggested_spots: suggestedSpots,
-          is_extra: isExtra,
+          is_extra: isExtra, category: isOther ? 'other' : isExtra ? 'devotion' : 'mass',
           days: selectedDays,
           time,
           start_date: startDate,
@@ -131,8 +134,8 @@ export default function AddMassModal({ initialDate, initialTime, onClose, onSubm
   }
 
   const modalTitle = mode === 'recurring'
-    ? (isExtra ? 'Dodaj regularne nabożeństwa' : 'Dodaj regularne Msze Święte')
-    : (isExtra ? 'Dodaj nabożeństwo' : 'Dodaj Mszę Świętą');
+    ? (isOther ? 'Dodaj regularne wydarzenia' : isExtra ? 'Dodaj regularne nabożeństwa' : 'Dodaj regularne Msze Święte')
+    : (isOther ? 'Dodaj wydarzenie' : isExtra ? 'Dodaj nabożeństwo' : 'Dodaj Mszę Świętą');
 
   return <Modal title={modalTitle} onClose={onClose} busy={busy}>
     <div className="recurrence-mode-tabs mb-3">
@@ -157,7 +160,7 @@ export default function AddMassModal({ initialDate, initialTime, onClose, onSubm
     <div className="recurrence-mode-tabs mb-4">
       <button
         type="button"
-        className={`recurrence-tab ${!isExtra ? 'active' : ''}`}
+        className={`recurrence-tab ${!isExtra && !isOther ? 'active' : ''}`}
         onClick={() => handleTypeChange(false)}
         disabled={busy}
       >
@@ -171,12 +174,13 @@ export default function AddMassModal({ initialDate, initialTime, onClose, onSubm
       >
         <Flame size={15} /> Nabożeństwo
       </button>
+        <button type="button" className={`recurrence-tab ${isOther ? 'active' : ''}`} disabled={busy} onClick={() => { setIsOther(true); setIsExtra(false); if (['Msza Święta','Różaniec',''].includes(title)) setTitle('Spotkanie'); }}>Inne</button>
     </div>
 
     <form onSubmit={submit}>
       <fieldset disabled={busy} className="space-y-4">
         <div>
-          <label className="field" htmlFor={titleId}>{isExtra ? 'Nazwa nabożeństwa' : 'Nazwa Mszy Świętej'}
+          <label className="field" htmlFor={titleId}>{isOther ? 'Nazwa wydarzenia' : isExtra ? 'Nazwa nabożeństwa' : 'Nazwa Mszy Świętej'}
             <input
               id={titleId}
               name="title"
@@ -188,7 +192,7 @@ export default function AddMassModal({ initialDate, initialTime, onClose, onSubm
             />
           </label>
           <div className="preset-chips">
-            {(!isExtra
+            {(isOther ? ['Spotkanie', 'Zbiórka ministrantów', 'Próba', 'Wyjazd'] : !isExtra
               ? ['Msza Święta', 'Msza roratnia', 'Msza niedzielna', 'Msza z udziałem dzieci']
               : ['Różaniec', 'Droga Krzyżowa', 'Gorzkie Żale', 'Nabożeństwo majowe', 'Adoracja']
             ).map(preset => (
@@ -300,10 +304,11 @@ export default function AddMassModal({ initialDate, initialTime, onClose, onSubm
           </>
         )}
 
-        <label className="field" htmlFor={spotsId}>Sugerowana liczba miejsc <span className="field-optional">opcjonalnie</span>
+        <label className="capacity-option"><input type="checkbox" checked={noSpots} onChange={e => setNoSpots(e.target.checked)} />Bez określonej liczby osób</label>
+        {!noSpots && <label className="field" htmlFor={spotsId}>Sugerowana liczba miejsc <span className="field-optional">opcjonalnie</span>
           <input id={spotsId} type="number" name="spots" min={1} max={2147483647} step={1} placeholder="4" />
           <span className="field-hint">To wskazówka, nie limit. Każdy chętny może się dopisać.</span>
-        </label>
+        </label>}
         <p className="text-xs text-[var(--muted)]">Wszystkie godziny podajemy w czasie polskim (Europe/Warsaw).</p>
       </fieldset>
 
@@ -314,8 +319,8 @@ export default function AddMassModal({ initialDate, initialTime, onClose, onSubm
         <button type="submit" className="button primary" disabled={busy || (mode === 'recurring' && occurrences === 0)}>
           {busy ? <LoaderCircle size={17} className="animate-spin" /> : <CalendarPlus size={17} />}
           {busy ? 'Zapisywanie…' : mode === 'recurring'
-            ? `Utwórz ${occurrences} ${isExtra ? (occurrences === 1 ? 'nabożeństwo' : occurrences < 5 ? 'nabożeństwa' : 'nabożeństw') : (occurrences === 1 ? 'Mszę' : occurrences < 5 ? 'Msze' : 'Mszy')}`
-            : isExtra ? 'Dodaj nabożeństwo' : 'Dodaj Mszę Świętą'}
+            ? `Utwórz ${occurrences} ${isOther ? (occurrences === 1 ? 'wydarzenie' : 'wydarzeń') : isExtra ? (occurrences === 1 ? 'nabożeństwo' : occurrences < 5 ? 'nabożeństwa' : 'nabożeństw') : (occurrences === 1 ? 'Mszę' : occurrences < 5 ? 'Msze' : 'Mszy')}`
+            : isOther ? 'Dodaj wydarzenie' : isExtra ? 'Dodaj nabożeństwo' : 'Dodaj Mszę Świętą'}
         </button>
       </div>
     </form>

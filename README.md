@@ -99,3 +99,11 @@ Uruchom `supabase/migrations/202609150002_recurring_patterns.sql` po wcześniejs
 ### Regularne Msze i nabożeństwa — rytmy miesięczne
 
 Uruchom `supabase/migrations/202609150003_mass_patterns.sql` po wcześniejszych migracjach. Formularz serii pozwala wybrać cykl co 1–12 tygodni albo co 1–12 miesięcy, dni tygodnia oraz ich pierwsze, drugie, trzecie, czwarte, piąte lub ostatnie wystąpienie. Wybrane wystąpienia dotyczą każdego zaznaczonego dnia. Cykl tygodniowy liczy 7-dniowe przedziały od daty początku; miesięczny liczy miesiące od miesiąca początku. Zakres jest włączny, maksymalnie 366 dni. Piąte wystąpienie jest pomijane, gdy nie istnieje. Nakładające się wystąpienia nie dublują terminu. Podgląd, tryb demonstracyjny i SQL stosują te same zasady. Seria ma wspólny identyfikator i obsługuje dotychczasową edycję/usuwanie przyszłych terminów.
+
+### Trzecia kategoria wydarzeń
+
+Uruchom `supabase/migrations/202609150004_event_categories.sql` po wcześniejszych migracjach. Dodaje kategorię „Inne” do pojedynczych wydarzeń, regularnych serii i edycji. Dotychczasowe rekordy zachowują kategorię odczytywaną z `is_extra`; nowe zapisy używają jawnej kategorii. Karty pokazują sam napis bez ikony: Msza Św., Nabożeństwo lub Inne.
+
+### Wydarzenia bez określonej liczby osób
+
+Uruchom `supabase/migrations/202609150005_optional_capacity.sql` po wcześniejszych migracjach. Opcja „Bez określonej liczby osób” zapisuje `null` w `suggested_spots`, także dla serii i edycji. Dotychczasowe liczby pozostają zachowane. Wydarzenia bez tej liczby nie są liczone jako mające pełną obsadę. Na kartach wyświetlamy „osoba / osoby / osób”; przy ułamku odmiana odnosi się do liczby docelowej, np. „0/2 osoby”.
