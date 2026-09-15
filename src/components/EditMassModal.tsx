@@ -190,7 +190,7 @@ export default function EditMassModal({ mass, onClose, onSave }: Props) {
 
           <p className="field-hint">Okazja zmienia się tylko w tym terminie, również przy edycji serii. Uroczystość lub święto ustaw w „Oznacz dzień” nad wydarzeniami.</p>
           <label className="capacity-option"><input type="checkbox" checked={noSpots} onChange={e => setNoSpots(e.target.checked)} />Bez określonej liczby osób</label>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <label className="field">
               Godzina
               <input

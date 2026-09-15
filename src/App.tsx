@@ -279,7 +279,7 @@ export default function App() {
     <main className="main-container" id="grafik">
       {isDemo && <div className="demo-banner"><span><strong>Tryb demonstracyjny</strong> · Dane przykładowe zapisują się tylko w tej przeglądarce.</span><span>Podłącz Supabase zgodnie z README, aby udostępnić grafik wspólnocie.</span></div>}
       <section className="page-heading">
-        <div><h1>Tabelka służby liturgicznej</h1>
+        <div><h1>Ministrantappka</h1>
           <p>Grafik Służby Liturgicznej — znajdź swój czas przy ołtarzu.</p></div>
         {adminSession && <button className="button primary add-mass-button" onClick={() => setAdding(true)} disabled={loading || !!loadError}><Plus size={18} />Dodaj Mszę / wydarzenie</button>}
       </section>

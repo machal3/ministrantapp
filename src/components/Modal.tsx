@@ -10,7 +10,16 @@ export default function Modal({ title, children, onClose, busy = false }: Props)
     const previousFocus = document.activeElement as HTMLElement | null;
     const dialog = ref.current!;
     dialog.showModal();
-    return () => { dialog.close(); previousFocus?.focus(); };
+    const prevBodyOverflow = document.body.style.overflow;
+    const prevHtmlOverflow = document.documentElement.style.overflow;
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+    return () => {
+      dialog.close();
+      document.body.style.overflow = prevBodyOverflow;
+      document.documentElement.style.overflow = prevHtmlOverflow;
+      previousFocus?.focus();
+    };
   }, []);
   return <dialog ref={ref} className="modal" aria-labelledby="modal-title"
     onCancel={event => { event.preventDefault(); if (!busy) onClose(); }}

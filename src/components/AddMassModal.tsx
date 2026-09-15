@@ -282,7 +282,7 @@ export default function AddMassModal({ initialDate, initialTime, onClose, onSubm
 
         <p className="field-hint">Okazja dotyczy jednego terminu. W serii dodaj ją później przez edycję wybranej Mszy. Uroczystość lub święto ustaw w „Oznacz dzień” nad wydarzeniami.</p>
         {mode === 'single' ? (
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <label className="field">Data<input type="date" name="date" required defaultValue={initialDate} /></label>
             <label className="field" htmlFor={timeId}>Godzina
               <input id={timeId} type="time" name="time" required defaultValue={initialTime ?? '18:00'} step={60} />
@@ -327,7 +327,7 @@ export default function AddMassModal({ initialDate, initialTime, onClose, onSubm
 
             {frequency === 'monthly' ? <fieldset className="month-week-options"><legend>Które wystąpienia wybranych dni?</legend><div>{[1,2,3,4,5,-1].map(n => <label key={n}><input type="checkbox" checked={monthWeeks.includes(n)} onChange={e => setMonthWeeks(prev => e.target.checked ? [...prev,n] : prev.filter(v => v !== n))} /><span>{n === -1 ? 'Ostatnie' : ['Pierwsze','Drugie','Trzecie','Czwarte','Piąte'][n-1]}</span></label>)}</div><p>Możesz łączyć opcje, np. pierwszy i trzeci piątek. Wybór dotyczy każdego zaznaczonego dnia tygodnia. Piąte wystąpienie jest pomijane, jeśli nie wypada w danym miesiącu.</p></fieldset>
               : intervalWeeks > 1 && <p className="field-hint">Pierwszy cykl to 7 dni od daty „Od dnia”. Kolejne aktywne tygodnie powtarzają się z wybraną częstotliwością.</p>}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <label className="field">Godzina
                 <input type="time" name="time" required defaultValue={initialTime ?? '18:00'} step={60} />
               </label>

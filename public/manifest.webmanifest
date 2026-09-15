@@ -1,7 +1,7 @@
 {
   "id": "/",
-  "name": "Grafik Służby Liturgicznej",
-  "short_name": "Służba",
+  "name": "Ministrantappka",
+  "short_name": "Ministrantappka",
   "lang": "pl",
   "start_url": "/",
   "scope": "/",

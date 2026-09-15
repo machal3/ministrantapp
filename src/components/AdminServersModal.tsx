@@ -225,7 +225,7 @@ export default function AdminServersModal({ servers, rules, attendees, recentAtt
                 <li key={server.id} className="server-admin-card">
                   {isEditing ? (
                     <form onSubmit={e => handleEditSubmit(e, server.id)} className="server-edit-inline">
-                      <div className="grid grid-cols-2 gap-3 mb-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-2">
                         <label className="field">Imię i nazwisko
                           <input
                             value={editName}
@@ -364,7 +364,7 @@ export default function AdminServersModal({ servers, rules, attendees, recentAtt
 
     {tab === 'stats' && (
       <div className="servers-stats-tab space-y-4">
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div className="stat-card">
             <span className="stat-label">Wspólnota</span>
             <strong className="stat-value">{stats.totalServers}</strong>
