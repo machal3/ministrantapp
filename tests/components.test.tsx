@@ -1,9 +1,14 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import MassCard from '../src/components/MassCard';
 import UserSelector from '../src/components/UserSelector';
 import WeekNavigator from '../src/components/WeekNavigator';
-import type { EffectiveAttendee, Mass } from '../src/types/database';
+import type { AltarServer, EffectiveAttendee, Mass } from '../src/types/database';
+
+beforeEach(() => {
+  HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', ''); };
+  HTMLDialogElement.prototype.close = function () { this.removeAttribute('open'); };
+});
 
 afterEach(() => { cleanup(); localStorage.clear(); });
 const mass: Mass = { id: 'm', title: 'Msza Święta', start_time: '2026-09-20T08:30:00Z', suggested_spots: 4, is_extra: false };
@@ -76,7 +81,7 @@ describe('MassCard', () => {
 it('remembers identity in localStorage', () => {
   const onChange = vi.fn();
   render(<UserSelector servers={[{ id: 'jan', name: 'Jan Kowalski', rank: 'Lektor' }]} selectedId="" onChange={onChange} adminSession={null} onAdminToggle={vi.fn()} />);
-  fireEvent.change(screen.getByLabelText('Wybierz ministranta'), { target: { value: 'jan' } });
+  fireEvent.click(screen.getByRole('button', { name: /Jan Kowalski Lektor/ }));
   expect(onChange).toHaveBeenCalledWith('jan');
   expect(localStorage.getItem('liturgy.active-server')).toBe('jan');
 });
@@ -86,4 +91,37 @@ it('navigates across a year boundary', () => {
   render(<WeekNavigator week="2026-12-28" onChange={onChange} />);
   fireEvent.click(screen.getByRole('button', { name: 'Następny tydzień' }));
   expect(onChange).toHaveBeenCalledWith('2027-01-04');
+});
+
+const people: AltarServer[] = [{ id: 'jan', name: 'Jan Kowalski', rank: 'Lektor' }, { id: 'lukasz', name: 'Łukasz Żółć', rank: 'Ministrant' }];
+const selectorProps = { servers: people, selectedId: '', onChange: vi.fn(), adminSession: null, onAdminToggle: vi.fn() };
+
+it('waits for the initial list, opens for an invalid identity and keeps guest dismissal across updates', () => {
+  const onChange = vi.fn();
+  const { rerender } = render(<UserSelector {...selectorProps} onChange={onChange} selectedId="removed" ready={false} servers={[]} />);
+  expect(screen.queryByRole('dialog')).toBeNull();
+  rerender(<UserSelector {...selectorProps} onChange={onChange} selectedId="removed" ready />);
+  expect(screen.getByRole('dialog', { name: 'Wybierz ministranta' })).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Kontynuuj bez wyboru osoby' }));
+  expect(onChange).toHaveBeenCalledWith('');
+  expect(localStorage.getItem('liturgy.active-server')).toBe('');
+  rerender(<UserSelector {...selectorProps} servers={[...people]} />);
+  expect(screen.queryByRole('dialog')).toBeNull();
+  fireEvent.click(screen.getAllByRole('button', { name: 'Wybierz ministranta' })[0]);
+  expect(screen.getByRole('dialog')).toBeTruthy();
+});
+
+it('uses the same panel from both header buttons and filters Polish names without accents', () => {
+  render(<UserSelector {...selectorProps} selectedId="jan" />);
+  expect(screen.queryByRole('dialog')).toBeNull();
+  const triggers = screen.getAllByRole('button', { name: /Zmień ministranta/ });
+  for (const trigger of triggers) {
+    fireEvent.click(trigger);
+    expect(screen.getByRole('button', { name: /Jan Kowalski Lektor/ }).getAttribute('aria-pressed')).toBe('true');
+    fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'lukasz zolc' } });
+    expect(screen.queryByRole('button', { name: /Jan Kowalski Lektor/ })).toBeNull();
+    expect(screen.getByRole('button', { name: /Łukasz Żółć Ministrant/ })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Zamknij okno' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+  }
 });

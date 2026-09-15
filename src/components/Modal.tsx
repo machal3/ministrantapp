@@ -2,9 +2,9 @@ import { useEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { X } from 'lucide-react';
 
-interface Props { title: string; children: ReactNode; onClose: () => void; busy?: boolean }
+interface Props { title: string; children: ReactNode; onClose: () => void; busy?: boolean; className?: string }
 
-export default function Modal({ title, children, onClose, busy = false }: Props) {
+export default function Modal({ title, children, onClose, busy = false, className = '' }: Props) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const previousFocus = document.activeElement as HTMLElement | null;
@@ -21,7 +21,7 @@ export default function Modal({ title, children, onClose, busy = false }: Props)
       previousFocus?.focus();
     };
   }, []);
-  return <dialog ref={ref} className="modal" aria-labelledby="modal-title"
+  return <dialog ref={ref} className={`modal ${className}`} aria-labelledby="modal-title"
     onCancel={event => { event.preventDefault(); if (!busy) onClose(); }}
     onClick={event => { if (event.target === event.currentTarget && !busy) onClose(); }}>
     <div className="modal-content" onClick={event => event.stopPropagation()}>

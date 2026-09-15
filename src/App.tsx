@@ -296,7 +296,7 @@ export default function App() {
       <section className="page-heading">
         <div className="page-heading-titles"><h1>Ministrantappka</h1></div>
         <div className="page-heading-controls">
-          <UserSelector servers={servers} selectedId={selectedId} onChange={setSelectedId} adminSession={adminSession} onAdminToggle={() => adminSession ? void leaveAdmin() : setAdminLoginOpen(true)} />
+          <UserSelector ready={snapshot !== null} servers={servers} selectedId={selectedId} onChange={setSelectedId} adminSession={adminSession} onAdminToggle={() => adminSession ? void leaveAdmin() : setAdminLoginOpen(true)} />
           {adminSession && <button className="button primary add-mass-button" onClick={() => setAdding(true)} disabled={loading || !!loadError}><Plus size={18} />Dodaj Mszę / wydarzenie</button>}
         </div>
       </section>
