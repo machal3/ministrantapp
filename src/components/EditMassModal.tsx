@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Church, Flame, LoaderCircle, Save } from 'lucide-react';
 import Modal from './Modal';
+import { CELEBRANT_PRESETS } from './WeekCelebrantsModal';
 import { dateKey, polishDate, timeSlot } from '../lib/dates';
 import type { Mass, MassEditInput } from '../types/database';
 
@@ -145,7 +146,7 @@ export default function EditMassModal({ mass, onClose, onSave }: Props) {
                 />
               </label>
               <div className="preset-chips">
-                {['ks. Proboszcz', 'ks. Wikariusz'].map(preset => (
+                {CELEBRANT_PRESETS.map(preset => (
                   <button
                     type="button"
                     key={preset}

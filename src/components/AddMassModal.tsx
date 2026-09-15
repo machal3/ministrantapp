@@ -3,6 +3,7 @@ import { useId, useMemo, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { CalendarDays, CalendarPlus, Church, Flame, LoaderCircle, Repeat } from 'lucide-react';
 import Modal from './Modal';
+import { CELEBRANT_PRESETS } from './WeekCelebrantsModal';
 import { shiftDate, weekday, zonedIso, polishDate } from '../lib/dates';
 import type { NewMass, RecurringMassesInput } from '../types/database';
 
@@ -236,7 +237,7 @@ export default function AddMassModal({ initialDate, initialTime, onClose, onSubm
               />
             </label>
             <div className="preset-chips">
-              {['ks. Proboszcz', 'ks. Wikariusz'].map(preset => (
+              {CELEBRANT_PRESETS.map(preset => (
                 <button
                   type="button"
                   key={preset}

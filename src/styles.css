@@ -76,10 +76,6 @@ h1 { font-family: var(--font-sans); font-size: clamp(31px, 3vw, 42px); font-weig
 .day-tab > strong { font-size: 16px; font-weight: 700; color: #233529; font-variant-numeric: tabular-nums; line-height: 1.1; }
 .day-tab:hover { background: #f2f6ef; border-color: #cbd7c6; }
 .day-tab:active { background: #e7eee3; transform: scale(0.97); }
-.day-tab.is-today:not(.selected) { background: #f3f8f1; border-color: #d6e5d2; }
-.day-tab.is-today:not(.selected):hover { background: #eaf3e7; border-color: #c8dac3; }
-.day-tab.is-today:not(.selected) > span { color: var(--green); font-weight: 700; }
-.day-tab.is-today:not(.selected) > strong { color: #1e3e2c; }
 .day-tab.selected { background: var(--green); color: #dce9d9; border-color: var(--green); box-shadow: 0 2px 6px #28574735; }
 .day-tab.selected > strong { color: white; }
 .day-tab.selected > span { color: #dce9d9; }
@@ -96,6 +92,11 @@ h1 { font-family: var(--font-sans); font-size: clamp(31px, 3vw, 42px); font-weig
 .day-tab.is-feast > strong { color: #654080; }
 .day-tab.is-feast.selected > span { color: #ebceff; }
 .day-tab.is-feast.selected > strong { color: white; }
+/* Dzień dzisiejszy: czytelny, ale minimalistyczny — pierścień w kolorze zieleni. Działa też dla niedzieli/uroczystości. */
+.day-tab.is-today:not(.selected) { background: #eaf2e6; border-color: #8fb19d; box-shadow: inset 0 0 0 1px #8fb19d; }
+.day-tab.is-today:not(.selected):hover { background: #e0ebdb; border-color: #7fa88f; box-shadow: inset 0 0 0 1px #7fa88f; }
+.day-tab.is-today:not(.selected) > span { color: #1e4d3a; font-weight: 800; }
+.day-tab.is-today:not(.selected) > strong { color: #1c4436; }
 .day-groups { padding-top: 23px; }
 .day-group { margin-bottom: 25px; }
 .day-heading { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
@@ -260,6 +261,28 @@ h1 { font-family: var(--font-sans); font-size: clamp(31px, 3vw, 42px); font-weig
 .admin-toggle { white-space: nowrap; font-size: 13px; }
 .admin-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 22px; padding: 12px 16px; border: 1px solid #c8d8bd; border-radius: 9px; background: #edf4e8; }
 .admin-toolbar > span { display: flex; align-items: center; gap: 9px; color: var(--green); font-size: 14px; font-weight: 600; }
+.admin-toolbar-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.admin-toolbar-actions .button { white-space: nowrap; }
+
+/* Masowe ustawianie celebransów na wybrany tydzień. */
+.celebrants-modal { width: min(720px, calc(100vw - 32px)); }
+.celebrants-week-nav { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 12px 14px; margin-bottom: 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-soft); }
+.celebrants-week-label { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 13px; font-weight: 700; color: var(--green); }
+.celebrants-presets { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; margin-bottom: 14px; border: 1px solid var(--border); border-radius: 12px; background: #fdfdfc; }
+.celebrants-presets-label { font-size: 13px; font-weight: 600; color: var(--ink); }
+.celebrants-presets-hint { margin: 0; font-size: 12px; color: var(--muted); }
+.celebrants-days { display: flex; flex-direction: column; gap: 16px; max-height: min(48vh, 420px); overflow-y: auto; overscroll-behavior: contain; margin: 0 0 4px; padding: 2px; }
+.celebrants-day-group { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.celebrants-day-heading { margin: 0; font-size: 12px; font-weight: 700; letter-spacing: .4px; text-transform: uppercase; color: var(--muted); }
+.celebrants-list { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.celebrant-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 4px 12px; align-items: center; padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; background: #fff; }
+.celebrant-row.changed { border-color: #9dbfaa; background: #f4f8f1; }
+.celebrant-row-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.celebrant-row-info strong { font-size: 13px; font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.celebrant-row-info small { font-size: 12px; color: var(--muted); }
+.celebrant-row-field { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.celebrant-row-field input { flex: 1; min-width: 0; min-height: 44px; border: 1px solid #c9d7ce; border-radius: var(--control-radius); background: var(--surface); padding: 10px 12px; font-size: 14px; color: var(--ink); }
+.celebrant-row-field .icon-button { flex-shrink: 0; }
 .edit-time-button { display: flex; align-items: center; gap: 7px; border: 0; border-top: 1px solid var(--liturgy-edge); border-bottom: 1px solid var(--border); background: var(--liturgy-tint); color: var(--liturgy-accent); padding: 10px 18px; width: 100%; min-height: 40px; font-size: 13px; font-weight: 600; text-align: left; transition: background .15s; }
 .edit-time-button:hover:not(:disabled) { background: var(--liturgy-edge); }
 .edit-time-button:focus-visible { outline: 2px solid var(--liturgy-accent); outline-offset: -3px; }
@@ -397,6 +420,7 @@ h1 { font-family: var(--font-sans); font-size: clamp(31px, 3vw, 42px); font-weig
 .mass-details .mass-celebrant span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mass-details .liturgy-rank-badge { min-width: 0; max-width: 45%; flex-shrink: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; background: var(--liturgy-tint); color: var(--liturgy-accent); border: 1px solid var(--liturgy-edge); }
 .mass-details .liturgy-rank-badge:only-child { max-width: 100%; }
+.edit-time-button + .mass-details { border-top: 0; }
 .day-annotation-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; margin: 0; border: 1px solid var(--day-edge); border-radius: var(--control-radius); background: var(--day-tint); color: var(--day-ink); }
 .day-annotation-label { display: flex; align-items: flex-start; gap: 10px; flex: 1 1 220px; line-height: 1.6; }
 .day-annotation-label svg { flex-shrink: 0; margin-top: 2px; }
@@ -424,9 +448,9 @@ h1 { font-family: var(--font-sans); font-size: clamp(31px, 3vw, 42px); font-weig
 .person-option-text strong { font-size: 14px; font-weight: 600; }
 .person-option-text small { color: var(--muted); font-size: 14px; }
 .person-empty { grid-column: 1 / -1; padding: 18px 12px; color: var(--muted); font-size: 14px; text-align: center; }
-.person-footer { flex-shrink: 0; padding-top: 16px; border-top: 1px solid var(--border); }
-.person-footer .button { width: 100%; min-height: 46px; white-space: normal; }
-.person-modal .person-footer p { margin: 10px 0 0; text-align: center; color: var(--muted); font-size: 13px; }
+.person-footer { flex-shrink: 0; display: flex; flex-direction: column; align-items: stretch; padding-top: 16px; border-top: 1px solid var(--border); text-align: center; }
+.person-footer .button { width: 100%; min-height: 46px; white-space: normal; justify-content: center; text-align: center; }
+.person-modal .person-footer p { margin: 10px auto 0; width: 100%; max-width: 36ch; text-align: center; text-wrap: balance; color: var(--muted); font-size: 13px; line-height: 1.6; }
 
 /* Shared visual system. Keep responsive rules together below these components. */
 :root {
@@ -451,9 +475,9 @@ button { touch-action: manipulation; }
 button:disabled { cursor: not-allowed; }
 button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 3px solid #358768; outline-offset: 3px; }
 ::selection { background: #d9ebe0; color: var(--ink); }
-.main-container { max-width: 1440px; padding: 24px var(--gutter) 48px; }
+.main-container { max-width: 1440px; padding: 10px var(--gutter) 48px; }
 .demo-banner { background: #fff9eb; border-color: #eadfc3; border-radius: var(--control-radius); font-size: 12px; margin-bottom: 0; }
-.page-heading { position: relative; top: auto; margin: 0 0 32px; padding: 28px 0; gap: 24px; background: transparent; border-bottom: 1px solid var(--border); }
+.page-heading { position: relative; top: auto; margin: 0 0 24px; padding: 12px 0 16px; gap: 24px; background: transparent; border-bottom: 1px solid var(--border); }
 .page-heading-titles { flex: 1; min-width: 0; }
 .page-heading h1 { font: 800 clamp(24px, 2.4vw, 32px)/1.25 var(--font-sans); letter-spacing: -1.1px; color: var(--ink); }
 .page-heading p { margin-top: 5px; font-size: 12px; }
@@ -613,8 +637,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .demo-banner { flex-direction: column; gap: 4px; }
 }
 @media (max-width: 640px) {
-  .main-container { padding-top: 12px; padding-bottom: 28px; }
-  .page-heading { gap: 12px; padding: 22px 0; margin-bottom: 24px; }
+  .main-container { padding-top: 4px; padding-bottom: 28px; }
+  .page-heading { gap: 12px; padding: 10px 0 14px; margin-bottom: 18px; }
   .page-heading h1 { font-size: 23px; letter-spacing: -.8px; }
   .page-heading p { font-size: 11px; max-width: 210px; line-height: 1.6; }
   .mass-grid, .sidebar { grid-template-columns: 1fr; }
@@ -635,6 +659,9 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .mass-time { font-size: 28px; min-width: 92px; }
   .mass-actions .button { font-size: 13px; }
   .admin-toolbar { align-items: stretch; flex-direction: column; padding: 16px; }
+  .admin-toolbar-actions { flex-direction: column; align-items: stretch; width: 100%; }
+  .admin-toolbar-actions .button { width: 100%; justify-content: center; }
+  .celebrant-row { grid-template-columns: 1fr; }
   .open-invitation { padding: 12px; }
   .modal, .person-modal { width: calc(100vw - 20px); max-width: calc(100vw - 20px); max-height: calc(100dvh - 20px); border-radius: 16px; }
   .modal-content { padding: 22px 16px; }

@@ -38,7 +38,7 @@ it('refreshes the currently selected week after a delayed signup completes', asy
   repository.setAttendance.mockImplementation(() => new Promise<void>(resolve => { finish = resolve; }));
   render(<App />);
   fireEvent.click(await screen.findByRole('heading', { name: `Nabożeństwo ${start}` }));
-  fireEvent.click(await screen.findByRole('button', { name: 'Zapisz się jednorazowo' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Zadeklaruj się jednorazowo' }));
   fireEvent.click(screen.getByRole('button', { name: 'Następny tydzień' }));
   await screen.findByRole('heading', { name: `Nabożeństwo ${next}` });
   await act(async () => finish());
@@ -64,10 +64,10 @@ it('shows a failed write without a false success and allows retrying', async () 
   repository.setAttendance.mockRejectedValueOnce(new Error('Brak połączenia z bazą.'));
   render(<App />);
   fireEvent.click(await screen.findByRole('heading', { name: `Nabożeństwo ${start}` }));
-  fireEvent.click(await screen.findByRole('button', { name: 'Zapisz się jednorazowo' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Zadeklaruj się jednorazowo' }));
   expect(await screen.findByRole('alert')).toHaveProperty('textContent', 'Brak połączenia z bazą.');
   expect(screen.queryByRole('status')).toBeNull();
-  expect((screen.getByRole('button', { name: 'Zapisz się jednorazowo' }) as HTMLButtonElement).disabled).toBe(false);
+  expect((screen.getByRole('button', { name: 'Zadeklaruj się jednorazowo' }) as HTMLButtonElement).disabled).toBe(false);
 });
 
 

@@ -18,7 +18,7 @@ describe('MassCard', () => {
   it('keeps the signup enabled above capacity and shows every attendee and rank', () => {
     const onAction = vi.fn();
     render(<MassCard mass={mass} attendees={attendees} rules={[]} exceptions={[]} activeId="new" busy={false} onAction={onAction} onDelete={vi.fn()} />);
-    const button = screen.getByRole('button', { name: 'Zapisz się jednorazowo' }) as HTMLButtonElement;
+    const button = screen.getByRole('button', { name: 'Zadeklaruj się jednorazowo' }) as HTMLButtonElement;
     expect(button.disabled).toBe(false);
     expect(screen.getByText('5/4 osoby (+1)')).toBeTruthy();
     expect(screen.getAllByText('Lektor')).toHaveLength(5);

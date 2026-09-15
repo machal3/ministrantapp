@@ -53,11 +53,11 @@ export default memo(function MassCard({ mass, attendees, rules, exceptions, acti
       </div>
       {isAdmin && <button className="icon-button delete-mass" aria-label={`Usuń ${isOther ? 'wydarzenie' : isDevotion ? 'nabożeństwo' : 'Mszę Świętą'}: ${mass.title}, ${time}`} disabled={busy} onClick={() => onDelete(mass)}><Trash2 size={17} /></button>}
     </div>
+    {isAdmin && handleEdit && <button className="edit-time-button" disabled={busy} onClick={() => handleEdit(mass)}><Clock3 size={14} />Edytuj {isOther ? 'wydarzenie' : isDevotion ? 'nabożeństwo' : 'Mszę'}</button>}
     {(mass.celebrant || mass.liturgy_type) && <div className="mass-details">
       {mass.celebrant && <div className="mass-celebrant" title={mass.celebrant}><UserRound size={13} aria-hidden="true" /><span>{mass.celebrant}</span></div>}
       {mass.liturgy_type && <span className="liturgy-rank-badge" title={mass.liturgy_type}>{mass.liturgy_type}</span>}
     </div>}
-    {isAdmin && handleEdit && <button className="edit-time-button" disabled={busy} onClick={() => handleEdit(mass)}><Clock3 size={14} />Edytuj {isOther ? 'wydarzenie' : isDevotion ? 'nabożeństwo' : 'Mszę'}</button>}
     <div className="attendance-section">
       <div className="attendance-label"><Users size={14} /><span>Zadeklarowani</span><span>{count}</span>
         {attendance && <span className="you-attend"><Check size={12} />Służysz</span>}
@@ -76,11 +76,11 @@ export default memo(function MassCard({ mass, attendees, rules, exceptions, acti
     <div className="mass-actions">
       {!activeId ? <p className="select-prompt">Wybierz ministranta w nagłówku, aby się zapisać.</p> : <>
         {excused && <p className="excused-note">Zgłoszono Twoją nieobecność w tym terminie.</p>}
-        {excused ? <button className="button secondary w-full" disabled={busy} onClick={() => onAction(mass, 'restore')}><Undo2 size={16} />{hasRule ? 'Przywróć obecność w tym dniu' : 'Zapisz się jednorazowo'}</button>
+        {excused ? <button className="button secondary w-full" disabled={busy} onClick={() => onAction(mass, 'restore')}><Undo2 size={16} />{hasRule ? 'Przywróć obecność w tym dniu' : 'Zadeklaruj się jednorazowo'}</button>
           : attendance ? <button className="button registered w-full" disabled={busy} onClick={() => onAction(mass, hasRule ? 'excuse' : 'withdraw')}>
             <UserMinus size={16} />{hasRule ? 'Zgłoś nieobecność w tym dniu' : 'Wypisz się'}
           </button> : <button className="button primary w-full" disabled={busy} onClick={() => onAction(mass, 'single')}>
-            {busy ? <LoaderCircle size={16} className="animate-spin" /> : <CirclePlus size={16} />}Zapisz się jednorazowo
+            {busy ? <LoaderCircle size={16} className="animate-spin" /> : <CirclePlus size={16} />}Zadeklaruj się jednorazowo
           </button>}
         {!hasRule && (
           <button

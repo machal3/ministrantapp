@@ -6,7 +6,7 @@ import EditRuleModal from './components/EditRuleModal';
 import { describeRule } from './lib/recurrence';
 import { Pencil } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertCircle, ArrowRight, CalendarDays, CalendarPlus, Check, Church, CircleHelp, HeartHandshake, LoaderCircle, Plus, RefreshCw, Repeat2, Trash2, Users, X, ShieldCheck } from 'lucide-react';
+import { AlertCircle, ArrowRight, CalendarDays, CalendarPlus, Check, Church, CircleHelp, HeartHandshake, LoaderCircle, Plus, RefreshCw, Repeat2, Trash2, UserRound, Users, X, ShieldCheck } from 'lucide-react';
 import UserSelector, { readSelectedServer } from './components/UserSelector';
 import WeekNavigator from './components/WeekNavigator';
 import DaySelector from './components/DaySelector';
@@ -17,6 +17,8 @@ import Modal from './components/Modal';
 import AdminLoginModal from './components/AdminLoginModal';
 import AdminServersModal from './components/AdminServersModal';
 import EditMassModal from './components/EditMassModal';
+import WeekCelebrantsModal from './components/WeekCelebrantsModal';
+import type { CelebrantUpdate } from './components/WeekCelebrantsModal';
 import { logoutAdmin } from './lib/admin';
 import { dateKey, DAY_NAMES, weekStart, polishDate, shiftDate, timeSlot, weekday } from './lib/dates';
 import { matchesRule } from './lib/attendance';
@@ -72,6 +74,7 @@ export default function App() {
   const [adminLoginOpen, setAdminLoginOpen] = useState(false);
   const [editingServers, setEditingServers] = useState(false);
   const [editingMass, setEditingMass] = useState<Mass | null>(null);
+  const [celebrantsOpen, setCelebrantsOpen] = useState(false);
   const mutationLock = useRef(false);
   const requestId = useRef(0);
   const data = snapshot?.week === week ? snapshot.data : EMPTY;
@@ -84,7 +87,7 @@ export default function App() {
     const expire = () => {
       if (Date.parse(adminSession.expires_at) <= Date.now()) {
         setAdminSession(null);
-        setEditingServers(false); setEditingMass(null); setAdding(false);
+        setEditingServers(false); setEditingMass(null); setAdding(false); setCelebrantsOpen(false);
         setConfirmation(current => current?.kind === 'mass' ? null : current);
         setNotice('Sesja administratora wygasła. Aby edytować, wpisz PIN ponownie.');
       }
@@ -97,7 +100,7 @@ export default function App() {
   async function leaveAdmin() {
     const session = adminSession;
     setAdminSession(null);
-    setEditingServers(false); setEditingMass(null); setAdding(false);
+    setEditingServers(false); setEditingMass(null); setAdding(false); setCelebrantsOpen(false);
     setConfirmation(current => current?.kind === 'mass' ? null : current);
     if (session) {
       try { await logoutAdmin(session); }
@@ -244,6 +247,24 @@ export default function App() {
     return count;
   }
 
+  async function handleWeekCelebrants(updates: CelebrantUpdate[]): Promise<void> {
+    for (const { mass, celebrant } of updates) {
+      await updateMass(mass.id, {
+        title: mass.title,
+        time: timeSlot(mass.start_time).slice(0, 5),
+        suggested_spots: mass.suggested_spots,
+        is_extra: mass.is_extra,
+        category: mass.category ?? (mass.is_extra ? 'devotion' : 'mass'),
+        celebrant,
+        liturgy_type: mass.liturgy_type ?? null,
+        scope: 'single',
+      }, adminSession);
+    }
+    const count = updates.length;
+    setNotice(`Zapisano księży na ${count} ${count === 1 ? 'termin' : count < 5 ? 'terminy' : 'terminów'}.`);
+    await latestRefresh.current();
+  }
+
   async function confirmDelete() {
     if (!confirmation) return;
     const target = confirmation;
@@ -298,12 +319,15 @@ export default function App() {
         <div className="page-heading-titles"><h1>Ministrantappka</h1></div>
         <div className="page-heading-controls">
           <UserSelector ready={snapshot !== null} servers={servers} selectedId={selectedId} onChange={setSelectedId} adminSession={adminSession} onAdminToggle={() => adminSession ? void leaveAdmin() : setAdminLoginOpen(true)} />
-          {adminSession && <button className="button primary add-mass-button" onClick={() => setAdding(true)} disabled={loading || !!loadError}><Plus size={18} />Dodaj Mszę / wydarzenie</button>}
         </div>
       </section>
 
       {adminSession && <div className="admin-toolbar"><span><ShieldCheck size={18} />Tryb administratora aktywny</span>
-        <button className="button secondary" disabled={loading || !!loadError} onClick={() => setEditingServers(true)}><Users size={16} />Edytuj ministrantów</button></div>}
+        <div className="admin-toolbar-actions">
+          <button className="button secondary" onClick={() => setAdding(true)} disabled={loading || !!loadError}><Plus size={16} />Dodaj Mszę / wydarzenie</button>
+          <button className="button secondary" onClick={() => setCelebrantsOpen(true)} disabled={loading || !!loadError}><UserRound size={16} />Księża na tydzień</button>
+          <button className="button secondary" disabled={loading || !!loadError} onClick={() => setEditingServers(true)}><Users size={16} />Edytuj ministrantów</button>
+        </div></div>}
 
       <div className="dashboard-layout">
         <section className="schedule-panel" aria-label="Grafik tygodniowy">
@@ -400,6 +424,7 @@ export default function App() {
       />
     )}
     {adminSession && editingMass && <EditMassModal mass={editingMass} onClose={() => setEditingMass(null)} onSave={handleMassEdit} />}
+    {adminSession && celebrantsOpen && <WeekCelebrantsModal initialWeek={week} onClose={() => setCelebrantsOpen(false)} onSave={handleWeekCelebrants} />}
     {adminSession && adding && <AddMassModal initialDate={selectedDay} onClose={() => setAdding(false)} onSubmit={handleAdd} onSubmitRecurring={handleAddRecurring} />}
 
     {confirmation && <Modal title={confirmation.kind === 'mass' ? (eventCategory(confirmation.mass) === 'other' ? 'Usunąć wydarzenie?' : confirmation.mass.is_extra ? 'Usunąć nabożeństwo?' : 'Usunąć Mszę Świętą?') : 'Usunąć stały dyżur?'} onClose={() => { setConfirmation(null); setActionError(''); }} busy={busy}>
