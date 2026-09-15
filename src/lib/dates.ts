@@ -22,6 +22,12 @@ export function shiftDate(date: string, days: number): string {
   return result.toISOString().slice(0, 10);
 }
 
+export function shiftMonth(month: string, offset: number): string {
+  const year = Number(month.slice(0, 4));
+  const total = year * 12 + (Number(month.slice(5, 7)) - 1) + offset;
+  return `${Math.floor(total / 12)}-${String((total % 12) + 1).padStart(2, '0')}`;
+}
+
 export function weekStart(date = dateKey()): string {
   return shiftDate(date, -(weekday(date)));
 }

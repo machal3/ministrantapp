@@ -91,8 +91,6 @@ export default function WeekCelebrantsModal({ initialWeek, onClose, onSave }: Pr
   const range = `${polishDate(navWeek, sameMonth ? { day: 'numeric' } : { day: 'numeric', month: 'short' })} – ${polishDate(end, { day: 'numeric', month: 'long', year: 'numeric' })}`;
 
   return <Modal title="Księża na tydzień" onClose={onClose} busy={busy} className="celebrants-modal">
-    <p className="rule-intro">Ustaw celebransów dla wszystkich terminów z wybranego tygodnia. Zapisywane są tylko zmienione pozycje.</p>
-
     <div className="celebrants-week-nav">
       <span className="celebrants-week-label"><CalendarDays size={16} aria-hidden="true" />{range}</span>
       <nav className="week-controls" aria-label="Wybór tygodnia">
@@ -102,9 +100,9 @@ export default function WeekCelebrantsModal({ initialWeek, onClose, onSave }: Pr
       </nav>
     </div>
 
-    {loadingWeek ? <p className="person-empty" role="status">Wczytywanie Mszy z tego tygodnia…</p>
-      : loadError ? <p className="form-error" role="alert">{loadError}</p>
-      : masses.length === 0 ? <p className="person-empty" role="status">Brak Mszy i nabożeństw w tym tygodniu.</p>
+    {loadingWeek ? <div className="celebrants-scroll"><p className="person-empty" role="status">Wczytywanie Mszy z tego tygodnia…</p></div>
+      : loadError ? <div className="celebrants-scroll"><p className="form-error" role="alert">{loadError}</p></div>
+      : masses.length === 0 ? <div className="celebrants-scroll"><p className="person-empty" role="status">Brak Mszy i nabożeństw w tym tygodniu.</p></div>
       : <>
         <div className="celebrants-presets">
           <span className="celebrants-presets-label">Księża do wyboru</span>
@@ -113,11 +111,10 @@ export default function WeekCelebrantsModal({ initialWeek, onClose, onSave }: Pr
               <button type="button" key={preset} disabled={busy} onClick={() => pickPriest(preset)}>{preset}</button>
             ))}
           </div>
-          <p className="celebrants-presets-hint">{focusedMass
-            ? `Wstawiane do: ${timeSlot(focusedMass.start_time).slice(0, 5)} · ${focusedMass.title}`
-            : 'Kliknij pole przy Mszy, potem wybierz księdza.'}</p>
+          {focusedMass && <p className="celebrants-presets-hint">Wstawiane do: {timeSlot(focusedMass.start_time).slice(0, 5)} · {focusedMass.title}</p>}
         </div>
-        <div className="celebrants-days">
+        <div className="celebrants-scroll">
+          <div className="celebrants-days">
           {groups.map(group => (
             <section key={group.day} className="celebrants-day-group" aria-label={`${DAY_NAMES[weekday(group.day)]} ${polishDate(group.day, { day: 'numeric', month: 'long' })}`}>
               <h3 className="celebrants-day-heading">{DAY_NAMES[weekday(group.day)]} · {polishDate(group.day, { day: 'numeric', month: 'long' })}</h3>
@@ -126,7 +123,7 @@ export default function WeekCelebrantsModal({ initialWeek, onClose, onSave }: Pr
                   const time = timeSlot(mass.start_time).slice(0, 5);
                   const value = values[mass.id] ?? '';
                   const changed = value !== (mass.celebrant ?? '');
-                  return <li key={mass.id} className={`celebrant-row ${changed ? 'changed' : ''}`}>
+                  return <li key={mass.id} className={`celebrant-row ${focusedId === mass.id ? 'focused' : ''} ${changed ? 'changed' : ''}`} onClick={() => setFocusedId(mass.id)}>
                     <div className="celebrant-row-info">
                       <strong>{time} · {mass.title}</strong>
                     </div>
@@ -148,10 +145,11 @@ export default function WeekCelebrantsModal({ initialWeek, onClose, onSave }: Pr
               </ul>
             </section>
           ))}
+          </div>
+          <datalist id={dataListId}>
+            {CELEBRANT_PRESETS.map(preset => <option key={preset} value={preset} />)}
+          </datalist>
         </div>
-        <datalist id={dataListId}>
-          {CELEBRANT_PRESETS.map(preset => <option key={preset} value={preset} />)}
-        </datalist>
       </>}
 
     {error && <p className="form-error" role="alert">{error}</p>}

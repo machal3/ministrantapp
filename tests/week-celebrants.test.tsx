@@ -54,6 +54,14 @@ describe('WeekCelebrantsModal', () => {
     expect(screen.getByLabelText(/Msza 18:00/)).toBeTruthy();
   });
 
+  it('selects a mass by clicking its tile', async () => {
+    loadWeek.mockResolvedValue({ masses: [mass('a', WEEK, '08:00'), mass('b', WEEK, '10:00')] });
+    render(<WeekCelebrantsModal initialWeek={WEEK} onClose={vi.fn()} onSave={vi.fn()} />);
+    fireEvent.click(await screen.findByText('10:00 · Msza 10:00'));
+    fireEvent.click(screen.getByRole('button', { name: 'ks. Grzegorz' }));
+    expect((screen.getByLabelText('Celebrans: Msza 10:00, Niedziela 10:00') as HTMLInputElement).value).toBe('ks. Grzegorz');
+    expect((screen.getByLabelText('Celebrans: Msza 08:00, Niedziela 08:00') as HTMLInputElement).value).toBe('');
+  });
   it('fills the focused mass from the shared priest chips', async () => {
     loadWeek.mockResolvedValue({ masses: [mass('a', WEEK, '08:00'), mass('b', WEEK, '10:00')] });
     const onSave = vi.fn().mockResolvedValue(undefined);

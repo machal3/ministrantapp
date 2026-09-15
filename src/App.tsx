@@ -19,6 +19,8 @@ import AdminServersModal from './components/AdminServersModal';
 import EditMassModal from './components/EditMassModal';
 import WeekCelebrantsModal from './components/WeekCelebrantsModal';
 import type { CelebrantUpdate } from './components/WeekCelebrantsModal';
+import MonthAnnotationsModal from './components/MonthAnnotationsModal';
+import type { AnnotationUpdate } from './components/MonthAnnotationsModal';
 import { logoutAdmin } from './lib/admin';
 import { dateKey, DAY_NAMES, weekStart, polishDate, shiftDate, timeSlot, weekday } from './lib/dates';
 import { matchesRule } from './lib/attendance';
@@ -75,6 +77,7 @@ export default function App() {
   const [editingServers, setEditingServers] = useState(false);
   const [editingMass, setEditingMass] = useState<Mass | null>(null);
   const [celebrantsOpen, setCelebrantsOpen] = useState(false);
+  const [annotationsOpen, setAnnotationsOpen] = useState(false);
   const mutationLock = useRef(false);
   const requestId = useRef(0);
   const data = snapshot?.week === week ? snapshot.data : EMPTY;
@@ -87,7 +90,7 @@ export default function App() {
     const expire = () => {
       if (Date.parse(adminSession.expires_at) <= Date.now()) {
         setAdminSession(null);
-        setEditingServers(false); setEditingMass(null); setAdding(false); setCelebrantsOpen(false);
+        setEditingServers(false); setEditingMass(null); setAdding(false); setCelebrantsOpen(false); setAnnotationsOpen(false);
         setConfirmation(current => current?.kind === 'mass' ? null : current);
         setNotice('Sesja administratora wygasła. Aby edytować, wpisz PIN ponownie.');
       }
@@ -100,7 +103,7 @@ export default function App() {
   async function leaveAdmin() {
     const session = adminSession;
     setAdminSession(null);
-    setEditingServers(false); setEditingMass(null); setAdding(false); setCelebrantsOpen(false);
+    setEditingServers(false); setEditingMass(null); setAdding(false); setCelebrantsOpen(false); setAnnotationsOpen(false);
     setConfirmation(current => current?.kind === 'mass' ? null : current);
     if (session) {
       try { await logoutAdmin(session); }
@@ -265,6 +268,15 @@ export default function App() {
     await latestRefresh.current();
   }
 
+  async function handleMonthAnnotations(updates: AnnotationUpdate[]): Promise<void> {
+    for (const { day, label } of updates) {
+      await setDayAnnotation(day, label, adminSession);
+    }
+    const count = updates.length;
+    setNotice(`Zapisano oznaczenia na ${count} ${count === 1 ? 'dzień' : 'dni'}.`);
+    await latestRefresh.current();
+  }
+
   async function confirmDelete() {
     if (!confirmation) return;
     const target = confirmation;
@@ -326,6 +338,7 @@ export default function App() {
         <div className="admin-toolbar-actions">
           <button className="button secondary" onClick={() => setAdding(true)} disabled={loading || !!loadError}><Plus size={16} />Dodaj Mszę / wydarzenie</button>
           <button className="button secondary" onClick={() => setCelebrantsOpen(true)} disabled={loading || !!loadError}><UserRound size={16} />Księża na tydzień</button>
+          <button className="button secondary" onClick={() => setAnnotationsOpen(true)} disabled={loading || !!loadError}><CalendarDays size={16} />Oznaczanie dni</button>
           <button className="button secondary" disabled={loading || !!loadError} onClick={() => setEditingServers(true)}><Users size={16} />Edytuj ministrantów</button>
         </div></div>}
 
@@ -425,6 +438,7 @@ export default function App() {
     )}
     {adminSession && editingMass && <EditMassModal mass={editingMass} onClose={() => setEditingMass(null)} onSave={handleMassEdit} />}
     {adminSession && celebrantsOpen && <WeekCelebrantsModal initialWeek={week} onClose={() => setCelebrantsOpen(false)} onSave={handleWeekCelebrants} />}
+    {adminSession && annotationsOpen && <MonthAnnotationsModal initialMonth={week.slice(0, 7)} onClose={() => setAnnotationsOpen(false)} onSave={handleMonthAnnotations} />}
     {adminSession && adding && <AddMassModal initialDate={selectedDay} onClose={() => setAdding(false)} onSubmit={handleAdd} onSubmitRecurring={handleAddRecurring} />}
 
     {confirmation && <Modal title={confirmation.kind === 'mass' ? (eventCategory(confirmation.mass) === 'other' ? 'Usunąć wydarzenie?' : confirmation.mass.is_extra ? 'Usunąć nabożeństwo?' : 'Usunąć Mszę Świętą?') : 'Usunąć stały dyżur?'} onClose={() => { setConfirmation(null); setActionError(''); }} busy={busy}>

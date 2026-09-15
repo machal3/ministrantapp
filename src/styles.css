@@ -266,22 +266,39 @@ h1 { font-family: var(--font-sans); font-size: clamp(31px, 3vw, 42px); font-weig
 
 /* Masowe ustawianie celebransów na wybrany tydzień. */
 .celebrants-modal { width: min(720px, calc(100vw - 32px)); }
-.celebrants-week-nav { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 12px 14px; margin-bottom: 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-soft); }
+.celebrants-modal .modal-content, .annotations-modal .modal-content { display: flex; flex-direction: column; max-height: calc(100dvh - 32px); overflow: hidden; }
+.celebrants-modal .modal-heading, .annotations-modal .modal-heading { flex-shrink: 0; }
+.celebrants-modal .rule-intro, .annotations-modal .rule-intro { flex-shrink: 0; }
+.celebrants-week-nav { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 12px 14px; margin-bottom: 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-soft); flex-shrink: 0; }
 .celebrants-week-label { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 13px; font-weight: 700; color: var(--green); }
-.celebrants-presets { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; margin-bottom: 14px; border: 1px solid var(--border); border-radius: 12px; background: #fdfdfc; }
+.celebrants-presets { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; margin-bottom: 14px; border: 1px solid var(--border); border-radius: 12px; background: #fdfdfc; flex-shrink: 0; }
 .celebrants-presets-label { font-size: 13px; font-weight: 600; color: var(--ink); }
 .celebrants-presets-hint { margin: 0; font-size: 12px; color: var(--muted); }
-.celebrants-days { display: flex; flex-direction: column; gap: 16px; max-height: min(48vh, 420px); overflow-y: auto; overscroll-behavior: contain; margin: 0 0 4px; padding: 2px; }
+/* Jeden wspólny obszar przewijania — pasek podpowiedzi i stopka są przypięte. */
+.celebrants-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; margin: 0 -4px; padding: 2px 4px 8px; }
+.celebrants-modal .modal-actions, .annotations-modal .modal-actions { flex-shrink: 0; }
+
+/* Masowe oznaczanie dni — lista dni miesiąca. */
+.annotations-modal { width: min(720px, calc(100vw - 32px)); }
+.annotations-list { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.celebrant-row.is-today { border-color: #8fb19d; box-shadow: inset 0 0 0 1px #8fb19d; }
+/* Ranga dnia w oznaczaniu — te same kolory co w kalendarzu. Nierozpoznane zostają zielone (klasa .changed). */
+.celebrant-row.is-sunday { background: var(--day-tint); border-color: var(--day-edge); }
+.celebrant-row.is-feast { background: var(--day-tint); border-color: var(--day-edge); }
+.celebrant-row.is-sunday .celebrant-row-info strong, .celebrant-row.is-feast .celebrant-row-info strong { color: var(--day-ink); }
+.celebrant-row.changed-rank { box-shadow: inset 0 0 0 1px var(--day-edge); }
+.celebrants-days { display: flex; flex-direction: column; gap: 16px; margin: 0; padding: 0; }
 .celebrants-day-group { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .celebrants-day-heading { margin: 0; font-size: 12px; font-weight: 700; letter-spacing: .4px; text-transform: uppercase; color: var(--muted); }
 .celebrants-list { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
-.celebrant-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 4px 12px; align-items: center; padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; background: #fff; }
+.celebrant-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 4px 12px; align-items: center; padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; background: #fff; cursor: pointer; }
+.celebrant-row.focused { outline: 2px solid var(--green); outline-offset: -2px; }
 .celebrant-row.changed { border-color: #9dbfaa; background: #f4f8f1; }
 .celebrant-row-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .celebrant-row-info strong { font-size: 13px; font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .celebrant-row-info small { font-size: 12px; color: var(--muted); }
 .celebrant-row-field { display: flex; align-items: center; gap: 4px; min-width: 0; }
-.celebrant-row-field input { flex: 1; min-width: 0; min-height: 44px; border: 1px solid #c9d7ce; border-radius: var(--control-radius); background: var(--surface); padding: 10px 12px; font-size: 14px; color: var(--ink); }
+.celebrant-row-field input { flex: 1; min-width: 0; min-height: 44px; border: 1px solid #c9d7ce; border-radius: var(--control-radius); background: var(--surface); padding: 10px 12px; font-size: 16px; color: var(--ink); }
 .celebrant-row-field .icon-button { flex-shrink: 0; }
 .edit-time-button { display: flex; align-items: center; gap: 7px; border: 0; border-top: 1px solid var(--liturgy-edge); border-bottom: 1px solid var(--border); background: var(--liturgy-tint); color: var(--liturgy-accent); padding: 10px 18px; width: 100%; min-height: 40px; font-size: 13px; font-weight: 600; text-align: left; transition: background .15s; }
 .edit-time-button:hover:not(:disabled) { background: var(--liturgy-edge); }

@@ -1,8 +1,8 @@
 import { eventCategory } from './eventCategory';
 import { massOccurrenceDates } from './massRecurrence';
 import { configurationError, isDemo, supabase } from './supabase';
-import { demoWeek, writeDemo } from './demo';
-import { dateKey, shiftDate, timeSlot, weekday, weekBounds, zonedIso } from './dates';
+import { demoWeek, readDemo, writeDemo } from './demo';
+import { dateKey, shiftDate, shiftMonth, timeSlot, weekday, weekBounds, zonedIso } from './dates';
 import { requireAdminSession } from './admin';
 import { RANKS } from '../types/database';
 import type { AdminSession, AltarServer, AttendanceType, MassEditInput, NewMass, RecurringMassesInput, RecurringRule, ScheduleData } from '../types/database';
@@ -361,4 +361,17 @@ export async function setDayAnnotation(day: string, label: string, session: Admi
     if (label.trim()) state.dayAnnotations.push({ day, label: label.trim() });
   });
   check((await client().rpc('admin_set_day_annotation', {p_token:admin.token,p_day:day,p_label:label.trim()})).error);
+}
+
+export async function loadMonthAnnotations(month: string): Promise<{ day: string; label: string }[]> {
+  const from = `${month}-01`;
+  const to = `${shiftMonth(month, 1)}-01`;
+  if (isDemo) {
+    return (readDemo().dayAnnotations ?? [])
+      .filter(item => item.day >= from && item.day < to)
+      .sort((a, b) => a.day.localeCompare(b.day));
+  }
+  const { data, error } = await client().from('day_annotations').select('*').gte('day', from).lt('day', to).order('day');
+  check(error);
+  return data ?? [];
 }
