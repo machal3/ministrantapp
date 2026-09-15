@@ -663,8 +663,10 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .section-title { font-size: 16px; }
   .sync-status { font-size: 10px; }
   .week-navigator { padding: 16px 12px; gap: 14px; }
-  .week-heading { width: 100%; justify-content: space-between; }
-  .week-navigator h2 { font-size: 13px; }
+  .week-heading { width: 100%; justify-content: space-between; flex-wrap: nowrap; gap: 8px; }
+  .week-heading > div { min-width: 0; }
+  .week-navigator h2 { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .current-week-label { flex-shrink: 0; }
   .week-controls { width: 100%; display: grid; grid-template-columns: 48px 1fr 48px; gap: 8px; }
   .day-selector { padding: 0 10px 12px; gap: 4px; }
   .day-tab { min-height: 66px; padding: 8px 2px; border-radius: 8px; }
