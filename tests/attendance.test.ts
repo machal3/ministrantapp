@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { aggregateAttendees } from '../src/lib/attendance';
+import { aggregateAttendees, ruleHistoryToPreserve } from '../src/lib/attendance';
 import { dateKey, monday, shiftDate, timeSlot, weekBounds, zonedIso } from '../src/lib/dates';
 import type { AltarServer, Mass, MassAttendee, RecurringRule } from '../src/types/database';
 
@@ -27,6 +27,19 @@ describe('presence model', () => {
   });
   it('preserves a single signup after a rule is removed', () => {
     expect(aggregateAttendees([mass], servers, [], [entry])[0].attendance_type).toBe('single');
+  });
+});
+
+describe('rule history preservation', () => {
+  const nowIso = '2026-03-22T12:00:00.000Z';
+  const past = { id: 'past', start_time: zonedIso('2026-03-15', '10:30') };
+  const earlierToday = { id: 'today', start_time: zonedIso('2026-03-22', '10:30') };
+  const future = { id: 'future', start_time: zonedIso('2026-03-29', '10:30') };
+  const otherHour = { id: 'hour', start_time: zonedIso('2026-03-15', '12:00') };
+  it('keeps past matching masses and skips future, other hours and existing entries', () => {
+    expect(ruleHistoryToPreserve([past, earlierToday, future, otherHour], [], rule, nowIso)).toEqual(['past', 'today']);
+    expect(ruleHistoryToPreserve([past], [{ mass_id: 'past', server_id: 'jan' }], rule, nowIso)).toEqual([]);
+    expect(ruleHistoryToPreserve([past], [{ mass_id: 'past', server_id: 'other' }], rule, nowIso)).toEqual(['past']);
   });
 });
 

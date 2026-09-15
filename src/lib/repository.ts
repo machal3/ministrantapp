@@ -1,4 +1,5 @@
 import { eventCategory } from './eventCategory';
+import { ruleHistoryToPreserve } from './attendance';
 import { massOccurrenceDates } from './massRecurrence';
 import { configurationError, isDemo, supabase } from './supabase';
 import { demoWeek, readDemo, writeDemo } from './demo';
@@ -112,8 +113,40 @@ export async function updateRule(rule: RecurringRule): Promise<void> {
 }
 
 export async function deleteRule(id: string): Promise<void> {
-  if (isDemo) return writeDemo(state => { state.rules = state.rules.filter(r => r.id !== id); });
-  check((await client().from('recurring_rules').delete().eq('id', id)).error);
+  if (isDemo) return writeDemo(state => {
+    const rule = state.rules.find(r => r.id === id);
+    if (rule) {
+      for (const massId of ruleHistoryToPreserve(state.masses, state.exceptions, rule)) {
+        state.exceptions.push({ id: crypto.randomUUID(), mass_id: massId, server_id: rule.server_id, type: 'single' });
+      }
+    }
+    state.rules = state.rules.filter(r => r.id !== id);
+  });
+  const db = client();
+  const { data: found, error: ruleError } = await db.from('recurring_rules').select('*').eq('id', id);
+  check(ruleError);
+  const rule = (found ?? [])[0] as RecurringRule | undefined;
+  if (rule) {
+    const nowIso = new Date().toISOString();
+    const past = await allRows<{ id: string; start_time: string }>((a, b) =>
+      db.from('masses').select('id,start_time').lt('start_time', nowIso).order('start_time').order('id').range(a, b));
+    const candidates = past.filter(mass => mass.start_time < nowIso);
+    let occupied: { mass_id: string; server_id: string }[] = [];
+    for (let index = 0; index < candidates.length; index += 80) {
+      const batch = candidates.slice(index, index + 80);
+      occupied.push(...await allRows<{ mass_id: string; server_id: string }>((a, b) =>
+        db.from('mass_attendees').select('mass_id,server_id').eq('server_id', rule.server_id)
+          .in('mass_id', batch.map(mass => mass.id)).range(a, b)));
+    }
+    const freshIds = ruleHistoryToPreserve(candidates, occupied, rule, nowIso);
+    for (let index = 0; index < freshIds.length; index += 80) {
+      check((await db.from('mass_attendees').upsert(
+        freshIds.slice(index, index + 80).map(mass_id => ({ mass_id, server_id: rule.server_id, type: 'single' as const })),
+        { onConflict: 'mass_id,server_id' },
+      )).error);
+    }
+  }
+  check((await db.from('recurring_rules').delete().eq('id', id)).error);
 }
 
 export async function addMass(mass: NewMass, session: AdminSession | null): Promise<void> {

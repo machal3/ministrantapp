@@ -174,7 +174,7 @@ export default function App() {
     const isDevotion = mass.is_extra;
     const noun = eventCategory(mass) === 'other' ? 'wydarzenie' : isDevotion ? 'nabożeństwo' : 'Mszę Świętą';
     const messages: Record<MassAction, string> = {
-      single: `Zapisano Cię na ${noun}. Do zobaczenia!`,
+      single: `Zapisano Cię na ${noun}.`,
       recurring: 'Stały dyżur został ustawiony. Obowiązuje również dla nowych terminów.',
       withdraw: 'Usunięto Twój jednorazowy zapis.',
       excuse: 'Zgłoszono nieobecność tylko w tym terminie. Twój stały dyżur pozostaje aktywny.',
@@ -289,7 +289,7 @@ export default function App() {
         ? (deleteScope === 'future'
             ? (target.kind === 'mass' && eventCategory(target.mass) === 'other' ? 'Wydarzenia z tej serii zostały usunięte.' : isDevotion ? 'Nabożeństwa z tej serii zostały usunięte.' : 'Msze Święte z tej serii zostały usunięte.')
             : (target.kind === 'mass' && eventCategory(target.mass) === 'other' ? 'Wydarzenie zostało usunięte.' : isDevotion ? 'Nabożeństwo zostało usunięte.' : 'Msza Święta została usunięta.'))
-        : 'Stały dyżur został usunięty.'
+        : 'Stały dyżur został usunięty z przyszłych terminów. Poprzednie obecności zostały w kalendarzu.'
     );
     if (ok) setConfirmation(null);
   }
@@ -478,7 +478,7 @@ export default function App() {
         </div>
         <p className="confirmation-footnote">Jednorazowe zapisy na usuwane terminy zostaną skasowane. Stałe dyżury ministrantów pozostaną zachowane w bazie.</p>
       </> : <p className="confirmation-description">
-        {DAY_NAMES[confirmation.rule.day_of_week]} o {confirmation.rule.time_slot.slice(0, 5)}. Przestaniesz automatycznie pojawiać się na liście obecności o tej porze we wszystkich tygodniach. Twoje osobne zapisy jednorazowe i zgłoszenia nieobecności pozostaną zapisane.
+        {DAY_NAMES[confirmation.rule.day_of_week]} o {confirmation.rule.time_slot.slice(0, 5)}. Przestaniesz automatycznie pojawiać się na liście obecności o tej porze w przyszłych tygodniach. Poprzednie obecności z tego dyżuru zostaną w kalendarzu jako zapisy jednorazowe. Twoje osobne zapisy jednorazowe i zgłoszenia nieobecności pozostaną zapisane.
       </p>}
       {actionError && <p className="form-error" role="alert">{actionError}</p>}
       <div className="modal-actions"><button className="button secondary" disabled={busy} onClick={() => setConfirmation(null)}>Anuluj</button><button className="button danger" disabled={busy} onClick={() => void confirmDelete()}>{busy ? <LoaderCircle size={16} className="animate-spin" /> : <Trash2 size={16} />}{confirmation.kind === 'mass' ? (deleteScope === 'future' ? (eventCategory(confirmation.mass) === 'other' ? 'Usuń przyszłe wydarzenia z serii' : confirmation.mass.is_extra ? 'Usuń przyszłe nabożeństwa z serii' : 'Usuń przyszłe Msze z serii') : (eventCategory(confirmation.mass) === 'other' ? 'Usuń wydarzenie' : confirmation.mass.is_extra ? 'Usuń nabożeństwo' : 'Usuń Mszę Świętą')) : 'Usuń dyżur'}</button></div>

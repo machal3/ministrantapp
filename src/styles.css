@@ -492,7 +492,7 @@ button { touch-action: manipulation; }
 button:disabled { cursor: not-allowed; }
 button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 3px solid #358768; outline-offset: 3px; }
 ::selection { background: #d9ebe0; color: var(--ink); }
-.main-container { max-width: 1440px; padding: 10px var(--gutter) 48px; padding-top: max(10px, env(safe-area-inset-top)); }
+.main-container { max-width: 1440px; padding: 10px var(--gutter) 48px; padding-top: calc(env(safe-area-inset-top, 0px) + 10px); }
 .demo-banner { background: #fff9eb; border-color: #eadfc3; border-radius: var(--control-radius); font-size: 12px; margin-bottom: 0; }
 .page-heading { position: relative; top: auto; margin: 0 0 24px; padding: 12px 0 16px; gap: 24px; background: transparent; border-bottom: 1px solid var(--border); }
 .page-heading-titles { flex: 1; min-width: 0; }
@@ -654,7 +654,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .demo-banner { flex-direction: column; gap: 4px; }
 }
 @media (max-width: 640px) {
-  .main-container { padding-top: max(12px, env(safe-area-inset-top)); padding-bottom: 28px; }
+  .main-container { padding-top: calc(env(safe-area-inset-top, 0px) + 14px); padding-bottom: 28px; }
   .page-heading { gap: 12px; padding: 10px 0 14px; margin-bottom: 18px; }
   .page-heading h1 { font-size: 23px; letter-spacing: -.8px; }
   .page-heading p { font-size: 11px; max-width: 210px; line-height: 1.6; }

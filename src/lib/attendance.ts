@@ -16,6 +16,22 @@ export function matchesRule(mass: Mass, rule: RecurringRule): boolean {
   return Math.floor(days / 7) % interval === 0;
 }
 
+// Masses whose recurring attendance must be materialized as single entries
+// before their rule is deleted, so past presence stays in the calendar while
+// future dates disappear. Uses the same predicate as the SQL view.
+export function ruleHistoryToPreserve(
+  masses: Pick<Mass, 'id' | 'start_time'>[],
+  exceptions: Pick<MassAttendee, 'mass_id' | 'server_id'>[],
+  rule: RecurringRule,
+  nowIso = new Date().toISOString(),
+): string[] {
+  return masses
+    .filter(mass => mass.start_time < nowIso
+      && matchesRule(mass as Mass, rule)
+      && !exceptions.some(entry => entry.mass_id === mass.id && entry.server_id === rule.server_id))
+    .map(mass => mass.id);
+}
+
 // Used by the explicit local demonstration. Supabase uses the equivalent SQL view.
 export function aggregateAttendees(
   masses: Mass[], servers: AltarServer[], rules: RecurringRule[], exceptions: MassAttendee[],
