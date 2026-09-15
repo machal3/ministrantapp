@@ -1,6 +1,7 @@
 import DayAnnotationModal from './components/DayAnnotationModal';
 import { setDayAnnotation } from './lib/repository';
 import { eventCategory } from './lib/eventCategory';
+import { dayAppearance } from './lib/dayAppearance';
 import EditRuleModal from './components/EditRuleModal';
 import { describeRule } from './lib/recurrence';
 import { Pencil } from 'lucide-react';
@@ -288,7 +289,7 @@ export default function App() {
     return { massesByDay, counts };
   }, [data.masses]);
   const dayMasses = massesByDay.get(selectedDay) ?? EMPTY.masses;
-  const syncLabel: Record<SyncStatus, string> = { connecting: 'Łączenie…', live: 'Grafik na żywo', offline: 'Synchronizacja opóźniona', demo: 'Podgląd lokalny' };
+  const dayLabel = data.dayAnnotations?.find(annotation => annotation.day === selectedDay)?.label;
 
   return <div className="app-shell">
     <main className="main-container" id="grafik">
@@ -306,19 +307,25 @@ export default function App() {
 
       <div className="dashboard-layout">
         <section className="schedule-panel" aria-label="Grafik tygodniowy">
-          <div className="schedule-toolbar"><span className="section-title"><CalendarDays size={17} />Plan służby</span>
-            <span className={`sync-status ${syncStatus}`}><span />{syncLabel[syncStatus]}</span>
-          </div>
           <WeekNavigator week={week} onChange={changeWeek} />
           <DaySelector week={week} selected={selectedDay} onChange={setSelectedDay} counts={counts} dayAnnotations={data.dayAnnotations} />
-          {(adminSession || data.dayAnnotations?.some(a => a.day === selectedDay)) && <div className="day-annotation-bar">
-            <span>{data.dayAnnotations?.find(a => a.day === selectedDay)?.label || 'Dzień bez oznaczenia'}</span>
-            {adminSession && <button className="button secondary" disabled={loading || !!loadError} onClick={() => setEditingDay(selectedDay)}><Pencil size={14}/>Oznacz dzień</button>}
-          </div>}
 
           {syncStatus === 'offline' && <div className="info-banner" role="status">Połączenie na żywo jest niedostępne. Grafik odświeża się co minutę oraz po powrocie do karty.</div>}
           {loadError && <div className="error-banner" role="alert"><AlertCircle size={19} /><div><strong>Nie udało się odświeżyć grafiku</strong><p>{loadError}</p>{snapshot?.week === week && <p>Wyświetlane dane mogą być nieaktualne.</p>}</div><button className="button secondary" onClick={() => void refresh()}><RefreshCw size={14} />Ponów</button></div>}
           {actionError && !confirmation && <div className="error-banner" role="alert"><AlertCircle size={18} /><p>{actionError}</p><button className="icon-button" aria-label="Zamknij komunikat" onClick={() => setActionError('')}><X size={17} /></button></div>}
+
+          <div className="day-summary">
+            <div className="day-heading">
+              <h3>{DAY_NAMES[weekday(selectedDay)]}{' '}<span>{polishDate(selectedDay, { day: 'numeric', month: 'long' })}</span></h3>
+              {selectedDay === dateKey() && <span className="today-badge">Dzisiaj</span>}
+              <div className="day-heading-line" />
+              {!loading && <span className="day-count">{formatLiturgyCount(dayMasses)}</span>}
+            </div>
+            {(adminSession || dayLabel) && <div className={`day-annotation-bar ${dayAppearance(selectedDay, dayLabel)}`}>
+              <span className="day-annotation-label"><CalendarDays size={18} aria-hidden="true" /><span>{dayLabel || 'Dzień bez oznaczenia'}</span></span>
+              {adminSession && <button className="button secondary" disabled={loading || !!loadError} onClick={() => setEditingDay(selectedDay)}><Pencil size={14}/>Oznacz dzień</button>}
+            </div>}
+          </div>
 
           {loading && snapshot?.week !== week ? (
             <div className="loading-state" role="status"><LoaderCircle className="animate-spin" size={28} /><p>Przygotowujemy grafik…</p></div>
@@ -332,12 +339,6 @@ export default function App() {
           ) : (
             <div className="day-groups">
               <section className="day-group" key={selectedDay} aria-label={DAY_NAMES[weekday(selectedDay)]}>
-                <div className="day-heading">
-                  <h3>{DAY_NAMES[weekday(selectedDay)]}{' '}<span>{polishDate(selectedDay, { day: 'numeric', month: 'long' })}</span></h3>
-                  {selectedDay === dateKey() && <span className="today-badge">Dzisiaj</span>}
-                  <div className="day-heading-line" />
-                  <span className="day-count">{formatLiturgyCount(dayMasses)}</span>
-                </div>
                 <div className="mass-grid">
                   {dayMasses.map(mass => (
                     <MassCard

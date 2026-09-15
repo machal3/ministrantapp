@@ -93,29 +93,6 @@ export default function UserSelector({ servers, selectedId, onChange, adminSessi
       </button>
     </div>
 
-    <div className="user-selector-compact">
-      <button
-        type="button"
-        className={`compact-avatar ${activeServer ? 'has-selection' : ''}`}
-        onClick={openPanel}
-        aria-label={activeServer ? `Wybrano: ${activeServer.name}. Zmień ministranta` : 'Wybierz ministranta'}
-        aria-haspopup="dialog"
-        aria-expanded={open}
-        title={activeServer ? activeServer.name : 'Wybierz ministranta'}
-      >
-        {activeServer ? initials : <UserRound size={18} strokeWidth={1.7} />}
-      </button>
-      <button
-        type="button"
-        className={`compact-admin-btn ${adminSession ? 'active' : ''}`}
-        onClick={onAdminToggle}
-        aria-label={adminSession ? 'Wyłącz tryb admina' : 'Administrator'}
-        title={adminSession ? 'Wyłącz tryb administratora' : 'Włącz tryb administratora'}
-      >
-        {adminSession ? <LogOut size={17} /> : <ShieldCheck size={17} />}
-      </button>
-
-    </div>
     {open && <Modal title="Wybierz ministranta" onClose={closePanel} className="person-modal">
       <p className="person-intro">Wybierz siebie, aby zapisywać się na służby i zobaczyć swoje dyżury. Możesz też przeglądać grafik bez wyboru osoby.</p>
       <label className="person-search">

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { LoaderCircle, ShieldCheck } from 'lucide-react';
 import Modal from './Modal';
@@ -10,9 +10,15 @@ export default function AdminLoginModal({ onClose, onLogin }: { onClose: () => v
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const lock = useRef(false);
+  const pinInput = useRef<HTMLInputElement>(null);
+  useLayoutEffect(() => {
+    if (!busy && error) pinInput.current?.focus();
+  }, [busy, error]);
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (lock.current) return;
+    // Keep the keyboard attached to an enabled input throughout the request.
+    pinInput.current?.focus();
     lock.current = true;
     setBusy(true);
     setError('');
@@ -20,13 +26,13 @@ export default function AdminLoginModal({ onClose, onLogin }: { onClose: () => v
     catch (cause) { setError(cause instanceof Error ? cause.message : 'Nie udało się sprawdzić PIN-u.'); setPin(''); }
     finally { lock.current = false; setBusy(false); }
   }
-  return <Modal title="Tryb administratora" onClose={onClose} busy={busy}>
+  return <Modal title="Tryb administratora" onClose={onClose} busy={busy} initialFocusRef={pinInput}>
     <p className="mb-5 text-sm text-[var(--muted)]">Wpisz PIN, aby edytować ministrantów i zarządzać nabożeństwami. Sesja trwa 30 minut.</p>
     <form onSubmit={submit}>
       <label className="field">PIN administratora
-        <input type="password" inputMode="numeric" pattern="[0-9]{4}" minLength={4} maxLength={4}
-          autoComplete="off" required autoFocus value={pin} disabled={busy}
-          onChange={event => setPin(event.target.value.replace(/\D/g, '').slice(0, 4))} />
+        <input ref={pinInput} type="password" inputMode="numeric" pattern="[0-9]{4}" minLength={4} maxLength={4}
+          autoComplete="off" required value={pin} aria-busy={busy}
+          onChange={event => { if (!lock.current) setPin(event.target.value.replace(/\D/g, '').slice(0, 4)); }} />
       </label>
       {error && <p className="form-error" role="alert">{error}</p>}
       <div className="modal-actions"><button type="button" className="button secondary" disabled={busy} onClick={onClose}>Anuluj</button>

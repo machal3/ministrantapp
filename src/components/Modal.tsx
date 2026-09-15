@@ -1,15 +1,18 @@
-import { useEffect, useRef } from 'react';
-import type { ReactNode } from 'react';
+import { useId, useLayoutEffect, useRef } from 'react';
+import type { ReactNode, RefObject } from 'react';
 import { X } from 'lucide-react';
 
-interface Props { title: string; children: ReactNode; onClose: () => void; busy?: boolean; className?: string }
+interface Props { title: string; children: ReactNode; onClose: () => void; busy?: boolean; className?: string; initialFocusRef?: RefObject<HTMLElement | null> }
 
-export default function Modal({ title, children, onClose, busy = false, className = '' }: Props) {
+export default function Modal({ title, children, onClose, busy = false, className = '', initialFocusRef }: Props) {
   const ref = useRef<HTMLDialogElement>(null);
-  useEffect(() => {
+  const titleId = useId();
+  useLayoutEffect(() => {
     const previousFocus = document.activeElement as HTMLElement | null;
     const dialog = ref.current!;
     dialog.showModal();
+    // Focus after opening, in the same commit as the user's opening gesture.
+    initialFocusRef?.current?.focus();
     const prevBodyOverflow = document.body.style.overflow;
     const prevHtmlOverflow = document.documentElement.style.overflow;
     document.body.style.overflow = 'hidden';
@@ -20,13 +23,13 @@ export default function Modal({ title, children, onClose, busy = false, classNam
       document.documentElement.style.overflow = prevHtmlOverflow;
       previousFocus?.focus();
     };
-  }, []);
-  return <dialog ref={ref} className={`modal ${className}`} aria-labelledby="modal-title"
+  }, [initialFocusRef]);
+  return <dialog ref={ref} className={`modal ${className}`} aria-labelledby={titleId}
     onCancel={event => { event.preventDefault(); if (!busy) onClose(); }}
     onClick={event => { if (event.target === event.currentTarget && !busy) onClose(); }}>
     <div className="modal-content" onClick={event => event.stopPropagation()}>
-      <div className="mb-6 flex items-center justify-between gap-4">
-        <h2 id="modal-title">{title}</h2>
+      <div className="modal-heading">
+        <h2 id={titleId}>{title}</h2>
         <button type="button" className="icon-button" aria-label="Zamknij okno" onClick={onClose} disabled={busy}><X size={20} /></button>
       </div>
       {children}

@@ -43,6 +43,7 @@ it('hides management before PIN verification and shows errors without unlocking'
 });
 
 it('edits name and rank with the verified session and updates the identity selector', async () => {
+  localStorage.setItem('liturgy.active-server', 'jan');
   api.updateServer.mockImplementation(async (server) => { data.servers[0] = server; });
   render(<App />);
   await screen.findByRole('heading', { name: 'Msza Święta' });
@@ -52,11 +53,11 @@ it('edits name and rank with the verified session and updates the identity selec
   fireEvent.click(screen.getByTitle('Edytuj ministranta'));
   fireEvent.change(screen.getByLabelText('Imię i nazwisko'), { target: { value: 'Jan Nowy' } });
   fireEvent.change(screen.getByLabelText('Stopień'), { target: { value: 'Ceremoniarz' } });
-  fireEvent.click(screen.getByRole('button', { name: /Zapisz/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'Zapisz' }));
   await screen.findByText('Zapisano dane: Jan Nowy.');
   expect(api.updateServer).toHaveBeenCalledWith({ id: 'jan', name: 'Jan Nowy', rank: 'Ceremoniarz' }, session);
   fireEvent.click(screen.getByRole('button', { name: 'Zamknij okno' }));
-  expect(screen.getByRole('option', { name: 'Jan Nowy · Ceremoniarz' })).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Wybrano: Jan Nowy. Zmień ministranta' })).toHaveProperty('textContent', expect.stringContaining('Ceremoniarz'));
 });
 
 it('adds a new server with one of the 5 ranks', async () => {
@@ -178,4 +179,3 @@ it('offers delete scope choice and deletes future masses when selected', async (
   fireEvent.click(screen.getByRole('button', { name: /Usuń przyszłe/ }));
   await waitFor(() => expect(api.deleteMass).toHaveBeenCalledWith('mass', session, 'future'));
 });
-
