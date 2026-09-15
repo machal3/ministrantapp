@@ -36,7 +36,25 @@
 
 ## Zachowanie i utrzymanie
 
-Cron sprawdza stan co 30 minut. Wysyłki obejmują wydarzenia rozpoczynające się w ciągu kolejnych 30 minut. Nowa subskrypcja w tym oknie może dostać je przy następnym uruchomieniu zadania. Nie wysyłamy przypomnień po rozpoczęciu. Zmiana godziny tworzy nowy termin przypomnienia. Jedna wysyłka jest zapamiętywana dla urządzenia, wydarzenia, godziny i rodzaju alertu. Lease chroni przed równoległymi zadaniami; przejściowe błędy są ponawiane najwyżej trzy razy. Gdy dostawca przyjmie wiadomość, lecz potwierdzenie do bazy się nie powiedzie, ponowienie może ponownie dotrzeć — tag powiadomienia zastępuje poprzednie na urządzeniu, nie daje gwarancji exactly-once.
+Cron sprawdza stan co minutę. Wysyłki obejmują wydarzenia rozpoczynające się w ciągu kolejnych 30 minut. Nowa subskrypcja w tym oknie może dostać je przy następnym uruchomieniu zadania. Nie wysyłamy przypomnień po rozpoczęciu. Zmiana godziny tworzy nowy termin przypomnienia. Jedna wysyłka jest zapamiętywana dla urządzenia, wydarzenia, godziny i rodzaju alertu. Lease chroni przed równoległymi zadaniami; przejściowe błędy są ponawiane najwyżej trzy razy. Gdy dostawca przyjmie wiadomość, lecz potwierdzenie do bazy się nie powiedzie, ponowienie może ponownie dotrzeć — tag powiadomienia zastępuje poprzednie na urządzeniu, nie daje gwarancji exactly-once.
+
+## Gdzie są subskrypcje urządzeń?
+
+Tabela `liturgy_private.push_subscriptions` jest w prywatnym schemacie, nie w `public`. Tworzy ją migracja `202609150008_push_notifications.sql`, a nie skrypt Cron. Zawiera adresy push i ustawienia urządzeń oraz skróty tokenów zarządzania subskrypcją. Nie udostępniaj tego schematu w API.
+
+W SQL Editor sprawdź istnienie tabeli:
+
+```sql
+select to_regclass('liturgy_private.push_subscriptions') as tabela_subskrypcji;
+```
+
+Wynik `null` oznacza brak tabeli w tym projekcie. Wykonaj migrację powiadomień po wcześniejszych migracjach. Jeśli tabela istnieje, sprawdź liczbę urządzeń:
+
+```sql
+select count(*) as liczba_urzadzen from liturgy_private.push_subscriptions;
+```
+
+Rekord powstaje po włączeniu opcji i poprawnym zapisaniu ustawień na urządzeniu, po zgodzie na powiadomienia. Sam wybór ministranta lub instalacja aplikacji nie zapisuje subskrypcji.
 
 Wysyłka używa aktualnych deklaracji w momencie pobrania partii. Zapis dokonany tuż później może już nie zatrzymać wiadomości będącej w drodze. TTL kończy się wraz z rozpoczęciem wydarzenia. Subskrypcje wygasłe (HTTP 404/410) są usuwane. Ponowne zapisanie ustawień odświeża subskrypcję. Historia wysyłek jest czyszczona po 7 dniach. Nie cache'ujemy grafiku ani danych Supabase offline.
 

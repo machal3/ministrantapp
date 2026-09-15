@@ -12,7 +12,13 @@ function deviceToken(create: boolean): string | null {
   return token;
 }
 function database() { if (!supabase) throw new Error('Powiadomienia nie są dostępne w podglądzie demonstracyjnym.'); return supabase; }
-function check(error: {message:string} | null) { if (error) throw new Error('Nie udało się zapisać ustawień powiadomień. Spróbuj ponownie.'); }
+function check(error: {message:string;code?:string} | null) {
+  if (!error) return;
+  if (error.code === 'PGRST202' || error.code === '42P01') {
+    throw new Error('W bazie brakuje konfiguracji powiadomień. Administrator musi wykonać migrację powiadomień w Supabase.');
+  }
+  throw new Error('Nie udało się zapisać ustawień powiadomień. Spróbuj ponownie.');
+}
 export async function loadPushPreferences(): Promise<PushPreferences | null> {
   const token = deviceToken(false);
   if (!token) return null;
@@ -42,7 +48,12 @@ export async function savePushPreferences(preferences: PushPreferences): Promise
   await registerWorker();
   const registration = await navigator.serviceWorker.ready;
   let previous = await registration.pushManager.getSubscription();
-  if (previous && !previousToken) { await previous.unsubscribe(); previous = null; }
+  const previousKey = previous?.options?.applicationServerKey;
+  const encodedKey = previousKey ? btoa(String.fromCharCode(...new Uint8Array(previousKey)))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '') : null;
+  if (previous && (!previousToken || (encodedKey !== null && encodedKey !== key.replace(/=+$/, '')))) {
+    await previous.unsubscribe(); previous = null;
+  }
   const subscription = previous ?? await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
   const json = subscription.toJSON();
   if (!json.keys?.p256dh || !json.keys.auth) throw new Error('Nie udało się zarejestrować urządzenia.');

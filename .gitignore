@@ -7,3 +7,4 @@ dist/
 coverage/
 test-results/
 .vite/
+supabase/.temp/

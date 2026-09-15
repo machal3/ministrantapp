@@ -28,3 +28,18 @@ it('registers only the chosen notification categories after consent',async()=>{
  expect(subscribe).toHaveBeenCalledWith({userVisibleOnly:true,applicationServerKey:'public-key'});
  expect(rpc).toHaveBeenCalledWith('save_push_subscription',expect.objectContaining({p_server:'jan',p_own:true,p_empty_mass:false,p_empty_devotion:true}));
 });
+it('replaces a subscription created with a previous VAPID key',async()=>{
+ localStorage.setItem('liturgy.push-device','80000000-0000-4000-8000-000000000001');
+ const registration=await navigator.serviceWorker.ready;
+ vi.mocked(registration.pushManager.getSubscription).mockResolvedValue({...subscription,
+   options:{applicationServerKey:new Uint8Array([1,2,3]).buffer,userVisibleOnly:true},
+ } as unknown as PushSubscription);
+ await savePushPreferences({server_id:'jan',own:true,empty_mass:false,empty_devotion:false});
+ expect(unsubscribe).toHaveBeenCalledOnce();
+ expect(subscribe).toHaveBeenCalledOnce();
+ expect(rpc).toHaveBeenCalledWith('save_push_subscription',expect.anything());
+});
+it('identifies a missing notification migration',async()=>{
+ rpc.mockResolvedValue({error:{code:'PGRST202',message:'missing function'}});
+ await expect(savePushPreferences({server_id:'jan',own:true,empty_mass:false,empty_devotion:false})).rejects.toThrow('migrację powiadomień');
+});

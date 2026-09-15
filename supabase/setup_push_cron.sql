@@ -2,6 +2,7 @@
 -- push_function_url = https://YOUR_PROJECT.supabase.co/functions/v1/send-notifications
 -- push_cron_secret = the same random secret configured as PUSH_CRON_SECRET on the function.
 -- Create these in Supabase Dashboard > Integrations > Vault; never put them in VITE_*.
+begin;
 create extension if not exists pg_cron;
 create extension if not exists pg_net with schema extensions;
 do $$ begin
@@ -15,7 +16,7 @@ select cron.unschedule(jobid)
 from cron.job
 where jobname in ('liturgy-push-every-minute', 'liturgy-push-every-30-minutes');
 
-select cron.schedule('liturgy-push-every-30-minutes','*/30 * * * *', $job$
+select cron.schedule('liturgy-push-every-minute','* * * * *', $job$
  select net.http_post(
    url := (select decrypted_secret from vault.decrypted_secrets where name='push_function_url'),
    headers := jsonb_build_object('Content-Type','application/json','x-cron-secret',(select decrypted_secret from vault.decrypted_secrets where name='push_cron_secret')),
@@ -23,3 +24,4 @@ select cron.schedule('liturgy-push-every-30-minutes','*/30 * * * *', $job$
    timeout_milliseconds := 60000
  );
 $job$);
+commit;

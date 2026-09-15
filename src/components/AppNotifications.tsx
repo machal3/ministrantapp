@@ -24,7 +24,7 @@ function NotificationSettings({servers,selectedId,onClose}:{servers:AltarServer[
  useEffect(()=>{let active=true;loadPushPreferences().then(saved=>{if(active){if(saved)setPrefs(saved);setLoading(false);}}).catch(()=>{if(active)setError('Nie udało się odczytać ustawień. Zamknij okno i spróbuj ponownie.');});return()=>{active=false;};},[]);
  return <Modal title="Powiadomienia" onClose={onClose} busy={busy}>
  <div className="notification-settings">
- <p className="rule-intro">Wybierz, o czym chcesz otrzymywać przypomnienia na tym urządzeniu.</p>
+ <p className="rule-intro">Wybierz, o czym chcesz otrzymywać przypomnienia na tym urządzeniu. Powiadomienia wysyłamy około 30 minut przed rozpoczęciem wydarzenia.</p>
  <form onSubmit={async e=>{e.preventDefault();if(lock.current||loading)return;lock.current=true;setBusy(true);setError('');setSuccess('');try{await savePushPreferences(prefs);setSuccess('Zapisano ustawienia powiadomień.');}catch(c){setError(c instanceof Error?c.message:'Nie udało się zapisać.');}finally{lock.current=false;setBusy(false);}}}>
  <fieldset className="notification-options" disabled={loading||busy}>
  <label className="field">Powiadomienia dla ministranta<select value={prefs.server_id??''} onChange={e=>setPrefs({...prefs,server_id:e.target.value||null})}><option value="">Wybierz ministranta</option>{servers.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></label>

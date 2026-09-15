@@ -14,12 +14,16 @@ Deno.serve(async request => {
   if (request.method !== 'POST') return new Response('Method not allowed', {status:405});
   const secret = Deno.env.get('PUSH_CRON_SECRET');
   if (!secret || request.headers.get('x-cron-secret') !== secret) return new Response('Unauthorized', {status:401});
+  let stage = 'configuration';
   try {
     const db = createClient(required('SUPABASE_URL'), required('SUPABASE_SERVICE_ROLE_KEY'), {auth:{persistSession:false}});
     webpush.setVapidDetails(required('VAPID_SUBJECT'), required('VAPID_PUBLIC_KEY'), required('VAPID_PRIVATE_KEY'));
+    stage = 'claim_push_notifications';
     const {data, error} = await db.rpc('claim_push_notifications');
     if (error) throw error;
+    stage = 'dispatch_or_acknowledgement';
     let sent=0,failed=0;
+    const failureStatuses: Record<string, number> = {};
     // Bounded concurrency keeps the job short and avoids flooding push services.
     const jobs = [...(data ?? [])];
     await Promise.all(Array.from({length:10}, async () => {
@@ -42,6 +46,8 @@ Deno.serve(async request => {
           }
         } catch (cause) {
           const status=(cause as {statusCode?:number}).statusCode;
+          const reason = status ? String(status) : result === 'expired' ? 'unsupported_endpoint' : 'network_or_payload';
+          failureStatuses[reason] = (failureStatuses[reason] ?? 0) + 1;
           if (status===404 || status===410) result='expired';
           failed++;
         }
@@ -49,6 +55,11 @@ Deno.serve(async request => {
         if (ackError) throw ackError;
       }
     }));
+    if (failed) console.error('push_delivery_failures', {sent,failed,failureStatuses});
     return Response.json({sent,failed});
-  } catch { return Response.json({error:'Notification dispatch failed'}, {status:500}); }
+  } catch (cause) {
+    const code = (cause as {code?:unknown})?.code;
+    console.error('push_dispatch_failed', {stage, code: typeof code === 'string' && /^[A-Z0-9_]{1,24}$/.test(code) ? code : 'unknown'});
+    return Response.json({error:'Notification dispatch failed',stage}, {status:500});
+  }
 });
