@@ -23,7 +23,8 @@ function NotificationSettings({servers,selectedId,onClose}:{servers:AltarServer[
  const [loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[error,setError]=useState(''),[success,setSuccess]=useState('');const lock=useRef(false);
  useEffect(()=>{let active=true;loadPushPreferences().then(saved=>{if(active){if(saved)setPrefs(saved);setLoading(false);}}).catch(()=>{if(active)setError('Nie udało się odczytać ustawień. Zamknij okno i spróbuj ponownie.');});return()=>{active=false;};},[]);
  return <Modal title="Powiadomienia" onClose={onClose} busy={busy}>
- <p className="rule-intro">Wybierz powiadomienia dla tego urządzenia. Wysyłamy je około 30 minut przed rozpoczęciem.</p>
+ <div className="notification-settings">
+ <p className="rule-intro">Wybierz, o czym chcesz otrzymywać przypomnienia na tym urządzeniu.</p>
  <form onSubmit={async e=>{e.preventDefault();if(lock.current||loading)return;lock.current=true;setBusy(true);setError('');setSuccess('');try{await savePushPreferences(prefs);setSuccess('Zapisano ustawienia powiadomień.');}catch(c){setError(c instanceof Error?c.message:'Nie udało się zapisać.');}finally{lock.current=false;setBusy(false);}}}>
  <fieldset className="notification-options" disabled={loading||busy}>
  <label className="field">Powiadomienia dla ministranta<select value={prefs.server_id??''} onChange={e=>setPrefs({...prefs,server_id:e.target.value||null})}><option value="">Wybierz ministranta</option>{servers.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
@@ -33,5 +34,5 @@ function NotificationSettings({servers,selectedId,onClose}:{servers:AltarServer[
  <p className="rule-help">Odznacz wszystkie opcje, aby wyłączyć powiadomienia. Dostarczenie zależy od połączenia i ustawień telefonu.</p>
  {error&&<p className="form-error" role="alert">{error}</p>}{success&&<p className="info-banner" role="status">{success}</p>}
  <div className="modal-actions"><button type="button" className="button secondary" disabled={busy} onClick={onClose}>Zamknij</button><button className="button primary" disabled={busy||loading}>{busy?'Zapisywanie…':'Zapisz ustawienia'}</button></div>
- </form></Modal>;
+ </form></div></Modal>;
 }
