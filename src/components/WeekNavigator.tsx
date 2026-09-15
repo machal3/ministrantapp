@@ -8,9 +8,11 @@ export default function WeekNavigator({ week, onChange }: Props) {
   const sameMonth = week.slice(0, 7) === end.slice(0, 7);
   const range = `${polishDate(week, sameMonth ? { day: 'numeric' } : { day: 'numeric', month: 'short', ...(week.slice(0, 4) !== end.slice(0, 4) ? { year: 'numeric' as const } : {}) })} – ${polishDate(end, { day: 'numeric', month: 'long', year: 'numeric' })}`;
   return <div className="week-navigator">
-    <div className="flex items-center gap-3">
-      <CalendarDays size={19} className="text-[var(--green)]" />
-      <h2 aria-live="polite">{range}</h2>
+    <div className="week-heading">
+      <div className="flex items-center gap-2 min-w-0">
+        <CalendarDays size={18} className="text-[var(--green)] flex-shrink-0" />
+        <h2 aria-live="polite">{range}</h2>
+      </div>
       {week === weekStart() && <span className="current-week-label">Bieżący tydzień</span>}
     </div>
     <nav className="week-controls" aria-label="Wybór tygodnia">
