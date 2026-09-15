@@ -167,32 +167,6 @@ export type Database = {
         Returns: number;
       };
       admin_delete_future_masses: { Args: { p_token: string; p_id: string }; Returns: number };
-      save_push_subscription: {
-        Args: {
-          p_token: string;
-          p_endpoint: string;
-          p_p256dh: string;
-          p_auth: string;
-          p_server: string | null;
-          p_own: boolean;
-          p_empty_mass: boolean;
-          p_empty_devotion: boolean;
-        };
-        Returns: undefined;
-      };
-      get_push_preferences: {
-        Args: { p_token: string };
-        Returns: {
-          server_id: string | null;
-          own: boolean;
-          empty_mass: boolean;
-          empty_devotion: boolean;
-        } | null;
-      };
-      remove_push_subscription: {
-        Args: { p_token: string };
-        Returns: undefined;
-      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
@@ -208,4 +182,3 @@ export interface ScheduleData {
   attendees: EffectiveAttendee[];
   recentAttendance?: Record<string, number>;
 }
-

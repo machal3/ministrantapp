@@ -413,32 +413,6 @@ h1 { font-family: Georgia, "Times New Roman", serif; font-size: clamp(31px, 3vw,
 .page-heading { gap: 24px 32px; padding-top: 22px; padding-bottom: 22px; flex-wrap: wrap; }
 .page-heading-titles { flex-shrink: 0; }
 .page-heading-controls { gap: 16px; flex-wrap: wrap; max-width: 100%; }
-.app-notifications-button { min-height: 46px; padding: 12px 16px; gap: 10px; border-radius: 12px; border-color: #d4e1d5; background: #edf4ee; color: var(--green); font-size: 13px; white-space: nowrap; }
-.app-notifications-button:hover { background: #e2eee4; border-color: #b7cdbb; }
-.notification-settings { min-width: 0; width: 100%; }
-.notification-settings .rule-intro { margin: 0 0 22px; max-width: none; font-size: 14px; line-height: 1.6; color: #526348; }
-.notification-options { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
-.notification-settings .field { gap: 10px; font-size: 13px; line-height: 1.5; }
-.notification-settings .field select { min-height: 48px; border-radius: 10px; font-size: 16px; }
-.notification-settings .rule-help { margin: 0; max-width: none; font-size: 12px; line-height: 1.65; color: #677461; }
-.notification-options > .rule-help { margin-bottom: 8px; }
-.notification-option { display: grid; grid-template-columns: 22px minmax(0, 1fr); align-items: start; gap: 12px; padding: 16px; border: 1px solid #dfe6da; border-radius: 12px; background: #fafcf8; cursor: pointer; }
-.notification-option:has(input:checked) { border-color: #9eb99e; background: #edf5ed; }
-.notification-option:focus-within { outline: 2px solid #b68841; outline-offset: 2px; }
-.notification-option input[type="checkbox"] { width: 22px; height: 22px; min-height: 22px; margin: 2px 0 0; padding: 0; accent-color: var(--green); }
-.notification-option > span { display: flex; flex-direction: column; min-width: 0; gap: 6px; overflow-wrap: anywhere; }
-.notification-option strong { display: block; font-size: 14px; font-weight: 600; line-height: 1.45; color: #2a3d2e; }
-.notification-option small { display: block; font-size: 13px; line-height: 1.6; color: #677461; }
-.notification-settings form > .rule-help { margin-top: 20px; }
-.notification-settings .form-error, .notification-settings .info-banner { margin: 16px 0 0; max-width: none; font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
-.notification-settings .form-error { color: #a63931; }
-.notification-settings .modal-actions { margin-top: 22px; }
-@media (max-width: 540px) {
-  .notification-option { padding: 14px 12px; gap: 12px; }
-  .notification-settings .modal-actions { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
-  .notification-settings .modal-actions .button { width: 100%; min-height: 48px; font-size: 14px; }
-  .notification-settings .modal-actions .primary { grid-row: 1; }
-}
 .page-heading .user-selector { padding: 8px; gap: 12px; background: #fff; box-shadow: 0 2px 8px #27352f05; }
 .page-heading .user-select-trigger { gap: 12px; padding: 6px; }
 .page-heading .user-trigger-text { gap: 4px; }
@@ -451,7 +425,6 @@ h1 { font-family: Georgia, "Times New Roman", serif; font-size: clamp(31px, 3vw,
   .page-heading { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px 20px; padding-top: 18px; padding-bottom: 18px; margin-bottom: 24px; }
   .page-heading-controls { display: contents; }
   .page-heading-controls .user-selector-wrap { justify-self: end; }
-  .page-heading .app-notifications-button { grid-column: 1 / -1; width: 100%; }
   .page-heading .user-selector-compact { gap: 10px; }
   .page-heading .compact-avatar, .page-heading .compact-admin-btn { width: 44px; height: 44px; }
   .page-heading .add-mass-button { grid-column: 1 / -1; justify-self: stretch; width: 100%; max-width: none; margin-top: 0; }
