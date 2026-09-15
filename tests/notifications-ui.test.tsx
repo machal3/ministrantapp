@@ -8,7 +8,7 @@ it('does not show notification preferences in a normal browser tab',()=>{
  api.installedApp.mockReturnValue(false);
  render(<AppNotifications servers={[]} selectedId=""/>);
  expect(screen.queryByRole('button',{name:'Powiadomienia'})).toBeNull();
- expect(screen.getByRole('button',{name:'Zainstaluj aplikację'})).toBeTruthy();
+ expect(screen.queryByRole('button',{name:'Zainstaluj aplikację'})).toBeNull();
  expect(api.loadPushPreferences).not.toHaveBeenCalled();
 });
 it('loads and saves independent choices only in the installed app',async()=>{

@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { peopleWord } from '../lib/people';
 import { eventCategory } from '../lib/eventCategory';
 import { Check, CirclePlus, Repeat2, Trash2, UserMinus, Users, Undo2, LoaderCircle, Clock3, UserRound } from 'lucide-react';
@@ -20,7 +21,7 @@ interface Props {
   onEditTime?: (mass: Mass) => void;
 }
 
-export default function MassCard({ mass, attendees, rules, exceptions, activeId, busy, onAction, onDelete, isAdmin = false, onEdit, onEditTime }: Props) {
+export default memo(function MassCard({ mass, attendees, rules, exceptions, activeId, busy, onAction, onDelete, isAdmin = false, onEdit, onEditTime }: Props) {
   const handleEdit = onEdit ?? onEditTime;
   const attendance = attendees.find(a => a.server_id === activeId);
   const hasSlotRule = rules.some(r => r.server_id === activeId && r.day_of_week === weekday(dateKey(mass.start_time)) && r.time_slot === timeSlot(mass.start_time));
@@ -95,4 +96,4 @@ export default function MassCard({ mass, attendees, rules, exceptions, activeId,
       </>}
     </div>
   </article>;
-}
+});

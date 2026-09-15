@@ -36,7 +36,7 @@
 
 ## Zachowanie i utrzymanie
 
-Cron sprawdza stan co minutę. Wysyłki obejmują wydarzenia rozpoczynające się w ciągu kolejnych 30 minut, dzięki czemu krótka przerwa serwera nie pomija przypomnienia. Nowa subskrypcja w tym oknie może dostać je od razu. Nie wysyłamy przypomnień po rozpoczęciu. Zmiana godziny tworzy nowy termin przypomnienia. Jedna wysyłka jest zapamiętywana dla urządzenia, wydarzenia, godziny i rodzaju alertu. Lease chroni przed równoległymi zadaniami; przejściowe błędy są ponawiane najwyżej trzy razy. Gdy dostawca przyjmie wiadomość, lecz potwierdzenie do bazy się nie powiedzie, ponowienie może ponownie dotrzeć — tag powiadomienia zastępuje poprzednie na urządzeniu, nie daje gwarancji exactly-once.
+Cron sprawdza stan co 30 minut. Wysyłki obejmują wydarzenia rozpoczynające się w ciągu kolejnych 30 minut. Nowa subskrypcja w tym oknie może dostać je przy następnym uruchomieniu zadania. Nie wysyłamy przypomnień po rozpoczęciu. Zmiana godziny tworzy nowy termin przypomnienia. Jedna wysyłka jest zapamiętywana dla urządzenia, wydarzenia, godziny i rodzaju alertu. Lease chroni przed równoległymi zadaniami; przejściowe błędy są ponawiane najwyżej trzy razy. Gdy dostawca przyjmie wiadomość, lecz potwierdzenie do bazy się nie powiedzie, ponowienie może ponownie dotrzeć — tag powiadomienia zastępuje poprzednie na urządzeniu, nie daje gwarancji exactly-once.
 
 Wysyłka używa aktualnych deklaracji w momencie pobrania partii. Zapis dokonany tuż później może już nie zatrzymać wiadomości będącej w drodze. TTL kończy się wraz z rozpoczęciem wydarzenia. Subskrypcje wygasłe (HTTP 404/410) są usuwane. Ponowne zapisanie ustawień odświeża subskrypcję. Historia wysyłek jest czyszczona po 7 dniach. Nie cache'ujemy grafiku ani danych Supabase offline.
 

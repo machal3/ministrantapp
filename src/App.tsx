@@ -1,10 +1,11 @@
 import DayAnnotationModal from './components/DayAnnotationModal';
+import AppNotifications from './components/AppNotifications';
 import { setDayAnnotation } from './lib/repository';
 import { eventCategory } from './lib/eventCategory';
 import EditRuleModal from './components/EditRuleModal';
 import { describeRule } from './lib/recurrence';
 import { Pencil } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AlertCircle, ArrowRight, CalendarDays, CalendarPlus, Check, Church, CircleHelp, HeartHandshake, LoaderCircle, Plus, RefreshCw, Repeat2, Trash2, Users, X, ShieldCheck } from 'lucide-react';
 import UserSelector, { readSelectedServer } from './components/UserSelector';
 import WeekNavigator from './components/WeekNavigator';
@@ -142,7 +143,7 @@ export default function App() {
     setSelectedDay(nextWeekDays.includes(today) ? today : next);
   }
 
-  async function mutate(action: () => Promise<void>, success: string): Promise<boolean> {
+  const mutate = useCallback(async (action: () => Promise<void>, success: string): Promise<boolean> => {
     if (mutationLock.current) return false;
     mutationLock.current = true;
     setBusy(true);
@@ -154,9 +155,9 @@ export default function App() {
       return true;
     } catch (error) { setActionError(messageFrom(error)); return false; }
     finally { mutationLock.current = false; setBusy(false); }
-  }
+  }, []);
 
-  async function handleAction(mass: Mass, action: MassAction) {
+  const handleAction = useCallback(async (mass: Mass, action: MassAction) => {
     if (!activeId) return;
     const serverId = activeId;
     if (action === 'recurring') {
@@ -178,7 +179,13 @@ export default function App() {
       else if (action === 'withdraw' || (action === 'restore' && hasRule)) await removeAttendance(mass.id, serverId);
       else await setAttendance(mass.id, serverId, action === 'excuse' ? 'excused' : 'single');
     }, messages[action]);
-  }
+  }, [activeId, data.rules, mutate]);
+
+  const requestMassDeletion = useCallback((mass: Mass) => {
+    setActionError('');
+    setDeleteScope('single');
+    setConfirmation({ kind: 'mass', mass });
+  }, []);
 
   async function handleAdd(mass: NewMass) {
     await addMass(mass, adminSession);
@@ -254,23 +261,44 @@ export default function App() {
     if (ok) setConfirmation(null);
   }
 
-  const ownRules = data.rules.filter(rule => rule.server_id === activeId).sort((a, b) =>
-    ((a.day_of_week + 6) % 7) - ((b.day_of_week + 6) % 7) || a.time_slot.localeCompare(b.time_slot));
-  const ownMasses = data.masses.filter(mass => data.attendees.some(a => a.mass_id === mass.id && a.server_id === activeId));
-  const fullMasses = data.masses.filter(m => m.suggested_spots !== null && data.attendees.filter(a => a.mass_id === m.id).length >= m.suggested_spots).length;
-  const days = Array.from({ length: 7 }, (_, i) => shiftDate(week, i));
-  const counts = Object.fromEntries(days.map(day => [day, data.masses.filter(m => dateKey(m.start_time) === day).length]));
-  const dayMasses = data.masses.filter(m => dateKey(m.start_time) === selectedDay);
+  const ownRules = useMemo(() => data.rules.filter(rule => rule.server_id === activeId).sort((a, b) =>
+    ((a.day_of_week + 6) % 7) - ((b.day_of_week + 6) % 7) || a.time_slot.localeCompare(b.time_slot)), [data.rules, activeId]);
+  // Index each snapshot once instead of scanning all attendees for every card.
+  const attendeesByMass = useMemo(() => {
+    const grouped = new Map<string, ScheduleData['attendees']>();
+    for (const mass of data.masses) grouped.set(mass.id, []);
+    for (const attendee of data.attendees) grouped.get(attendee.mass_id)?.push(attendee);
+    return grouped;
+  }, [data.masses, data.attendees]);
+  const ownMasses = useMemo(() => {
+    const ids = new Set(data.attendees.filter(a => a.server_id === activeId).map(a => a.mass_id));
+    return data.masses.filter(mass => ids.has(mass.id));
+  }, [data.masses, data.attendees, activeId]);
+  const fullMasses = useMemo(() => data.masses.filter(m => m.suggested_spots !== null &&
+    (attendeesByMass.get(m.id)?.length ?? 0) >= m.suggested_spots).length, [data.masses, attendeesByMass]);
+  const { massesByDay, counts } = useMemo(() => {
+    const massesByDay = new Map<string, Mass[]>();
+    const counts: Record<string, number> = {};
+    for (const mass of data.masses) {
+      const day = dateKey(mass.start_time);
+      const group = massesByDay.get(day);
+      if (group) group.push(mass);
+      else massesByDay.set(day, [mass]);
+      counts[day] = (counts[day] ?? 0) + 1;
+    }
+    return { massesByDay, counts };
+  }, [data.masses]);
+  const dayMasses = massesByDay.get(selectedDay) ?? EMPTY.masses;
   const syncLabel: Record<SyncStatus, string> = { connecting: 'Łączenie…', live: 'Grafik na żywo', offline: 'Synchronizacja opóźniona', demo: 'Podgląd lokalny' };
 
   return <div className="app-shell">
     <main className="main-container" id="grafik">
       {isDemo && <div className="demo-banner"><span><strong>Tryb demonstracyjny</strong> · Dane przykładowe zapisują się tylko w tej przeglądarce.</span><span>Podłącz Supabase zgodnie z README, aby udostępnić grafik wspólnocie.</span></div>}
       <section className="page-heading">
-        <div className="page-heading-titles"><h1>Ministrantappka</h1>
-          <p>Grafik Służby Liturgicznej — znajdź swój czas przy ołtarzu.</p></div>
+        <div className="page-heading-titles"><h1>Ministrantappka</h1></div>
         <div className="page-heading-controls">
           <UserSelector servers={servers} selectedId={selectedId} onChange={setSelectedId} adminSession={adminSession} onAdminToggle={() => adminSession ? void leaveAdmin() : setAdminLoginOpen(true)} />
+          <AppNotifications servers={servers} selectedId={activeId} />
           {adminSession && <button className="button primary add-mass-button" onClick={() => setAdding(true)} disabled={loading || !!loadError}><Plus size={18} />Dodaj Mszę / wydarzenie</button>}
         </div>
       </section>
@@ -317,7 +345,7 @@ export default function App() {
                     <MassCard
                       key={mass.id}
                       mass={mass}
-                      attendees={data.attendees.filter(a => a.mass_id === mass.id)}
+                      attendees={attendeesByMass.get(mass.id)!}
                       rules={data.rules}
                       exceptions={data.exceptions}
                       isAdmin={!!adminSession}
@@ -325,12 +353,8 @@ export default function App() {
                       onEditTime={setEditingMass}
                       activeId={activeId}
                       busy={busy}
-                      onAction={(m, action) => void handleAction(m, action)}
-                      onDelete={m => {
-                        setActionError('');
-                        setDeleteScope('single');
-                        setConfirmation({ kind: 'mass', mass: m });
-                      }}
+                      onAction={handleAction}
+                      onDelete={requestMassDeletion}
                     />
                   ))}
                 </div>

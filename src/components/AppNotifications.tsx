@@ -1,24 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
-import { Bell, Download } from 'lucide-react';
+import { Bell } from 'lucide-react';
 import Modal from './Modal';
 import type { AltarServer } from '../types/database';
 import { installedApp, loadPushPreferences, savePushPreferences, type PushPreferences } from '../lib/push';
-type InstallPrompt = Event & { prompt: () => Promise<void>; userChoice: Promise<{outcome:string}> };
 export default function AppNotifications({ servers, selectedId }: {servers:AltarServer[];selectedId:string}) {
  const [installed,setInstalled]=useState(installedApp);
- const [installPrompt,setInstallPrompt]=useState<InstallPrompt|null>(null);
- const [help,setHelp]=useState(false),[open,setOpen]=useState(false);
+ const [open,setOpen]=useState(false);
  useEffect(()=>{
    const media=window.matchMedia?.('(display-mode: standalone)');
    const update=()=>setInstalled(installedApp());
-   const prompt=(e:Event)=>{e.preventDefault();setInstallPrompt(e as InstallPrompt);};
-   media?.addEventListener('change',update);window.addEventListener('appinstalled',update);window.addEventListener('beforeinstallprompt',prompt);
-   return ()=>{media?.removeEventListener('change',update);window.removeEventListener('appinstalled',update);window.removeEventListener('beforeinstallprompt',prompt);};
+   media?.addEventListener('change',update);window.addEventListener('appinstalled',update);
+   return ()=>{media?.removeEventListener('change',update);window.removeEventListener('appinstalled',update);};
  },[]);
+ if (!installed) return null;
  return <>
- {installed ? <button className="button secondary app-notifications-button" onClick={()=>setOpen(true)}><Bell size={15}/>Powiadomienia</button>
- : <button className="button secondary app-notifications-button" onClick={async()=>{if(installPrompt){await installPrompt.prompt();await installPrompt.userChoice;setInstallPrompt(null);}else setHelp(true);}}><Download size={15}/>Zainstaluj aplikację</button>}
- {help&&<Modal title="Zainstaluj aplikację" onClose={()=>setHelp(false)}><p className="rule-intro">Na iPhonie otwórz stronę w Safari, wybierz Udostępnij i „Dodaj do ekranu początkowego”. Na Androidzie wybierz w menu przeglądarki „Zainstaluj aplikację” lub „Dodaj do ekranu głównego”.</p><p className="rule-help">Uruchom stronę z nowej ikony. W aplikacji pojawi się menu powiadomień.</p></Modal>}
+ <button type="button" className="button secondary app-notifications-button" aria-haspopup="dialog" onClick={()=>setOpen(true)}><Bell size={18} aria-hidden="true"/><span>Powiadomienia</span></button>
  {installed&&open&&<NotificationSettings servers={servers} selectedId={selectedId} onClose={()=>setOpen(false)}/>}
  </>;
 }

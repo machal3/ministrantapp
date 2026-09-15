@@ -10,7 +10,12 @@ do $$ begin
    raise exception 'Create push_function_url and push_cron_secret in Vault first.';
  end if;
 end $$;
-select cron.schedule('liturgy-push-every-minute','* * * * *', $job$
+-- Replace the existing schedule when this file is run again.
+select cron.unschedule(jobid)
+from cron.job
+where jobname in ('liturgy-push-every-minute', 'liturgy-push-every-30-minutes');
+
+select cron.schedule('liturgy-push-every-30-minutes','*/30 * * * *', $job$
  select net.http_post(
    url := (select decrypted_secret from vault.decrypted_secrets where name='push_function_url'),
    headers := jsonb_build_object('Content-Type','application/json','x-cron-secret',(select decrypted_secret from vault.decrypted_secrets where name='push_cron_secret')),
