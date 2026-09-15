@@ -17,6 +17,8 @@ export default function EditMassModal({ mass, onClose, onSave }: Props) {
   const [isExtra, setIsExtra] = useState(mass.is_extra);
   const [isOther, setIsOther] = useState(mass.category === 'other');
   const [title, setTitle] = useState(mass.title);
+  const [celebrant, setCelebrant] = useState(mass.celebrant ?? '');
+  const [liturgyType, setLiturgyType] = useState(mass.liturgy_type ?? '');
   const [time, setTime] = useState(() => timeSlot(mass.start_time).slice(0, 5));
   const [spots, setSpots] = useState(mass.suggested_spots ?? 4);
   const [noSpots, setNoSpots] = useState(mass.suggested_spots === null);
@@ -60,6 +62,8 @@ export default function EditMassModal({ mass, onClose, onSave }: Props) {
         time,
         suggested_spots: noSpots ? null : spots,
         is_extra: isExtra, category: isOther ? 'other' : isExtra ? 'devotion' : 'mass',
+        celebrant: celebrant.trim() || null,
+        liturgy_type: liturgyType.trim() || null,
         scope,
       });
       onClose();
@@ -128,6 +132,63 @@ export default function EditMassModal({ mass, onClose, onSave }: Props) {
             </div>
           </div>
 
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="field">
+                Ksiądz celebrujący (lub księża) <span className="field-optional">opcjonalnie</span>
+                <input
+                  name="celebrant"
+                  maxLength={100}
+                  placeholder="np. ks. Proboszcz lub ks. Jan, ks. Marek"
+                  value={celebrant}
+                  onChange={e => setCelebrant(e.target.value)}
+                />
+              </label>
+              <div className="preset-chips">
+                {['ks. Proboszcz', 'ks. Wikariusz'].map(preset => (
+                  <button
+                    type="button"
+                    key={preset}
+                    onClick={() => setCelebrant(prev => prev === preset ? '' : preset)}
+                    disabled={busy}
+                  >
+                    {preset}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="field">
+                Okazja tego wydarzenia <span className="field-optional">opcjonalnie</span>
+                <input
+                  name="liturgyType"
+                  maxLength={60}
+                  placeholder="np. Chrzciny, ślub..."
+                  value={liturgyType}
+                  onChange={e => setLiturgyType(e.target.value)}
+                />
+              </label>
+              <div className="preset-chips">
+                {(isOther
+                  ? ['Spotkanie', 'Próba', 'Zbiórka']
+                  : isExtra
+                  ? ['Nowenna', 'Czuwanie']
+                  : ['Chrzcielna', 'Ślubna', 'Pogrzebowa', 'Jubileuszowa']
+                ).map(preset => (
+                  <button
+                    type="button"
+                    key={preset}
+                    onClick={() => setLiturgyType(prev => prev === preset ? '' : preset)}
+                    disabled={busy}
+                  >
+                    {preset}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <p className="field-hint">Okazja zmienia się tylko w tym terminie, również przy edycji serii. Uroczystość lub święto ustaw w „Oznacz dzień” nad wydarzeniami.</p>
           <label className="capacity-option"><input type="checkbox" checked={noSpots} onChange={e => setNoSpots(e.target.checked)} />Bez określonej liczby osób</label>
           <div className="grid grid-cols-2 gap-4">
             <label className="field">

@@ -67,7 +67,9 @@ export async function loadWeek(start: string): Promise<ScheduleData> {
     }
   }
 
-  return { servers: serversResult.value, masses, rules: rulesResult.value, exceptions: exceptionsResult.value, attendees, recentAttendance };
+  const annotations = await db.from('day_annotations').select('*').gte('day', start).lt('day', shiftDate(start, 7));
+  check(annotations.error);
+  return { dayAnnotations: annotations.data ?? [], servers: serversResult.value, masses, rules: rulesResult.value, exceptions: exceptionsResult.value, attendees, recentAttendance };
 }
 
 export async function setAttendance(massId: string, serverId: string, type: AttendanceType): Promise<void> {
@@ -117,7 +119,15 @@ export async function deleteRule(id: string): Promise<void> {
 export async function addMass(mass: NewMass, session: AdminSession | null): Promise<void> {
   const admin = await requireAdminSession(session);
   if (isDemo) return writeDemo(state => { state.masses.push({ ...mass, id: crypto.randomUUID() }); });
-  check((await client().rpc('admin_add_event', { p_category: eventCategory(mass), p_token: admin.token, p_start_time: mass.start_time, p_title: mass.title, p_suggested_spots: mass.suggested_spots })).error);
+  check((await client().rpc('admin_add_event', {
+    p_category: eventCategory(mass),
+    p_token: admin.token,
+    p_start_time: mass.start_time,
+    p_title: mass.title,
+    p_suggested_spots: mass.suggested_spots,
+    p_celebrant: mass.celebrant ?? null,
+    p_liturgy_type: mass.liturgy_type ?? null,
+  })).error);
 }
 
 export async function addRecurringMasses(input: RecurringMassesInput, session: AdminSession | null): Promise<number> {
@@ -142,6 +152,8 @@ export async function addRecurringMasses(input: RecurringMassesInput, session: A
             start_time: startTime,
             suggested_spots: input.suggested_spots,
             is_extra: input.is_extra, category: eventCategory(input),
+            celebrant: input.celebrant ? input.celebrant.trim() : null,
+            liturgy_type: null,
             series_id,
           });
           count++;
@@ -163,8 +175,10 @@ export async function addRecurringMasses(input: RecurringMassesInput, session: A
     p_time: input.time.length === 5 ? `${input.time}:00` : input.time,
     p_start_date: input.start_date,
     p_end_date: input.end_date,
+    p_celebrant: input.celebrant ? input.celebrant.trim() : null,
+    p_liturgy_type: input.liturgy_type ? input.liturgy_type.trim() : null,
   });
-  if (error?.code === 'PGRST202') throw new Error('Dodawanie serii wymaga migracji 202609150005_optional_capacity.sql w Supabase.');
+  if (error?.code === 'PGRST202') throw new Error('Ta operacja wymaga aktualizacji bazy. Uruchom najnowsze migracje Supabase, w tym 202609150006_mass_details.sql.');
   check(error);
   return data ?? 0;
 }
@@ -265,6 +279,8 @@ export async function updateMass(id: string, input: MassEditInput, session: Admi
           m.title = title;
           m.suggested_spots = input.suggested_spots;
           m.is_extra = input.is_extra; m.category = eventCategory(input);
+          m.celebrant = input.celebrant ? input.celebrant.trim() : null;
+          if (m.id === id) m.liturgy_type = input.liturgy_type ? input.liturgy_type.trim() : null;
           updatedCount++;
         }
       } else {
@@ -273,6 +289,8 @@ export async function updateMass(id: string, input: MassEditInput, session: Admi
         target.title = title;
         target.suggested_spots = input.suggested_spots;
         target.is_extra = input.is_extra; target.category = eventCategory(input);
+        target.celebrant = input.celebrant ? input.celebrant.trim() : null;
+        target.liturgy_type = input.liturgy_type ? input.liturgy_type.trim() : null;
         updatedCount = 1;
       }
     });
@@ -287,6 +305,8 @@ export async function updateMass(id: string, input: MassEditInput, session: Admi
     p_time: time.length === 5 ? `${time}:00` : time,
     p_suggested_spots: input.suggested_spots,
     p_is_extra: input.is_extra,
+    p_celebrant: input.celebrant ? input.celebrant.trim() : null,
+    p_liturgy_type: input.liturgy_type ? input.liturgy_type.trim() : null,
   });
   check(error);
   return data ?? 1;
@@ -317,7 +337,7 @@ export function subscribe(onChange: () => void, onStatus: (status: SyncStatus) =
   } else if (supabase) {
     onStatus('connecting');
     const channel = supabase.channel(`schedule-${crypto.randomUUID()}`);
-    for (const table of ['altar_servers', 'masses', 'recurring_rules', 'mass_attendees']) {
+    for (const table of ['altar_servers', 'masses', 'recurring_rules', 'mass_attendees', 'day_annotations']) {
       channel.on('postgres_changes', { event: '*', schema: 'public', table }, onChange);
     }
     channel.subscribe(status => {
@@ -332,4 +352,13 @@ export function subscribe(onChange: () => void, onStatus: (status: SyncStatus) =
     window.removeEventListener('focus', onFocus);
     window.removeEventListener('online', onFocus);
   };
+}
+
+export async function setDayAnnotation(day: string, label: string, session: AdminSession | null): Promise<void> {
+  const admin = await requireAdminSession(session);
+  if (isDemo) return writeDemo(state => {
+    state.dayAnnotations = (state.dayAnnotations ?? []).filter(item => item.day !== day);
+    if (label.trim()) state.dayAnnotations.push({ day, label: label.trim() });
+  });
+  check((await client().rpc('admin_set_day_annotation', {p_token:admin.token,p_day:day,p_label:label.trim()})).error);
 }

@@ -1,3 +1,5 @@
+import DayAnnotationModal from './components/DayAnnotationModal';
+import { setDayAnnotation } from './lib/repository';
 import { eventCategory } from './lib/eventCategory';
 import EditRuleModal from './components/EditRuleModal';
 import { describeRule } from './lib/recurrence';
@@ -60,6 +62,7 @@ export default function App() {
   const [notice, setNotice] = useState('');
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('connecting');
   const [editingRule, setEditingRule] = useState<RecurringRule | null>(null);
+  const [editingDay, setEditingDay] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
   const [deleteScope, setDeleteScope] = useState<'single' | 'future'>('single');
@@ -291,6 +294,10 @@ export default function App() {
           </div>
           <WeekNavigator week={week} onChange={changeWeek} />
           <DaySelector week={week} selected={selectedDay} onChange={setSelectedDay} counts={counts} />
+          {(adminSession || data.dayAnnotations?.some(a => a.day === selectedDay)) && <div className="day-annotation-bar">
+            <span>{data.dayAnnotations?.find(a => a.day === selectedDay)?.label || 'Dzień bez oznaczenia'}</span>
+            {adminSession && <button className="button secondary" disabled={loading || !!loadError} onClick={() => setEditingDay(selectedDay)}><Pencil size={14}/>Oznacz dzień</button>}
+          </div>}
 
           {syncStatus === 'offline' && <div className="info-banner" role="status">Połączenie na żywo jest niedostępne. Grafik odświeża się co minutę oraz po powrocie do karty.</div>}
           {loadError && <div className="error-banner" role="alert"><AlertCircle size={19} /><div><strong>Nie udało się odświeżyć grafiku</strong><p>{loadError}</p>{snapshot?.week === week && <p>Wyświetlane dane mogą być nieaktualne.</p>}</div><button className="button secondary" onClick={() => void refresh()}><RefreshCw size={14} />Ponów</button></div>}
@@ -363,6 +370,7 @@ export default function App() {
     </main>
 
     {notice && <div className="toast" role="status"><span><Check size={17} /></span><p>{notice}</p><button className="icon-button" aria-label="Zamknij powiadomienie" onClick={() => setNotice('')}><X size={16} /></button></div>}
+    {adminSession && editingDay && <DayAnnotationModal day={editingDay} label={data.dayAnnotations?.find(a=>a.day===editingDay)?.label ?? ''} onClose={()=>setEditingDay(null)} onSave={async label=>{await setDayAnnotation(editingDay,label,adminSession);setNotice('Zapisano oznaczenie dnia.');await latestRefresh.current();}}/>}
     {editingRule && <EditRuleModal rule={editingRule} onClose={() => setEditingRule(null)} onSave={async rule => { await updateRule(rule); setNotice('Zapisano zmiany stałego dyżuru.'); await refresh(); }} />}
     {adminLoginOpen && <AdminLoginModal onClose={() => setAdminLoginOpen(false)} onLogin={session => { setAdminSession(session); setAdminLoginOpen(false); setActionError(''); }} />}
     {adminSession && editingServers && (

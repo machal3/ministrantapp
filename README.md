@@ -107,3 +107,7 @@ Uruchom `supabase/migrations/202609150004_event_categories.sql` po wcześniejszy
 ### Wydarzenia bez określonej liczby osób
 
 Uruchom `supabase/migrations/202609150005_optional_capacity.sql` po wcześniejszych migracjach. Opcja „Bez określonej liczby osób” zapisuje `null` w `suggested_spots`, także dla serii i edycji. Dotychczasowe liczby pozostają zachowane. Wydarzenia bez tej liczby nie są liczone jako mające pełną obsadę. Na kartach wyświetlamy „osoba / osoby / osób”; przy ułamku odmiana odnosi się do liczby docelowej, np. „0/2 osoby”.
+
+### Oznaczenia dnia i okazje pojedynczych Mszy
+
+Uruchom kolejno migracje `202609150006_mass_details.sql` i `202609150007_day_annotations.sql`. Administrator oznacza wybrany dzień przyciskiem „Oznacz dzień” nad listą wydarzeń, również gdy dzień jest pusty. Puste pole usuwa oznaczenie. Znane dotychczasowe rangi (Uroczystość, Święto, Wspomnienie, Wspomnienie dowolne, Niedzielna) są przenoszone z kart do dnia według czasu polskiego. Istniejące oznaczenia dni nie są nadpisywane. Okazja wydarzenia (np. chrzciny) dotyczy tylko edytowanego terminu, nawet przy zmianie całej serii; nowe serie nie kopiują okazji.

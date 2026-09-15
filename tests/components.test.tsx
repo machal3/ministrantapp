@@ -60,6 +60,17 @@ describe('MassCard', () => {
     rerender(<MassCard {...props} attendees={attendees.slice(0, 4)} />);
     expect(capacityBadge?.classList.contains('filled')).toBe(true);
   });
+
+  it('renders celebrant and liturgy rank badge when provided', () => {
+    const detailedMass: Mass = {
+      ...mass,
+      celebrant: 'ks. Jan Kowalski',
+      liturgy_type: 'Uroczystość',
+    };
+    render(<MassCard mass={detailedMass} attendees={[]} rules={[]} exceptions={[]} activeId="" busy={false} onAction={vi.fn()} onDelete={vi.fn()} />);
+    expect(screen.getByText('ks. Jan Kowalski')).toBeTruthy();
+    expect(screen.getByText('Uroczystość')).toBeTruthy();
+  });
 });
 
 it('remembers identity in localStorage', () => {

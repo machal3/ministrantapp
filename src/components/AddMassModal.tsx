@@ -35,6 +35,8 @@ export default function AddMassModal({ initialDate, initialTime, onClose, onSubm
   const [isExtra, setIsExtra] = useState(false);
   const [isOther, setIsOther] = useState(false);
   const [title, setTitle] = useState('Msza Święta');
+  const [celebrant, setCelebrant] = useState('');
+  const [liturgyType, setLiturgyType] = useState('');
 
   // Recurring form state
   const [startDate, setStartDate] = useState(initialDate);
@@ -104,9 +106,20 @@ export default function AddMassModal({ initialDate, initialTime, onClose, onSubm
       submitting.current = true;
       setBusy(true);
 
+      const finalCelebrant = celebrant.trim() || null;
+      const finalLiturgyType = mode === 'single' ? liturgyType.trim() || null : null;
+
       if (mode === 'single') {
         const startTime = zonedIso(String(form.get('date')), time);
-        await onSubmit({ title: finalTitle, start_time: startTime, suggested_spots: suggestedSpots, is_extra: isExtra, category: isOther ? 'other' : isExtra ? 'devotion' : 'mass' });
+        await onSubmit({
+          title: finalTitle,
+          start_time: startTime,
+          suggested_spots: suggestedSpots,
+          is_extra: isExtra,
+          category: isOther ? 'other' : isExtra ? 'devotion' : 'mass',
+          celebrant: finalCelebrant,
+          liturgy_type: finalLiturgyType,
+        });
       } else {
         if (!onSubmitRecurring) throw new Error('Dodawanie cyklicznych Mszy jest niedostępne.');
         if (!selectedDays.length) throw new Error('Wybierz co najmniej jeden dzień tygodnia.');
@@ -118,6 +131,8 @@ export default function AddMassModal({ initialDate, initialTime, onClose, onSubm
           title: finalTitle,
           suggested_spots: suggestedSpots,
           is_extra: isExtra, category: isOther ? 'other' : isExtra ? 'devotion' : 'mass',
+          celebrant: finalCelebrant,
+          liturgy_type: finalLiturgyType,
           days: selectedDays,
           time,
           start_date: startDate,
@@ -208,6 +223,64 @@ export default function AddMassModal({ initialDate, initialTime, onClose, onSubm
           </div>
         </div>
 
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="field">
+              Ksiądz celebrujący (lub księża) <span className="field-optional">opcjonalnie</span>
+              <input
+                name="celebrant"
+                maxLength={100}
+                placeholder="np. ks. Proboszcz lub ks. Jan, ks. Marek"
+                value={celebrant}
+                onChange={e => setCelebrant(e.target.value)}
+              />
+            </label>
+            <div className="preset-chips">
+              {['ks. Proboszcz', 'ks. Wikariusz'].map(preset => (
+                <button
+                  type="button"
+                  key={preset}
+                  onClick={() => setCelebrant(prev => prev === preset ? '' : preset)}
+                  disabled={busy}
+                >
+                  {preset}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="field">
+              Okazja tego wydarzenia <span className="field-optional">opcjonalnie</span>
+              <input
+                disabled={mode === 'recurring'}
+                name="liturgyType"
+                maxLength={60}
+                placeholder="np. Chrzciny, ślub..."
+                value={liturgyType}
+                onChange={e => setLiturgyType(e.target.value)}
+              />
+            </label>
+            <div className="preset-chips">
+              {(isOther
+                ? ['Spotkanie', 'Próba', 'Zbiórka']
+                : isExtra
+                ? ['Nowenna', 'Czuwanie']
+                : ['Chrzcielna', 'Ślubna', 'Pogrzebowa', 'Jubileuszowa']
+              ).map(preset => (
+                <button
+                  type="button"
+                  key={preset}
+                  onClick={() => setLiturgyType(prev => prev === preset ? '' : preset)}
+                  disabled={busy || mode === 'recurring'}
+                >
+                  {preset}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <p className="field-hint">Okazja dotyczy jednego terminu. W serii dodaj ją później przez edycję wybranej Mszy. Uroczystość lub święto ustaw w „Oznacz dzień” nad wydarzeniami.</p>
         {mode === 'single' ? (
           <div className="grid grid-cols-2 gap-4">
             <label className="field">Data<input type="date" name="date" required defaultValue={initialDate} /></label>

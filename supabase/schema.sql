@@ -12,9 +12,11 @@ create table if not exists public.masses (
   id uuid primary key default gen_random_uuid(),
   start_time timestamptz not null,
   title text not null default 'Msza Święta' check (length(btrim(title)) between 1 and 160),
-  suggested_spots integer not null default 4 check (suggested_spots > 0),
+  suggested_spots integer default 4 check (suggested_spots is null or suggested_spots > 0),
   is_extra boolean not null default false,
-  series_id uuid
+  series_id uuid,
+  celebrant text,
+  liturgy_type text
 );
 
 create table if not exists public.recurring_rules (

@@ -104,7 +104,11 @@ h1 { font-family: Georgia, "Times New Roman", serif; font-size: clamp(31px, 3vw,
 .mass-time-digits { display: block; font-size: inherit; font-weight: inherit; line-height: inherit; letter-spacing: inherit; color: inherit; }
 .mass-type-label, .mass-time > span:not(.mass-time-digits) { display: block; font-size: 9px; font-weight: 700; letter-spacing: 1px; color: #7a8676; margin-top: 6px; line-height: 1; text-transform: uppercase; }
 .mass-meta, .mass-heading > .min-w-0 { display: flex; flex-direction: column; justify-content: center; gap: 6px; min-width: 0; flex: 1; }
+.mass-title-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .mass-heading h4, .mass-meta h4 { margin: 0; font-size: 14px; font-weight: 600; line-height: 1.25; color: #243528; overflow-wrap: anywhere; }
+.liturgy-rank-badge { display: inline-flex; align-items: center; font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 5px; background: #fbf6eb; color: #876122; border: 1px solid #e8dbbe; line-height: 1.3; }
+.mass-celebrant { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 500; color: #394f3e; background: #edf4ea; padding: 2px 8px; border-radius: 5px; width: fit-content; border: 1px solid #d4e2d0; }
+.celebrant-icon { color: #506f57; flex-shrink: 0; }
 .capacity { display: inline-flex; align-items: center; gap: 5px; border-radius: 5px; font-size: 10px; font-weight: 600; padding: 3px 8px; line-height: 1.4; width: fit-content; }
 .capacity.empty { color: #b83a28; background: #fdf0ed; }
 .capacity.partial { color: #b45309; background: #fef4e6; }
@@ -356,3 +360,14 @@ h1 { font-family: Georgia, "Times New Roman", serif; font-size: clamp(31px, 3vw,
 @media(max-width: 420px) { .rule-form-grid { grid-template-columns: 1fr; gap: 18px; }.month-week-options > div { grid-template-columns: 1fr 1fr; } }
 
 .capacity-option { display: flex; align-items: center; gap: 9px; font-size: 12px; color: #526348; cursor: pointer; }.capacity-option input { accent-color: var(--green); width: 16px; height: 16px; }
+
+.mass-details { display: flex; align-items: center; gap: 8px; padding: 9px 18px; border-top: 1px solid var(--border); background: #fcfdfb; min-width: 0; }
+.mass-details .mass-celebrant { display: flex; flex: 1; min-width: 0; margin: 0; padding: 0; border: 0; background: none; color: var(--muted); font-size: 11px; }
+.mass-details .mass-celebrant svg { flex-shrink: 0; }
+.mass-details .mass-celebrant span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mass-details .liturgy-rank-badge { min-width: 0; max-width: 45%; flex-shrink: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; background: var(--liturgy-tint); color: var(--liturgy-accent); border: 1px solid var(--liturgy-edge); }
+.mass-details .liturgy-rank-badge:only-child { max-width: 100%; }
+.day-annotation-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; margin: 12px 0; border: 1px solid #e4d7b9; border-radius: 9px; background: #fbf7ed; color: #75603b; }
+.day-annotation-bar > span { min-width: 0; overflow-wrap: anywhere; font-size: 13px; font-weight: 600; }
+.day-annotation-bar button { flex-shrink: 0; font-size: 11px; }
+@media(max-width:420px) { .day-annotation-bar { flex-wrap: wrap; }.mass-details { padding: 9px 13px; } }

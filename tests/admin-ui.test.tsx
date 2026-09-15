@@ -107,6 +107,8 @@ it('changes mass details with scope choice, then locks management on logout', as
     time: '19:30',
     suggested_spots: 4,
     is_extra: false, category: 'mass',
+    celebrant: null,
+    liturgy_type: null,
     scope: 'single',
   }, session);
   fireEvent.click(screen.getByRole('button', { name: 'Wyłącz tryb admina' }));
@@ -130,6 +132,8 @@ it('edits entire future series when future scope is selected in EditMassModal', 
     time: '18:30',
     suggested_spots: 4,
     is_extra: false, category: 'mass',
+    celebrant: null,
+    liturgy_type: null,
     scope: 'future',
   }, session));
   expect(await screen.findByText(/Zaktualizowano całą serię/)).toBeTruthy();

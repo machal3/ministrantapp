@@ -42,6 +42,11 @@ beforeAll(async () => {
   const capacity = await readFile(new URL('../supabase/migrations/202609150005_optional_capacity.sql', import.meta.url), 'utf8');
   await db.exec(capacity);
   await db.exec(capacity);
+  const details = await readFile(new URL('../supabase/migrations/202609150006_mass_details.sql', import.meta.url), 'utf8');
+  await db.exec(details);
+  const dayAnnotations = await readFile(new URL('../supabase/migrations/202609150007_day_annotations.sql', import.meta.url), 'utf8');
+  await db.exec(dayAnnotations);
+  await db.exec(dayAnnotations);
 });
 afterAll(async () => { await db?.close(); });
 
@@ -317,4 +322,21 @@ it('allows optional capacity for single events, series and edits while rejecting
   await db.query("select admin_add_pattern_events($1,'Open series',null,false,array[5],'18:00','2026-01-01','2026-03-31','monthly',1,1,array[1],'other')",[token]);
   expect((await db.query("select id from masses where title='Open series' and suggested_spots is null")).rows).toHaveLength(3);
   await expect(db.query("select admin_add_event($1,now(),'Invalid capacity',0,'other')",[token])).rejects.toThrow();
+});
+
+it('stores whole-day annotations separately and changes the occasion only on the selected Mass',async()=>{
+ await db.exec('reset role;');
+ const {rows}=await db.query<{token:string}>("select * from admin_login('0403')"); const token=rows[0].token;
+ await db.exec('set role anon;');
+ await expect(db.query("select admin_set_day_annotation(null,'2026-11-01','Uroczystość')")).rejects.toThrow();
+ await db.query("select admin_set_day_annotation($1,'2026-11-01','Uroczystość Wszystkich Świętych')",[token]);
+ expect((await db.query<{label:string}>("select label from day_annotations where day='2026-11-01'")).rows[0].label).toBe('Uroczystość Wszystkich Świętych');
+ await expect(db.query("insert into day_annotations(day,label) values('2026-11-02','Test')")).rejects.toThrow();
+ await db.query("select admin_add_pattern_events($1,'Occasion series',4,false,array[0],'18:00','2026-11-01','2026-11-15','weekly',1,1,array[1],'mass','ks. Jan','Chrzcielna')",[token]);
+ const series=await db.query<{id:string,liturgy_type:string|null}>("select id,liturgy_type from masses where title='Occasion series' order by start_time");
+ expect(series.rows).toHaveLength(3); expect(series.rows.every(r=>r.liturgy_type===null)).toBe(true);
+ await db.query("select admin_update_event($1,$2,'future','Occasion series','18:30',4,false,'mass','ks. Jan','Chrzcielna')",[token,series.rows[0].id]);
+ expect((await db.query<{liturgy_type:string|null}>("select liturgy_type from masses where title='Occasion series' order by start_time")).rows.map(r=>r.liturgy_type)).toEqual(['Chrzcielna',null,null]);
+ await db.query("select admin_set_day_annotation($1,'2026-11-01','')",[token]);
+ expect((await db.query("select day from day_annotations where day='2026-11-01'")).rows).toHaveLength(0);
 });

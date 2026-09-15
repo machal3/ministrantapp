@@ -17,6 +17,8 @@ export type Mass = {
   is_extra: boolean;
   category?: 'mass' | 'devotion' | 'other';
   series_id?: string | null;
+  celebrant?: string | null;
+  liturgy_type?: string | null;
 };
 
 export type MassEditInput = {
@@ -25,6 +27,8 @@ export type MassEditInput = {
   suggested_spots: number | null;
   is_extra: boolean;
   category?: 'mass' | 'devotion' | 'other';
+  celebrant?: string | null;
+  liturgy_type?: string | null;
   scope: 'single' | 'future';
 };
 
@@ -66,6 +70,8 @@ export type RecurringMassesInput = {
   suggested_spots: number | null;
   is_extra: boolean;
   category?: 'mass' | 'devotion' | 'other';
+  celebrant?: string | null;
+  liturgy_type?: string | null;
   days: number[];
   time: string;
   start_date: string;
@@ -83,6 +89,7 @@ type Relation<Name extends string, Column extends string, Table extends string> 
 export type Database = {
   public: {
     Tables: {
+      day_annotations: { Row: { day: string; label: string }; Insert: {day:string;label:string}; Update: {label?:string}; Relationships: [] };
       altar_servers: {
         Row: AltarServer;
         Insert: Omit<AltarServer, 'id'> & { id?: string };
@@ -118,6 +125,7 @@ export type Database = {
       };
     };
     Functions: {
+      admin_set_day_annotation: { Args: {p_token:string;p_day:string;p_label:string}; Returns: undefined };
       admin_login: { Args: { p_pin: string }; Returns: AdminSession[] };
       admin_logout: { Args: { p_token: string }; Returns: undefined };
       admin_add_server: { Args: { p_token: string; p_name: string; p_rank: string }; Returns: string };
@@ -166,6 +174,7 @@ export type Database = {
 };
 
 export interface ScheduleData {
+  dayAnnotations?: {day:string;label:string}[];
   servers: AltarServer[];
   masses: Mass[];
   rules: RecurringRule[];

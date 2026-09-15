@@ -3,7 +3,7 @@ import type { AltarServer, Mass, MassAttendee, RecurringRule, ScheduleData } fro
 import { aggregateAttendees } from './attendance';
 import { dateKey, monday, shiftDate, weekday, zonedIso } from './dates';
 
-export type DemoState = Pick<ScheduleData, 'servers' | 'masses' | 'rules' | 'exceptions'>;
+export type DemoState = Pick<ScheduleData, 'servers' | 'masses' | 'rules' | 'exceptions' | 'dayAnnotations'>;
 const KEY = 'liturgy.demo.v1';
 
 function initialDemo(): DemoState {
@@ -31,6 +31,8 @@ function initialDemo(): DemoState {
       title: 'Msza Święta',
       suggested_spots: 4,
       is_extra: false,
+      celebrant: isSun && time === '10:30' ? 'ks. Proboszcz' : isSun && time === '12:00' ? 'ks. Wikariusz' : undefined,
+      liturgy_type: isSun && time === '12:00' ? 'Chrzcielna' : undefined,
       series_id: isSun ? undefined : weekdaySeriesId,
     }));
     if (isFri) {
@@ -40,6 +42,7 @@ function initialDemo(): DemoState {
         title: 'Droga Krzyżowa',
         suggested_spots: 2,
         is_extra: true,
+        liturgy_type: 'Nabożeństwo',
       });
     }
     return items;

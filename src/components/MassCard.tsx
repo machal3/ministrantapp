@@ -1,6 +1,6 @@
 import { peopleWord } from '../lib/people';
 import { eventCategory } from '../lib/eventCategory';
-import { Check, CirclePlus, Repeat2, Trash2, UserMinus, Users, Undo2, LoaderCircle, Clock3 } from 'lucide-react';
+import { Check, CirclePlus, Repeat2, Trash2, UserMinus, Users, Undo2, LoaderCircle, Clock3, UserRound } from 'lucide-react';
 import type { EffectiveAttendee, Mass, MassAttendee, RecurringRule } from '../types/database';
 import { dateKey, DAY_NAMES, timeSlot, weekday } from '../lib/dates';
 import { matchesRule } from '../lib/attendance';
@@ -42,7 +42,9 @@ export default function MassCard({ mass, attendees, rules, exceptions, activeId,
         <span className="mass-type-label">{isOther ? 'INNE' : isDevotion ? 'NABOŻEŃSTWO' : 'MSZA ŚW.'}</span>
       </div>
       <div className="mass-meta">
-        <h4>{mass.title}</h4>
+        <div className="mass-title-row">
+          <h4>{mass.title}</h4>
+        </div>
         <div className={`capacity ${capacityState} ${full ? 'filled' : 'open'}`}>
           <span className="status-dot" />
           <span>{mass.suggested_spots === null ? `${count} ${peopleWord(count)}` : `${count}/${mass.suggested_spots} ${peopleWord(mass.suggested_spots)}`}{extra > 0 ? ` (+${extra})` : full ? ' (pełna obstawa)' : ''}</span>
@@ -50,6 +52,10 @@ export default function MassCard({ mass, attendees, rules, exceptions, activeId,
       </div>
       {isAdmin && <button className="icon-button delete-mass" aria-label={`Usuń ${isOther ? 'wydarzenie' : isDevotion ? 'nabożeństwo' : 'Mszę Świętą'}: ${mass.title}, ${time}`} disabled={busy} onClick={() => onDelete(mass)}><Trash2 size={17} /></button>}
     </div>
+    {(mass.celebrant || mass.liturgy_type) && <div className="mass-details">
+      {mass.celebrant && <div className="mass-celebrant" title={mass.celebrant}><UserRound size={13} aria-hidden="true" /><span>{mass.celebrant}</span></div>}
+      {mass.liturgy_type && <span className="liturgy-rank-badge" title={mass.liturgy_type}>{mass.liturgy_type}</span>}
+    </div>}
     {isAdmin && handleEdit && <button className="edit-time-button" disabled={busy} onClick={() => handleEdit(mass)}><Clock3 size={14} />Edytuj {isOther ? 'wydarzenie' : isDevotion ? 'nabożeństwo' : 'Mszę'}</button>}
     <div className="attendance-section">
       <div className="attendance-label"><Users size={14} /><span>Zadeklarowani</span><span>{count}</span>
