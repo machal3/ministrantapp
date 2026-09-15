@@ -299,7 +299,7 @@ export default function AddMassModal({ initialDate, initialTime, onClose, onSubm
                 <button type="button" onClick={() => applyPreset(0, -1)}>Ostatnia niedziela</button>
               </div>
             </div>
-            <div className="rule-form-grid">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <label className="field">Rytm serii<select value={frequency} onChange={e => setFrequency(e.target.value as 'weekly' | 'monthly')}><option value="weekly">Co określoną liczbę tygodni</option><option value="monthly">Wybrane dni miesiąca</option></select></label>
               {frequency === 'weekly' ? <label className="field">Częstotliwość<select value={intervalWeeks} onChange={e => setIntervalWeeks(Number(e.target.value))}>{Array.from({ length: 12 }, (_, i) => i + 1).map(n => <option key={n} value={n}>{n === 1 ? 'Co tydzień' : n < 5 ? 'Co ' + n + ' tygodnie' : 'Co ' + n + ' tygodni'}</option>)}</select></label>
                 : <label className="field">Częstotliwość<select value={intervalMonths} onChange={e => setIntervalMonths(Number(e.target.value))}>{Array.from({ length: 12 }, (_, i) => i + 1).map(n => <option key={n} value={n}>{n === 1 ? 'Co miesiąc' : n < 5 ? 'Co ' + n + ' miesiące' : 'Co ' + n + ' miesięcy'}</option>)}</select></label>}
