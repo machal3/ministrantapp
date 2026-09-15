@@ -423,7 +423,7 @@ export default function App() {
     {notice && <div className="toast" role="status"><span><Check size={17} /></span><p>{notice}</p><button className="icon-button" aria-label="Zamknij powiadomienie" onClick={() => setNotice('')}><X size={16} /></button></div>}
     {adminSession && editingDay && <DayAnnotationModal day={editingDay} label={data.dayAnnotations?.find(a=>a.day===editingDay)?.label ?? ''} onClose={()=>setEditingDay(null)} onSave={async label=>{await setDayAnnotation(editingDay,label,adminSession);setNotice('Zapisano oznaczenie dnia.');await latestRefresh.current();}}/>}
     {editingRule && <EditRuleModal rule={editingRule} onClose={() => setEditingRule(null)} onSave={async rule => { await updateRule(rule); setNotice('Zapisano zmiany stałego dyżuru.'); await refresh(); }} />}
-    {adminLoginOpen && <AdminLoginModal onClose={() => setAdminLoginOpen(false)} onLogin={session => { setAdminSession(session); setAdminLoginOpen(false); setActionError(''); }} />}
+    {adminLoginOpen && <AdminLoginModal onClose={() => setAdminLoginOpen(false)} onLogin={session => { setAdminSession(session); setAdminLoginOpen(false); setActionError(''); try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch { /* Środowisko bez przewijania. */ } }} />}
     {adminSession && editingServers && (
       <AdminServersModal
         servers={servers}
