@@ -264,24 +264,15 @@ export default function App() {
   const syncLabel: Record<SyncStatus, string> = { connecting: 'Łączenie…', live: 'Grafik na żywo', offline: 'Synchronizacja opóźniona', demo: 'Podgląd lokalny' };
 
   return <div className="app-shell">
-    <header className="site-header">
-      <div className="header-inner">
-        <a href="#grafik" className="brand" aria-label="Służba liturgiczna — grafik">
-          <span className="brand-mark"><Church size={25} strokeWidth={1.5} /></span>
-          <strong>Służba liturgiczna</strong>
-        </a>
-        <div className="header-right"><span className="trust-label">Jedna wspólnota. Wspólna służba.</span>
-          <UserSelector servers={servers} selectedId={selectedId} onChange={setSelectedId} adminSession={adminSession} onAdminToggle={() => adminSession ? void leaveAdmin() : setAdminLoginOpen(true)} />
-        </div>
-      </div>
-    </header>
-
     <main className="main-container" id="grafik">
       {isDemo && <div className="demo-banner"><span><strong>Tryb demonstracyjny</strong> · Dane przykładowe zapisują się tylko w tej przeglądarce.</span><span>Podłącz Supabase zgodnie z README, aby udostępnić grafik wspólnocie.</span></div>}
       <section className="page-heading">
-        <div><h1>Ministrantappka</h1>
+        <div className="page-heading-titles"><h1>Ministrantappka</h1>
           <p>Grafik Służby Liturgicznej — znajdź swój czas przy ołtarzu.</p></div>
-        {adminSession && <button className="button primary add-mass-button" onClick={() => setAdding(true)} disabled={loading || !!loadError}><Plus size={18} />Dodaj Mszę / wydarzenie</button>}
+        <div className="page-heading-controls">
+          <UserSelector servers={servers} selectedId={selectedId} onChange={setSelectedId} adminSession={adminSession} onAdminToggle={() => adminSession ? void leaveAdmin() : setAdminLoginOpen(true)} />
+          {adminSession && <button className="button primary add-mass-button" onClick={() => setAdding(true)} disabled={loading || !!loadError}><Plus size={18} />Dodaj Mszę / wydarzenie</button>}
+        </div>
       </section>
 
       {adminSession && <div className="admin-toolbar"><span><ShieldCheck size={18} />Tryb administratora aktywny</span>
