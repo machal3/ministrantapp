@@ -37,21 +37,19 @@ export default function UserSelector({ servers, selectedId, onChange, adminSessi
   return <div className="user-selector-wrap">
     <div className="user-selector">
       <span className="user-icon"><UserRound size={20} strokeWidth={1.7} /></span>
-      <div className="min-w-0 flex-1">
-        <div className="relative">
-          <select id="active-server" value={servers.some(s => s.id === selectedId) ? selectedId : ''}
+      <div className="user-select-field">
+          <select id="active-server" aria-label="Wybierz ministranta" value={servers.some(s => s.id === selectedId) ? selectedId : ''}
             onChange={event => select(event.target.value)}>
             <option value="">Wybierz ministranta</option>
             {servers.map(server => <option key={server.id} value={server.id}>{server.name} · {server.rank}</option>)}
           </select>
-          <ChevronDown size={15} className="pointer-events-none absolute right-0 top-1.5" />
-        </div>
+          <ChevronDown size={15} aria-hidden="true" />
       </div>
-      <button className={`admin-toggle-btn ${adminSession ? 'active' : ''}`} onClick={onAdminToggle} aria-label={adminSession ? 'Wyłącz tryb admina' : 'Włącz tryb admina'} title={adminSession ? 'Wyłącz tryb admina' : 'Tryb administratora'}>
+      <button type="button" className={`admin-toggle-btn ${adminSession ? 'active' : ''}`} onClick={onAdminToggle} aria-label={adminSession ? 'Wyłącz tryb admina' : 'Administrator'} title={adminSession ? 'Wyłącz tryb administratora' : 'Włącz tryb administratora'}>
         {adminSession ? <LogOut size={15} /> : <ShieldCheck size={15} />}
+        <span>{adminSession ? 'Wyłącz tryb admina' : 'Administrator'}</span>
       </button>
     </div>
     {storageError && <p className="text-xs text-amber-800" role="status">Wybór działa, ale przeglądarka nie pozwala go zapamiętać.</p>}
   </div>;
 }
-

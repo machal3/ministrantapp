@@ -70,7 +70,7 @@ Edycja ministranta zachowuje jego `id`, zapisy i reguły. Edycja godziny zachowu
 
 W Supabase PIN jest weryfikowany przez funkcję `admin_login`; prywatne tabele w `liturgy_private` nie są dostępne dla `anon` ani `authenticated`. W bazie zapisany jest hash PIN-u z losową solą oraz hashe losowych tokenów sesji. RPC do każdej operacji zarządzania sprawdza token i jego datę wygaśnięcia. Bezpośrednie INSERT/UPDATE/DELETE w `altar_servers` i `masses` są odebrane zwykłym klientom. Funkcje mają stały pusty `search_path` i ograniczone uprawnienia wykonania.
 
-Sesja trwa 30 minut. Przeglądarka trzyma token wyłącznie w pamięci, bez localStorage ani sessionStorage: odświeżenie strony wymaga ponownego PIN-u. Przycisk wyjścia unieważnia token w bazie. Po 5 błędnych próbach w jednym 10-minutowym oknie kolejne logowania są blokowane do końca okna. Limit jest wspólny dla aplikacji, więc blokada dotyczy wszystkich administratorów; istniejące sesje nadal działają. W podglądzie lokalnym ochrona jest wyłącznie demonstracyjna. Moduł z demonstracyjnym PIN-em nie jest dołączany do buildu z ustawionymi zmiennymi Supabase.
+Sesja trwa 30 minut. Przeglądarka trzyma token wyłącznie w pamięci, bez localStorage ani sessionStorage: odświeżenie strony wymaga ponownego PIN-u. Przycisk wyjścia unieważnia token w bazie. Błędny PIN pozwala od razu spróbować ponownie, bez limitu prób i blokady czasowej. W podglądzie lokalnym ochrona jest wyłącznie demonstracyjna. Moduł z demonstracyjnym PIN-em nie jest dołączany do buildu z ustawionymi zmiennymi Supabase.
 
 **Aktualizacja działającej strony:** najpierw uruchom `supabase/migrations/202609140001_admin.sql` w SQL Editor istniejącego projektu, następnie opublikuj nowy kod przez GitHub/Cloudflare. Nie dodawaj PIN-u do zmiennych `VITE_*`. Skrypt można uruchomić ponownie: nie zmienia danych ani już skonfigurowanego PIN-u. Stary frontend po migracji nadal pozwala się zapisywać, ale zarządzanie Mszami wymaga publikacji nowej wersji.
 
@@ -87,3 +87,7 @@ Czterocyfrowy, wspólny PIN jest prostym zabezpieczeniem, nie odpowiednikiem ind
 `src/types/database.ts` zawiera typy tabel, relacji i widoku. `src/lib/repository.ts` obsługuje bazę, upserty, stronicowanie i subskrypcje. Wymagane komponenty są w `src/components`, a całość integruje `src/App.tsx`. Style są lokalne i nie pobierają zewnętrznych fontów.
 
 Dokumentacja integracji: [Supabase Upsert](https://supabase.com/docs/reference/javascript/upsert), [Supabase RLS](https://supabase.com/docs/guides/database/postgres/row-level-security), [Tailwind + Vite](https://tailwindcss.com/docs/installation/using-vite), [Vite](https://vite.dev/guide/).
+
+### Usunięcie blokady logowania administratora
+
+W SQL Editor istniejącego projektu uruchom `supabase/migrations/202609150001_admin_login_no_lockout.sql`. Na nowej bazie wykonaj go po wcześniejszych migracjach. Zachowuje PIN i aktywne sesje. Samo opublikowanie frontendu nie aktualizuje funkcji w bazie.

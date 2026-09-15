@@ -109,7 +109,7 @@ it('changes mass details with scope choice, then locks management on logout', as
     is_extra: false,
     scope: 'single',
   }, session);
-  fireEvent.click(screen.getByRole('button', { name: 'Wyjdź z trybu admina' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Wyłącz tryb admina' }));
   await waitFor(() => expect(api.logoutAdmin).toHaveBeenCalledWith(session));
   expect(screen.queryByRole('button', { name: 'Edytuj Mszę' })).toBeNull();
   expect(localStorage.length).toBe(0);

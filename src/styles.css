@@ -318,3 +318,14 @@ h1 { font-family: Georgia, "Times New Roman", serif; font-size: clamp(31px, 3vw,
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; } }
 
+
+/* Shared identity and administrator panel. */
+.user-selector-wrap { min-width: 0; width: 410px; max-width: 100%; }
+.user-selector { min-width: 0; max-width: none; width: 100%; gap: 10px; padding: 6px; border: 1px solid var(--border); border-radius: 14px; background: #f8faf5; }
+.user-selector .user-icon { width: 34px; height: 34px; margin-left: 4px; }
+.user-select-field { position: relative; flex: 1; min-width: 0; }
+.user-select-field > svg { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--muted); }
+.user-selector select { display: block; min-height: 44px; padding: 10px 28px 10px 0; font-size: 13px; cursor: pointer; }
+.admin-toggle-btn { display: flex; justify-content: center; gap: 7px; width: auto; min-height: 44px; height: auto; padding: 10px 12px; font-size: 11px; font-weight: 600; color: var(--green); border-radius: 9px; }
+@media (max-width: 760px) { .user-selector-wrap { width: 340px; }.user-selector .user-icon { display: none; }.user-selector select { padding-left: 8px; } }
+@media (max-width: 540px) { .user-selector-wrap { width: 100%; }.user-selector { flex-wrap: wrap; gap: 4px; }.user-select-field { flex-basis: calc(100% - 8px); }.admin-toggle-btn { width: 100%; } }

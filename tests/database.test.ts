@@ -26,6 +26,10 @@ beforeAll(async () => {
   const seriesAndDistinction = await readFile(new URL('../supabase/migrations/202609140004_series_and_mass_distinction.sql', import.meta.url), 'utf8');
   await db.exec(seriesAndDistinction);
   await db.exec(seriesAndDistinction);
+  const noLockout = await readFile(new URL('../supabase/migrations/202609150001_admin_login_no_lockout.sql', import.meta.url), 'utf8');
+  await db.exec("update liturgy_private.admin_config set failures = 5, window_start = now()");
+  await db.exec(noLockout);
+  await db.exec(noLockout);
 });
 afterAll(async () => { await db?.close(); });
 
@@ -97,13 +101,11 @@ describe.sequential('PostgreSQL model with actual RLS and SQL view', () => {
     await expect(db.query("select admin_update_mass_time($1, $2, '2026-03-29 10:30 Europe/Warsaw')", [token, mass2])).rejects.toThrow('Sesja administratora');
   });
 
-  it('enforces expiry and preserves failure counters for shared PIN throttling', async () => {
+  it('enforces expiry and accepts correct PIN immediately after repeated failures', async () => {
     const { rows } = await db.query<{ token: string }>("select * from admin_login('0403')");
     await db.exec("reset role; update liturgy_private.admin_sessions set expires_at = now() - interval '1 second'; set role anon;");
     await expect(db.query("select admin_update_server($1, $2, 'Jan', 'Lektor')", [rows[0].token, server])).rejects.toThrow('Sesja administratora');
-    for (let i = 0; i < 5; i++) expect((await db.query("select * from admin_login('9999')")).rows).toHaveLength(0);
-    expect((await db.query("select * from admin_login('0403')")).rows).toHaveLength(0);
-    await db.exec("reset role; update liturgy_private.admin_config set window_start = now() - interval '11 minutes'; set role anon;");
+    for (let i = 0; i < 12; i++) expect((await db.query("select * from admin_login('9999')")).rows).toHaveLength(0);
     expect((await db.query("select * from admin_login('0403')")).rows).toHaveLength(1);
   });
 

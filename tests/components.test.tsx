@@ -64,8 +64,8 @@ describe('MassCard', () => {
 
 it('remembers identity in localStorage', () => {
   const onChange = vi.fn();
-  render(<UserSelector servers={[{ id: 'jan', name: 'Jan Kowalski', rank: 'Lektor' }]} selectedId="" onChange={onChange} />);
-  fireEvent.change(screen.getByLabelText('Służę jako'), { target: { value: 'jan' } });
+  render(<UserSelector servers={[{ id: 'jan', name: 'Jan Kowalski', rank: 'Lektor' }]} selectedId="" onChange={onChange} adminSession={null} onAdminToggle={vi.fn()} />);
+  fireEvent.change(screen.getByLabelText('Wybierz ministranta'), { target: { value: 'jan' } });
   expect(onChange).toHaveBeenCalledWith('jan');
   expect(localStorage.getItem('liturgy.active-server')).toBe('jan');
 });
