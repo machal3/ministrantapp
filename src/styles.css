@@ -329,3 +329,22 @@ h1 { font-family: Georgia, "Times New Roman", serif; font-size: clamp(31px, 3vw,
 .admin-toggle-btn { display: flex; justify-content: center; gap: 7px; width: auto; min-height: 44px; height: auto; padding: 10px 12px; font-size: 11px; font-weight: 600; color: var(--green); border-radius: 9px; }
 @media (max-width: 760px) { .user-selector-wrap { width: 340px; }.user-selector .user-icon { display: none; }.user-selector select { padding-left: 8px; } }
 @media (max-width: 540px) { .user-selector-wrap { width: 100%; }.user-selector { flex-wrap: wrap; gap: 4px; }.user-select-field { flex-basis: calc(100% - 8px); }.admin-toggle-btn { width: 100%; } }
+
+.rule-intro { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+.rule-fields { display: flex; flex-direction: column; gap: 18px; border: 0; padding: 0; min-width: 0; margin-bottom: 18px; }
+.rule-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.rule-form-grid > * { min-width: 0; }
+.month-week-options { border: 0; padding: 0; margin: 0; }
+.month-week-options legend { font-size: 12px; font-weight: 600; margin-bottom: 10px; }
+.month-week-options > div { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.month-week-options label { display: flex; align-items: center; gap: 7px; padding: 10px; border: 1px solid var(--border); border-radius: 9px; font-size: 12px; cursor: pointer; }
+.month-week-options label:has(:checked) { background: #edf3e7; border-color: var(--green); color: var(--green); }
+.month-week-options input { accent-color: var(--green); }
+.month-week-options p, .rule-help { font-size: 11px; line-height: 1.6; color: var(--muted); margin: 10px 0 16px; }
+.rule-preview { background: #f1f5ec; border: 1px solid var(--border); border-radius: 12px; padding: 15px; font-size: 12px; line-height: 1.6; }
+.rule-preview strong, .rule-preview > span { display: block; }
+.rule-preview p { margin: 8px 0; }
+.rule-preview small { color: var(--muted); }
+.rules-panel li > div { min-width: 0; }
+.rules-panel li .icon-button { flex-shrink: 0; min-width: 34px; min-height: 38px; }
+@media(max-width: 420px) { .rule-form-grid { grid-template-columns: 1fr; gap: 18px; }.month-week-options > div { grid-template-columns: 1fr 1fr; } }

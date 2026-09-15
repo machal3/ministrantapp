@@ -80,7 +80,7 @@ it('adds a new server with one of the 5 ranks', async () => {
 it('displays community statistics in admin servers modal without rank breakdown', async () => {
   render(<App />);
   await screen.findByRole('heading', { name: 'Msza Święta' });
-  expect(screen.getByText('Twoje służby w ciągu ostatniego miesiąca (30 dni)')).toBeTruthy();
+  expect(screen.getByText('Twoje służby w ciągu ostatnich 30 dni')).toBeTruthy();
   await unlock();
   fireEvent.click(screen.getByRole('button', { name: 'Edytuj ministrantów' }));
   fireEvent.click(screen.getByRole('button', { name: /Statystyki służby/ }));

@@ -4,7 +4,7 @@ import { dateKey, monday, shiftDate, zonedIso } from '../src/lib/dates';
 import type { ScheduleData } from '../src/types/database';
 
 const repository = vi.hoisted(() => ({
-  loadWeek: vi.fn(), setAttendance: vi.fn(), addRule: vi.fn(), removeAttendance: vi.fn(),
+  updateRule: vi.fn(), loadWeek: vi.fn(), setAttendance: vi.fn(), addRule: vi.fn(), removeAttendance: vi.fn(),
   addMass: vi.fn(), deleteMass: vi.fn(), deleteRule: vi.fn(), subscribe: vi.fn(),
 }));
 vi.mock('../src/lib/repository', () => repository);
@@ -84,4 +84,17 @@ it('refreshes when the realtime subscription reports a change and disposes the s
   expect(await screen.findByRole('heading', { name: 'Zmienione nabożeństwo' })).toBeTruthy();
   unmount();
   expect(dispose).toHaveBeenCalledOnce();
+});
+
+
+it('opens the personal rule editor and refreshes the schedule after saving', async () => {
+  repository.loadWeek.mockImplementation(async (week: string) => ({ ...weekData(week), rules: [{ id: 'rule', server_id: 'jan', day_of_week: 0, time_slot: '18:00:00' }] }));
+  repository.updateRule.mockResolvedValue(undefined);
+  render(<App />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Edytuj stały dyżur: Niedziela 18:00' }));
+  fireEvent.change(screen.getByLabelText('Częstotliwość'), { target: { value: '2' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Zapisz dyżur' }));
+  await waitFor(() => expect(repository.updateRule).toHaveBeenCalledWith(expect.objectContaining({ id: 'rule', interval_weeks: 2, start_date: dateKey() })));
+  await waitFor(() => expect(screen.queryByRole('heading', { name: 'Edytuj stały dyżur' })).toBeNull());
+  expect(repository.loadWeek.mock.calls.length).toBeGreaterThan(1);
 });

@@ -27,6 +27,11 @@ export type MassEditInput = {
 };
 
 export type RecurringRule = {
+  frequency?: 'weekly' | 'monthly';
+  interval_weeks?: number;
+  month_weeks?: number[];
+  start_date?: string | null;
+  end_date?: string | null;
   id: string;
   server_id: string;
   day_of_week: number;
@@ -51,6 +56,10 @@ export type EffectiveAttendee = {
 export type NewMass = Omit<Mass, 'id'>;
 
 export type RecurringMassesInput = {
+  frequency?: 'weekly' | 'monthly';
+  interval_weeks?: number;
+  interval_months?: number;
+  month_weeks?: number[];
   title: string;
   suggested_spots: number;
   is_extra: boolean;
@@ -126,6 +135,10 @@ export type Database = {
       };
       admin_add_mass: { Args: { p_token: string; p_start_time: string; p_title: string; p_suggested_spots: number }; Returns: undefined };
       admin_delete_mass: { Args: { p_token: string; p_id: string }; Returns: undefined };
+      admin_add_pattern_masses: {
+        Args: { p_token: string; p_title: string; p_suggested_spots: number; p_is_extra: boolean; p_days: number[]; p_time: string; p_start_date: string; p_end_date: string; p_frequency: string; p_interval_weeks: number; p_interval_months: number; p_month_weeks: number[] };
+        Returns: number;
+      };
       admin_add_recurring_masses: {
         Args: {
           p_token: string;

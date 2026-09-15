@@ -1,3 +1,4 @@
+import { massOccurrenceDates } from './massRecurrence';
 import { configurationError, isDemo, supabase } from './supabase';
 import { demoWeek, writeDemo } from './demo';
 import { dateKey, shiftDate, timeSlot, weekday, weekBounds, zonedIso } from './dates';
@@ -91,6 +92,21 @@ export async function addRule(rule: Omit<RecurringRule, 'id'>): Promise<void> {
   check((await client().from('recurring_rules').upsert(rule, { onConflict: 'server_id,day_of_week,time_slot', ignoreDuplicates: true })).error);
 }
 
+export async function updateRule(rule: RecurringRule): Promise<void> {
+  const { id, server_id, ...changes } = rule;
+  if (isDemo) return writeDemo(state => {
+    const found = state.rules.find(r => r.id === id && r.server_id === server_id);
+    if (!found) throw new Error('Ten dyżur już nie istnieje.');
+    if (state.rules.some(r => r.id !== id && r.server_id === server_id && r.day_of_week === rule.day_of_week && r.time_slot === rule.time_slot)) throw new Error('Masz już dyżur w tym dniu o tej godzinie. Edytuj istniejący dyżur.');
+    Object.assign(found, changes);
+  });
+  const { data, error } = await client().from('recurring_rules').update(changes).eq('id', id).eq('server_id', server_id).select('id');
+  if (error?.code === '23505') throw new Error('Masz już dyżur w tym dniu o tej godzinie. Edytuj istniejący dyżur.');
+  if (error?.code === 'PGRST204') throw new Error('Edycja częstotliwości wymaga migracji 202609150002_recurring_patterns.sql w Supabase.');
+  check(error);
+  if (!data?.length) throw new Error('Ten dyżur już nie istnieje.');
+}
+
 export async function deleteRule(id: string): Promise<void> {
   if (isDemo) return writeDemo(state => { state.rules = state.rules.filter(r => r.id !== id); });
   check((await client().from('recurring_rules').delete().eq('id', id)).error);
@@ -110,13 +126,13 @@ export async function addRecurringMasses(input: RecurringMassesInput, session: A
   if (!input.days.length) throw new Error('Wybierz co najmniej jeden dzień tygodnia.');
   if (input.end_date < input.start_date) throw new Error('Data końcowa musi być późniejsza lub równa dacie początkowej.');
 
+  const dates = massOccurrenceDates(input);
+  if (!dates.length) throw new Error('Brak pasujących terminów. Sprawdź rytm i zakres dat (maksymalnie 366 dni).');
   if (isDemo) {
     let count = 0;
     writeDemo(state => {
       const series_id = crypto.randomUUID();
-      let curr = input.start_date;
-      while (curr <= input.end_date) {
-        if (input.days.includes(weekday(curr))) {
+      for (const curr of dates) {
           const startTime = zonedIso(curr, input.time);
           state.masses.push({
             id: crypto.randomUUID(),
@@ -127,14 +143,16 @@ export async function addRecurringMasses(input: RecurringMassesInput, session: A
             series_id,
           });
           count++;
-        }
-        curr = shiftDate(curr, 1);
       }
     });
     return count;
   }
 
-  const { data, error } = await client().rpc('admin_add_recurring_masses', {
+  const { data, error } = await client().rpc('admin_add_pattern_masses', {
+    p_frequency: input.frequency ?? 'weekly',
+    p_interval_weeks: input.interval_weeks ?? 1,
+    p_interval_months: input.interval_months ?? 1,
+    p_month_weeks: input.month_weeks ?? [1],
     p_token: admin.token,
     p_title: title,
     p_suggested_spots: input.suggested_spots,
@@ -144,6 +162,7 @@ export async function addRecurringMasses(input: RecurringMassesInput, session: A
     p_start_date: input.start_date,
     p_end_date: input.end_date,
   });
+  if (error?.code === 'PGRST202') throw new Error('Dodawanie serii wymaga migracji 202609150003_mass_patterns.sql w Supabase.');
   check(error);
   return data ?? 0;
 }

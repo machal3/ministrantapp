@@ -1,8 +1,9 @@
+import { massOccurrenceDates } from '../lib/massRecurrence';
 import { useId, useMemo, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { CalendarDays, CalendarPlus, Church, Flame, LoaderCircle, Repeat } from 'lucide-react';
 import Modal from './Modal';
-import { shiftDate, weekday, zonedIso } from '../lib/dates';
+import { shiftDate, weekday, zonedIso, polishDate } from '../lib/dates';
 import type { NewMass, RecurringMassesInput } from '../types/database';
 
 interface Props {
@@ -23,17 +24,6 @@ const WEEKDAY_BUTTONS: { dow: number; label: string }[] = [
   { dow: 0, label: 'Nd' },
 ];
 
-function countOccurrences(start: string, end: string, days: number[]): number {
-  if (!start || !end || end < start || !days.length) return 0;
-  let count = 0;
-  let curr = start;
-  for (let i = 0; i <= 366 && curr <= end; i++) {
-    if (days.includes(weekday(curr))) count++;
-    curr = shiftDate(curr, 1);
-  }
-  return count;
-}
-
 export default function AddMassModal({ initialDate, initialTime, onClose, onSubmit, onSubmitRecurring }: Props) {
   const [mode, setMode] = useState<'single' | 'recurring'>('single');
   const [error, setError] = useState('');
@@ -49,14 +39,19 @@ export default function AddMassModal({ initialDate, initialTime, onClose, onSubm
   const [endDate, setEndDate] = useState(() => shiftDate(initialDate, 90));
   const [selectedDays, setSelectedDays] = useState<number[]>([weekday(initialDate)]);
 
+  const [frequency, setFrequency] = useState<'weekly' | 'monthly'>('weekly');
+  const [intervalWeeks, setIntervalWeeks] = useState(1);
+  const [intervalMonths, setIntervalMonths] = useState(1);
+  const [monthWeeks, setMonthWeeks] = useState<number[]>([1]);
+  function applyPreset(day: number, ordinal: number) {
+    setFrequency('monthly'); setIntervalMonths(1); setSelectedDays([day]); setMonthWeeks([ordinal]);
+  }
   const titleId = useId();
   const timeId = useId();
   const spotsId = useId();
 
-  const occurrences = useMemo(
-    () => countOccurrences(startDate, endDate, selectedDays),
-    [startDate, endDate, selectedDays]
-  );
+  const dates = useMemo(() => massOccurrenceDates({ start_date: startDate, end_date: endDate, days: selectedDays, frequency, interval_weeks: intervalWeeks, interval_months: intervalMonths, month_weeks: monthWeeks }), [startDate, endDate, selectedDays, frequency, intervalWeeks, intervalMonths, monthWeeks]);
+  const occurrences = dates.length;
 
   function handleTypeChange(devotion: boolean) {
     setIsExtra(devotion);
@@ -116,6 +111,7 @@ export default function AddMassModal({ initialDate, initialTime, onClose, onSubm
         if (occurrences === 0) throw new Error('W wybranym przedziale dat nie wypada żaden ze wskazanych dni tygodnia.');
 
         await onSubmitRecurring({
+          frequency, interval_weeks: intervalWeeks, interval_months: intervalMonths, month_weeks: monthWeeks,
           title: finalTitle,
           suggested_spots: suggestedSpots,
           is_extra: isExtra,
@@ -218,6 +214,20 @@ export default function AddMassModal({ initialDate, initialTime, onClose, onSubm
         ) : (
           <>
             <div>
+              <span className="field-label">Popularne rytmy w parafii</span>
+              <div className="preset-chips">
+                <button type="button" onClick={() => applyPreset(5, 1)}>Pierwszy piątek</button>
+                <button type="button" onClick={() => applyPreset(6, 1)}>Pierwsza sobota</button>
+                <button type="button" onClick={() => applyPreset(3, 3)}>Trzecia środa</button>
+                <button type="button" onClick={() => applyPreset(0, -1)}>Ostatnia niedziela</button>
+              </div>
+            </div>
+            <div className="rule-form-grid">
+              <label className="field">Rytm serii<select value={frequency} onChange={e => setFrequency(e.target.value as 'weekly' | 'monthly')}><option value="weekly">Co określoną liczbę tygodni</option><option value="monthly">Wybrane dni miesiąca</option></select></label>
+              {frequency === 'weekly' ? <label className="field">Częstotliwość<select value={intervalWeeks} onChange={e => setIntervalWeeks(Number(e.target.value))}>{Array.from({ length: 12 }, (_, i) => i + 1).map(n => <option key={n} value={n}>{n === 1 ? 'Co tydzień' : n < 5 ? 'Co ' + n + ' tygodnie' : 'Co ' + n + ' tygodni'}</option>)}</select></label>
+                : <label className="field">Częstotliwość<select value={intervalMonths} onChange={e => setIntervalMonths(Number(e.target.value))}>{Array.from({ length: 12 }, (_, i) => i + 1).map(n => <option key={n} value={n}>{n === 1 ? 'Co miesiąc' : n < 5 ? 'Co ' + n + ' miesiące' : 'Co ' + n + ' miesięcy'}</option>)}</select></label>}
+            </div>
+            <div>
               <span className="field-label">Dni tygodnia</span>
               <div className="weekday-selector-grid">
                 {WEEKDAY_BUTTONS.map(btn => {
@@ -238,6 +248,8 @@ export default function AddMassModal({ initialDate, initialTime, onClose, onSubm
               <p className="field-hint mt-1">Zaznacz dni powtarzania (np. Pn, Wt, Śr).</p>
             </div>
 
+            {frequency === 'monthly' ? <fieldset className="month-week-options"><legend>Które wystąpienia wybranych dni?</legend><div>{[1,2,3,4,5,-1].map(n => <label key={n}><input type="checkbox" checked={monthWeeks.includes(n)} onChange={e => setMonthWeeks(prev => e.target.checked ? [...prev,n] : prev.filter(v => v !== n))} /><span>{n === -1 ? 'Ostatnie' : ['Pierwsze','Drugie','Trzecie','Czwarte','Piąte'][n-1]}</span></label>)}</div><p>Możesz łączyć opcje, np. pierwszy i trzeci piątek. Wybór dotyczy każdego zaznaczonego dnia tygodnia. Piąte wystąpienie jest pomijane, jeśli nie wypada w danym miesiącu.</p></fieldset>
+              : intervalWeeks > 1 && <p className="field-hint">Pierwszy cykl to 7 dni od daty „Od dnia”. Kolejne aktywne tygodnie powtarzają się z wybraną częstotliwością.</p>}
             <div className="grid grid-cols-2 gap-4">
               <label className="field">Godzina
                 <input type="time" name="time" required defaultValue={initialTime ?? '18:00'} step={60} />
@@ -260,10 +272,13 @@ export default function AddMassModal({ initialDate, initialTime, onClose, onSubm
                   type="date"
                   name="end_date"
                   required
+                  min={startDate}
+                  max={startDate ? shiftDate(startDate, 366) : undefined}
                   value={endDate}
                   onChange={e => setEndDate(e.target.value)}
                 />
               </label>
+              <p className="field-hint">Maksymalnie 366 dni. Cykl miesięczny liczy się od miesiąca daty początkowej.</p>
               <div className="preset-chips">
                 <button type="button" onClick={() => setEndPreset(30)}>+1 mies.</button>
                 <button type="button" onClick={() => setEndPreset(90)}>+3 mies.</button>
@@ -274,10 +289,12 @@ export default function AddMassModal({ initialDate, initialTime, onClose, onSubm
 
             <div className="recurrence-summary-box">
               <strong>Podsumowanie serii:</strong>
+              <span>{frequency === 'monthly' ? `Wystąpienia: ${monthWeeks.map(n => n === -1 ? 'ostatnie' : n + '.').join(', ')} · co ${intervalMonths} mies.` : `Co ${intervalWeeks} tyg.`} · {WEEKDAY_BUTTONS.filter(d => selectedDays.includes(d.dow)).map(d => d.label).join(', ')}</span>
+              {dates.length > 0 && <span>Najbliższe: {dates.slice(0, 4).map(d => polishDate(d, { day: 'numeric', month: 'short', year: 'numeric' })).join(' · ')}</span>}
               <span>
                 {occurrences === 0
                   ? 'Brak pasujących dni w wybranym przedziale dat.'
-                  : `Zostanie utworzonych ${occurrences} ${occurrences === 1 ? 'termin' : occurrences < 5 ? 'terminy' : 'terminów'} w strefie Europe/Warsaw.`}
+                  : `Liczba terminów do utworzenia: ${occurrences}.`}
               </span>
             </div>
           </>

@@ -91,3 +91,11 @@ Dokumentacja integracji: [Supabase Upsert](https://supabase.com/docs/reference/j
 ### Usunięcie blokady logowania administratora
 
 W SQL Editor istniejącego projektu uruchom `supabase/migrations/202609150001_admin_login_no_lockout.sql`. Na nowej bazie wykonaj go po wcześniejszych migracjach. Zachowuje PIN i aktywne sesje. Samo opublikowanie frontendu nie aktualizuje funkcji w bazie.
+
+### Edycja rytmu stałych dyżurów
+
+Uruchom `supabase/migrations/202609150002_recurring_patterns.sql` po wcześniejszych migracjach. W panelu „Moje stałe dyżury” przycisk ołówka otwiera edycję dnia, godziny, dat i częstotliwości: co 1–12 tygodni lub w wybrane tygodnie miesiąca (1–5 i ostatni). Tydzień 1 oznacza dni 1–7, tydzień 2 dni 8–14 itd.; „ostatni” oznacza ostatnie wystąpienie wybranego dnia tygodnia. Dla cyklu wielotygodniowego pierwsze 7 dni liczy się od daty początku cyklu. Dotychczasowe dyżury pozostają cotygodniowe. Daty graniczne są włączne. Reguły przeliczają też historię; jednorazowe zapisy i nieobecności pozostają.
+
+### Regularne Msze i nabożeństwa — rytmy miesięczne
+
+Uruchom `supabase/migrations/202609150003_mass_patterns.sql` po wcześniejszych migracjach. Formularz serii pozwala wybrać cykl co 1–12 tygodni albo co 1–12 miesięcy, dni tygodnia oraz ich pierwsze, drugie, trzecie, czwarte, piąte lub ostatnie wystąpienie. Wybrane wystąpienia dotyczą każdego zaznaczonego dnia. Cykl tygodniowy liczy 7-dniowe przedziały od daty początku; miesięczny liczy miesiące od miesiąca początku. Zakres jest włączny, maksymalnie 366 dni. Piąte wystąpienie jest pomijane, gdy nie istnieje. Nakładające się wystąpienia nie dublują terminu. Podgląd, tryb demonstracyjny i SQL stosują te same zasady. Seria ma wspólny identyfikator i obsługuje dotychczasową edycję/usuwanie przyszłych terminów.

@@ -1,3 +1,6 @@
+import EditRuleModal from './components/EditRuleModal';
+import { describeRule } from './lib/recurrence';
+import { Pencil } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AlertCircle, ArrowRight, CalendarDays, CalendarPlus, Check, Church, CircleHelp, HeartHandshake, LoaderCircle, Plus, RefreshCw, Repeat2, Trash2, Users, X, ShieldCheck } from 'lucide-react';
 import UserSelector, { readSelectedServer } from './components/UserSelector';
@@ -13,7 +16,7 @@ import EditMassModal from './components/EditMassModal';
 import { logoutAdmin } from './lib/admin';
 import { dateKey, DAY_NAMES, weekStart, polishDate, shiftDate, timeSlot, weekday } from './lib/dates';
 import { matchesRule } from './lib/attendance';
-import { addMass, addRecurringMasses, addRule, addServer, deleteMass, deleteRule, deleteServer, loadWeek, removeAttendance, setAttendance, subscribe, updateServer, updateMass } from './lib/repository';
+import { addMass, addRecurringMasses, addRule, addServer, deleteMass, deleteRule, deleteServer, loadWeek, removeAttendance, setAttendance, subscribe, updateServer, updateMass, updateRule } from './lib/repository';
 import type { SyncStatus } from './lib/repository';
 import { isDemo } from './lib/supabase';
 import type { AdminSession, AltarServer, Mass, MassEditInput, NewMass, RecurringMassesInput, RecurringRule, ScheduleData } from './types/database';
@@ -53,6 +56,7 @@ export default function App() {
   const [actionError, setActionError] = useState('');
   const [notice, setNotice] = useState('');
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('connecting');
+  const [editingRule, setEditingRule] = useState<RecurringRule | null>(null);
   const [adding, setAdding] = useState(false);
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
   const [deleteScope, setDeleteScope] = useState<'single' | 'future'>('single');
@@ -149,6 +153,10 @@ export default function App() {
   async function handleAction(mass: Mass, action: MassAction) {
     if (!activeId) return;
     const serverId = activeId;
+    if (action === 'recurring') {
+      const existing = data.rules.find(r => r.server_id === serverId && r.day_of_week === weekday(dateKey(mass.start_time)) && r.time_slot === timeSlot(mass.start_time));
+      if (existing) { setEditingRule(existing); return; }
+    }
     const hasRule = data.rules.some(rule => rule.server_id === serverId && matchesRule(mass, rule));
     const isDevotion = mass.is_extra;
     const noun = isDevotion ? 'nabożeństwo' : 'Mszę Świętą';
@@ -335,23 +343,24 @@ export default function App() {
             <div className="personal-icon"><HeartHandshake size={22} strokeWidth={1.5} /></div>
             <h2>{activeServer ? `Dobrze, że jesteś, ${activeServer.name.split(' ')[0]}.` : 'Dobrze, że jesteś.'}</h2>
             {!activeServer && <p>Wybierz swoje imię w nagłówku, aby zaplanować służbę i zobaczyć swoje dyżury.</p>}
-            <div className="personal-summary"><span>Twoje służby w ciągu ostatniego miesiąca (30 dni)</span><strong>{activeId ? ((data.recentAttendance ? data.recentAttendance[activeId] : ownMasses.length) ?? 0).toString().padStart(2, '0') : '—'}</strong></div>
+            <div className="personal-summary"><span>Twoje służby w ciągu ostatnich 30 dni</span><strong>{activeId ? ((data.recentAttendance ? data.recentAttendance[activeId] : ownMasses.length) ?? 0).toString().padStart(2, '0') : '—'}</strong></div>
             {ownMasses.length > 0 && <button className="personal-link" onClick={() => { const d = dateKey(ownMasses[0].start_time); if (weekStart(d) !== week) setWeek(weekStart(d)); setSelectedDay(d); }}>Zobacz pierwszy termin<ArrowRight size={15} /></button>}
           </section>
 
           <section className="sidebar-panel rules-panel"><h2><Repeat2 size={18} />Moje stałe dyżury<span>{ownRules.length}</span></h2>
-            {ownRules.length ? <ul>{ownRules.map(rule => <li key={rule.id}><span className="rule-marker"><Repeat2 size={15} /></span><div><strong>{DAY_NAMES[rule.day_of_week]}</strong><span>Co tydzień o {rule.time_slot.slice(0, 5)}</span></div><button className="icon-button" disabled={busy} aria-label={`Usuń stały dyżur: ${DAY_NAMES[rule.day_of_week]} ${rule.time_slot.slice(0, 5)}`} onClick={() => { setActionError(''); setConfirmation({ kind: 'rule', rule }); }}><X size={16} /></button></li>)}</ul>
+            {ownRules.length ? <ul>{ownRules.map(rule => <li key={rule.id}><span className="rule-marker"><Repeat2 size={15} /></span><div><strong>{DAY_NAMES[rule.day_of_week]}</strong><span>{describeRule(rule)} · {rule.time_slot.slice(0, 5)}</span></div><button className="icon-button rule-edit" disabled={busy} aria-label={`Edytuj stały dyżur: ${DAY_NAMES[rule.day_of_week]} ${rule.time_slot.slice(0, 5)}`} onClick={() => setEditingRule(rule)}><Pencil size={15} /></button><button className="icon-button" disabled={busy} aria-label={`Usuń stały dyżur: ${DAY_NAMES[rule.day_of_week]} ${rule.time_slot.slice(0, 5)}`} onClick={() => { setActionError(''); setConfirmation({ kind: 'rule', rule }); }}><X size={16} /></button></li>)}</ul>
               : <p className="sidebar-empty">{activeId ? 'Nie masz jeszcze stałego dyżuru. Ustaw go przy wybranej Mszy.' : 'Tutaj pojawią się Twoje stałe dyżury po wybraniu imienia.'}</p>}
             <div className="rules-tip"><CircleHelp size={15} /><p>Nie możesz przyjść? Zgłoś nieobecność przy danej Mszy. Pozostałe dyżury zostaną bez zmian.</p></div>
           </section>
 
-          <section className="sidebar-panel week-summary"><h2>Ten tydzień we wspólnocie</h2><div><span><CalendarDays size={16} />Msze i nabożeństwa</span><strong>{data.masses.length}</strong></div><div><span><Users size={16} />Ministranci w naszej wspólnocie</span><strong>{servers.length}</strong></div><div><span><Check size={16} />Pełna obstawa</span><strong>{fullMasses}<small> / {data.masses.length}</small></strong></div></section>
+          <section className="sidebar-panel week-summary"><h2>Ten tydzień w parafii</h2><div><span><CalendarDays size={16} />Msze i nabożeństwa</span><strong>{data.masses.length}</strong></div><div><span><Users size={16} />Ministranci w naszej wspólnocie</span><strong>{servers.length}</strong></div><div><span><Check size={16} />Pełna obstawa</span><strong>{fullMasses}<small> / {data.masses.length}</small></strong></div></section>
           <div className="open-invitation"><Church size={28} strokeWidth={1.2} /><p>„Służcie Panu z weselem!”</p><span>Ps 100, 2</span></div>
         </aside>
       </div>
     </main>
 
     {notice && <div className="toast" role="status"><span><Check size={17} /></span><p>{notice}</p><button className="icon-button" aria-label="Zamknij powiadomienie" onClick={() => setNotice('')}><X size={16} /></button></div>}
+    {editingRule && <EditRuleModal rule={editingRule} onClose={() => setEditingRule(null)} onSave={async rule => { await updateRule(rule); setNotice('Zapisano zmiany stałego dyżuru.'); await refresh(); }} />}
     {adminLoginOpen && <AdminLoginModal onClose={() => setAdminLoginOpen(false)} onLogin={session => { setAdminSession(session); setAdminLoginOpen(false); setActionError(''); }} />}
     {adminSession && editingServers && (
       <AdminServersModal

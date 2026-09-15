@@ -21,6 +21,7 @@ interface Props {
 export default function MassCard({ mass, attendees, rules, exceptions, activeId, busy, onAction, onDelete, isAdmin = false, onEdit, onEditTime }: Props) {
   const handleEdit = onEdit ?? onEditTime;
   const attendance = attendees.find(a => a.server_id === activeId);
+  const hasSlotRule = rules.some(r => r.server_id === activeId && r.day_of_week === weekday(dateKey(mass.start_time)) && r.time_slot === timeSlot(mass.start_time));
   const hasRule = rules.some(r => r.server_id === activeId && matchesRule(mass, r));
   const excused = exceptions.some(a => a.mass_id === mass.id && a.server_id === activeId && a.type === 'excused');
   const count = attendees.length;
@@ -78,7 +79,7 @@ export default function MassCard({ mass, attendees, rules, exceptions, activeId,
             disabled={busy}
             onClick={() => onAction(mass, 'recurring')}
           >
-            <Repeat2 size={16} />Ustaw jako mój stały dyżur
+            <Repeat2 size={16} />{hasSlotRule ? 'Edytuj rytm mojego dyżuru' : 'Ustaw jako mój stały dyżur'}
           </button>
         )}
         {hasRule && <p className="recurring-note"><Repeat2 size={13} />Twój stały dyżur · {recurringLabel}</p>}

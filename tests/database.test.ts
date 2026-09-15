@@ -30,6 +30,12 @@ beforeAll(async () => {
   await db.exec("update liturgy_private.admin_config set failures = 5, window_start = now()");
   await db.exec(noLockout);
   await db.exec(noLockout);
+  const patterns = await readFile(new URL('../supabase/migrations/202609150002_recurring_patterns.sql', import.meta.url), 'utf8');
+  await db.exec(patterns);
+  await db.exec(patterns);
+  const massPatterns = await readFile(new URL('../supabase/migrations/202609150003_mass_patterns.sql', import.meta.url), 'utf8');
+  await db.exec(massPatterns);
+  await db.exec(massPatterns);
 });
 afterAll(async () => { await db?.close(); });
 
@@ -237,4 +243,37 @@ describe.sequential('PostgreSQL model with actual RLS and SQL view', () => {
     expect((await db.query('select * from mass_attendees')).rows).toHaveLength(0);
     expect((await db.query("select * from masses where date_trunc('week', start_time at time zone 'Europe/Warsaw') <> date_trunc('week', now() at time zone 'Europe/Warsaw')")).rows).toHaveLength(0);
   });
+});
+
+it('applies monthly patterns and intervals in the actual view while retaining single signups and absences', async () => {
+  await db.exec('reset role;');
+  const { rows: people } = await db.query<{id:string}>("insert into altar_servers(name, rank) values ('Rytm', 'Lektor') returning id");
+  const person = people[0].id;
+  const { rows: masses } = await db.query<{id:string}>("insert into masses(start_time) values ('2028-02-06 10:30 Europe/Warsaw'), ('2028-02-13 10:30 Europe/Warsaw'), ('2028-02-20 10:30 Europe/Warsaw'), ('2028-02-27 10:30 Europe/Warsaw') returning id");
+  await db.exec('set role anon;');
+  await db.query("insert into recurring_rules(server_id,day_of_week,time_slot,frequency,month_weeks) values ($1,0,'10:30','monthly',array[1,3,-1])", [person]);
+  const actual = async () => (await db.query<{mass_id:string}>('select mass_id from effective_attendees where server_id=$1 and mass_id = any($2::uuid[])', [person, masses.map(m => m.id)])).rows.map(r => r.mass_id).sort();
+  expect(await actual()).toEqual([masses[0].id,masses[2].id,masses[3].id].sort());
+  await db.query("update recurring_rules set frequency='weekly', interval_weeks=2, start_date='2028-02-06', end_date='2028-02-20' where server_id=$1",[person]);
+  expect(await actual()).toEqual([masses[0].id,masses[2].id].sort());
+  await db.query("insert into mass_attendees(mass_id,server_id,type) values ($1,$3,'excused'),($2,$3,'single')",[masses[0].id,masses[1].id,person]);
+  expect(await actual()).toEqual([masses[1].id,masses[2].id].sort());
+  await expect(db.query("update recurring_rules set month_weeks=array[]::integer[] where server_id=$1",[person])).rejects.toThrow();
+  await expect(db.query("update recurring_rules set interval_weeks=0 where server_id=$1",[person])).rejects.toThrow();
+  await expect(db.query("update recurring_rules set end_date='2028-02-01' where server_id=$1",[person])).rejects.toThrow();
+});
+
+it('creates monthly Mass series with matching preview dates and requires an admin session', async () => {
+  await db.exec('reset role;');
+  const {rows} = await db.query<{token:string}>("select * from admin_login('0403')");
+  await db.exec('set role anon;');
+  const sql = "select admin_add_pattern_masses($1,'Pierwszy piątek test',4,false,array[5],'18:00','2026-01-01','2026-03-31','monthly',1,1,array[1])";
+  await expect(db.query(sql,[null])).rejects.toThrow('Sesja administratora');
+  await db.query(sql,[rows[0].token]);
+  const created = await db.query<{day:string,series_id:string}>("select to_char(start_time at time zone 'Europe/Warsaw','YYYY-MM-DD') as day, series_id from masses where title='Pierwszy piątek test' order by start_time");
+  expect(created.rows.map(r=>r.day)).toEqual(['2026-01-02','2026-02-06','2026-03-06']);
+  expect(new Set(created.rows.map(r=>r.series_id)).size).toBe(1);
+  await expect(db.query("select admin_add_pattern_masses($1,'Invalid',4,false,array[5],'18:00','2026-01-01','2026-03-31','monthly',1,1,array[]::integer[])",[rows[0].token])).rejects.toThrow();
+  await db.query("select admin_add_pattern_masses($1,'Ostatnia test',4,true,array[0],'18:00','2028-02-01','2028-03-31','monthly',1,1,array[5,-1])",[rows[0].token]);
+  expect((await db.query("select id from masses where title='Ostatnia test'")).rows).toHaveLength(2);
 });
