@@ -293,7 +293,7 @@ export default function App() {
             <span className={`sync-status ${syncStatus}`}><span />{syncLabel[syncStatus]}</span>
           </div>
           <WeekNavigator week={week} onChange={changeWeek} />
-          <DaySelector week={week} selected={selectedDay} onChange={setSelectedDay} counts={counts} />
+          <DaySelector week={week} selected={selectedDay} onChange={setSelectedDay} counts={counts} dayAnnotations={data.dayAnnotations} />
           {(adminSession || data.dayAnnotations?.some(a => a.day === selectedDay)) && <div className="day-annotation-bar">
             <span>{data.dayAnnotations?.find(a => a.day === selectedDay)?.label || 'Dzień bez oznaczenia'}</span>
             {adminSession && <button className="button secondary" disabled={loading || !!loadError} onClick={() => setEditingDay(selectedDay)}><Pencil size={14}/>Oznacz dzień</button>}

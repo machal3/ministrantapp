@@ -77,6 +77,10 @@ h1 { font-family: Georgia, "Times New Roman", serif; font-size: clamp(31px, 3vw,
 .day-tab.is-sunday > strong { color: #7a4e10; }
 .day-tab.is-sunday.selected > span { color: #ffd899; }
 .day-tab.is-sunday.selected > strong { color: white; }
+.day-tab.is-feast > span { color: #79549a; font-weight: 700; }
+.day-tab.is-feast > strong { color: #654080; }
+.day-tab.is-feast.selected > span { color: #ebceff; }
+.day-tab.is-feast.selected > strong { color: #ebceff; }
 .day-groups { padding-top: 23px; }
 .day-group { margin-bottom: 25px; }
 .day-heading { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
