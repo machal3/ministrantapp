@@ -14,9 +14,9 @@ export default function WeekNavigator({ week, onChange }: Props) {
       {week === weekStart() && <span className="current-week-label">Bieżący tydzień</span>}
     </div>
     <nav className="week-controls" aria-label="Wybór tygodnia">
-      <button className="icon-button" aria-label="Poprzedni tydzień" onClick={() => onChange(shiftDate(week, -7))}><ChevronLeft size={18} /></button>
+      <button className="icon-button" aria-label="Poprzedni tydzień" onClick={() => onChange(shiftDate(week, -7))}><ChevronLeft size={20} /></button>
       <button className="today-button" onClick={() => onChange(weekStart())}>Dziś</button>
-      <button className="icon-button" aria-label="Następny tydzień" onClick={() => onChange(shiftDate(week, 7))}><ChevronRight size={18} /></button>
+      <button className="icon-button" aria-label="Następny tydzień" onClick={() => onChange(shiftDate(week, 7))}><ChevronRight size={20} /></button>
     </nav>
   </div>;
 }
