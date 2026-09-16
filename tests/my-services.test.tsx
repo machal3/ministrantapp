@@ -32,6 +32,7 @@ function fixture(): ScheduleData {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
   localStorage.setItem('liturgy.active-server', 'jan');
   HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', ''); };
   HTMLDialogElement.prototype.close = function () { this.removeAttribute('open'); };
@@ -39,7 +40,7 @@ beforeEach(() => {
   repository.loadUpcomingServices.mockResolvedValue(fixture());
   repository.subscribe.mockReturnValue(() => {});
 });
-afterEach(() => { cleanup(); localStorage.clear(); });
+afterEach(() => { cleanup(); localStorage.clear(); vi.restoreAllMocks(); });
 
 async function openServices() {
   render(<App />);
@@ -120,6 +121,7 @@ it('withdraws only a single signup and opens the selected future day in the sche
   await waitFor(() => expect(repository.removeAttendance).toHaveBeenCalledWith('single', 'jan'));
   fireEvent.click(within(single).getByRole('button', { name: 'Zobacz dzień w grafiku' }));
   await screen.findByRole('region', { name: 'Grafik tygodniowy' });
+  expect(window.scrollTo).toHaveBeenCalledWith({ top: 0, left: 0, behavior: 'instant' });
   expect(screen.getByRole('heading', { name: 'Spotkanie' })).toBeTruthy();
 });
 

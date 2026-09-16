@@ -7,7 +7,7 @@ import MyServicesView from './components/MyServicesView';
 import MyRecurringRules from './components/MyRecurringRules';
 import { useUpcomingServices } from './hooks/useUpcomingServices';
 import { Pencil } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { AlertCircle, ArrowRight, CalendarDays, CalendarPlus, Check, Church, HeartHandshake, LoaderCircle, Plus, RefreshCw, Trash2, UserRound, Users, X, ShieldCheck } from 'lucide-react';
 import UserSelector, { readSelectedServer } from './components/UserSelector';
 import WeekNavigator from './components/WeekNavigator';
@@ -83,6 +83,14 @@ export default function App() {
   const [annotationsOpen, setAnnotationsOpen] = useState(false);
   const mutationLock = useRef(false);
   const requestId = useRef(0);
+  const resetScrollOnDayOpen = useRef(false);
+
+  useLayoutEffect(() => {
+    if (view !== 'schedule' || !resetScrollOnDayOpen.current) return;
+    resetScrollOnDayOpen.current = false;
+    // Reset after mounting the destination, before paint, regardless of data loading.
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  }, [view, selectedDay]);
   const data = snapshot?.week === week ? snapshot.data : EMPTY;
   const servers = snapshot?.data.servers ?? [];
   const activeServer = servers.find(server => server.id === selectedId);
@@ -364,7 +372,7 @@ export default function App() {
         {!snapshot && loadError && <div className="error-banner" role="alert"><p>{loadError}</p><button className="button secondary" onClick={() => void refresh()}>Ponów pobieranie ministrantów</button></div>}
         <MyServicesView server={activeServer} data={upcoming.data} loading={upcoming.loading} error={upcoming.error} now={upcoming.now} busy={busy}
           onRetry={() => void upcoming.refresh()} onAction={handleAction}
-          onOpenDay={(day = dateKey()) => { setWeek(weekStart(day)); setSelectedDay(day); setView('schedule'); }}
+          onOpenDay={(day = dateKey()) => { resetScrollOnDayOpen.current = true; setWeek(weekStart(day)); setSelectedDay(day); setView('schedule'); }}
           onEditRule={setEditingRule} onDeleteRule={rule => { setActionError(''); setConfirmation({ kind: 'rule', rule }); }} />
       </>}
       {view === 'schedule' && <div className="dashboard-layout">
