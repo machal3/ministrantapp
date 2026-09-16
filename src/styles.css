@@ -57,7 +57,7 @@ h1 { font-family: var(--font-sans); font-size: clamp(31px, 3vw, 42px); font-weig
 .sync-status > span { width: 5px; height: 5px; background: #94a786; border-radius: 50%; }
 .sync-status.offline > span, .sync-status.connecting > span { background: #c39a50; }
 .week-navigator { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; background: white; border: 1px solid var(--border); border-bottom: 1px solid #edf1eb; border-radius: 12px 12px 0 0; box-shadow: 0 2px 6px #1b352408; }
-.week-heading { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.week-heading { display: flex; align-items: center; gap: 10px; min-width: 0; min-height: 26px; }
 .week-navigator h2 { font-size: 14px; font-weight: 600; margin: 0; color: #1e3327; }
 .current-week-label { background: #eaf1e7; color: var(--green); font-size: 12px; font-weight: 600; border: 1px solid #d4ded0; border-radius: 9999px; padding: 3px 8px; white-space: nowrap; }
 .week-controls { display: flex; align-items: center; gap: 6px; }
