@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
 import './styles.css';
+import './competition.css';
 
 // Update installed copies to the offline-only worker, including older versions.
 if ('serviceWorker' in navigator) {

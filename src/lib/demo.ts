@@ -3,7 +3,7 @@ import type { AltarServer, Mass, MassAttendee, RecurringRule, ScheduleData } fro
 import { aggregateAttendees } from './attendance';
 import { dateKey, monday, shiftDate, weekday, zonedIso } from './dates';
 
-export type DemoState = Pick<ScheduleData, 'servers' | 'masses' | 'rules' | 'exceptions' | 'dayAnnotations'>;
+export type DemoState = Pick<ScheduleData, 'servers' | 'masses' | 'rules' | 'exceptions' | 'dayAnnotations' | 'confirmations' | 'pointAdjustments'> & { competitionSeasons?: NonNullable<ScheduleData['competitionState']>[] };
 const KEY = 'liturgy.demo.v1';
 
 function initialDemo(): DemoState {
@@ -71,7 +71,9 @@ export function readDemo(): DemoState {
 
 export function writeDemo(change: (state: DemoState) => void): void {
   const state = readDemo();
+  const previousMasses = JSON.stringify(state.masses);
   change(state);
+  if (previousMasses !== JSON.stringify(state.masses)) for (const season of state.competitionSeasons ?? []) season.revision++;
   localStorage.setItem(KEY, JSON.stringify(state));
   window.dispatchEvent(new Event('liturgy-demo-change'));
 }
@@ -95,4 +97,3 @@ export function demoWeek(from: string, to: string): ScheduleData {
 
   return { ...data, masses, exceptions, attendees, recentAttendance };
 }
-

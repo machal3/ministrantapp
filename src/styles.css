@@ -756,7 +756,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 }
 
 /* Personal services reuse the schedule's surfaces, controls and attendance colors. */
-.view-navigation { display: flex; gap: 8px; margin-bottom: 26px; }
+.view-navigation { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 26px; }
 .view-navigation .button { min-width: 150px; }
 .my-services, .services-content, .services-sidebar { min-width: 0; }
 .services-heading { margin-bottom: 18px; }

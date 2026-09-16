@@ -1,12 +1,13 @@
 import { eventCategory } from './eventCategory';
-import { ruleHistoryToPreserve } from './attendance';
+import { aggregateAttendees, ruleHistoryToPreserve } from './attendance';
+import { buildCompetition, competitionSeason } from './competition';
 import { massOccurrenceDates } from './massRecurrence';
 import { configurationError, isDemo, supabase } from './supabase';
 import { demoWeek, readDemo, writeDemo } from './demo';
 import { dateKey, shiftDate, shiftMonth, timeSlot, weekday, weekBounds, zonedIso } from './dates';
 import { requireAdminSession } from './admin';
 import { RANKS } from '../types/database';
-import type { AdminSession, AltarServer, AttendanceType, MassEditInput, NewMass, RecurringMassesInput, RecurringRule, ScheduleData } from '../types/database';
+import type { AdminSession, AltarServer, AttendanceType, CompetitionState, MassEditInput, NewMass, PendingConfirmations, RecurringMassesInput, RecurringRule, ScheduleData } from '../types/database';
 
 function client() {
   if (!supabase) throw new Error(configurationError || 'Brak połączenia z Supabase.');
@@ -40,6 +41,113 @@ export async function loadWeek(start: string): Promise<ScheduleData> {
  */
 export async function loadUpcomingServices(from: string, to: string): Promise<ScheduleData> {
   return loadScheduleRange(from, to);
+}
+
+const COMPETITION_MIGRATION = 'Uruchom migrację 202609160003_points_and_confirmations.sql w Supabase, aby włączyć potwierdzanie obecności i zarządzanie punktami.';
+function checkCompetition(error: { message: string; code?: string } | null) {
+  if (error && ['PGRST202', 'PGRST205', '42P01'].includes(error.code ?? '')) throw new Error(COMPETITION_MIGRATION);
+  check(error);
+}
+
+/** Revision checks avoid composing scores from different concurrent snapshots. */
+export async function loadCompetition(from: string, to: string): Promise<ScheduleData> {
+  const season = dateKey(from);
+  const emptyState: CompetitionState = { season, reset_at: null, revision: 0, reset_revision: 0 };
+  if (isDemo) {
+    const state = readDemo();
+    return { ...demoWeek(from, to), confirmations: state.confirmations ?? [], pointAdjustments: state.pointAdjustments ?? [], competitionState: state.competitionSeasons?.find(item => item.season === season) ?? emptyState };
+  }
+  const db = client();
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const before = await db.from('competition_seasons').select('*').eq('season', season).maybeSingle();
+    checkCompetition(before.error);
+    const state = before.data ?? emptyState;
+    const [schedule, adjustments] = await Promise.all([
+      loadScheduleRange(from, to),
+      allRows((a, b) => db.from('point_adjustments').select('*').eq('season', season).order('revision').order('id').range(a, b)),
+    ]);
+    const confirmations: NonNullable<ScheduleData['confirmations']> = [];
+    for (let index = 0; index < schedule.masses.length; index += 80) {
+      confirmations.push(...await allRows((a, b) => db.from('service_confirmations').select('*').in('mass_id', schedule.masses.slice(index, index + 80).map(m => m.id)).order('mass_id').order('server_id').range(a, b)));
+    }
+    const after = await db.from('competition_seasons').select('*').eq('season', season).maybeSingle();
+    checkCompetition(after.error);
+    if (state.revision === (after.data?.revision ?? 0)) return { ...schedule, confirmations, pointAdjustments: adjustments, competitionState: state };
+  }
+  throw new Error('Wyniki są właśnie aktualizowane. Spróbuj ponownie.');
+}
+
+export async function loadPendingConfirmations(serverId: string): Promise<PendingConfirmations> {
+  if (isDemo) {
+    const state = readDemo();
+    const cutoff = Date.now() - 3600000;
+    const declared = new Set(aggregateAttendees(state.masses, state.servers, state.rules, state.exceptions).filter(a => a.server_id === serverId).map(a => a.mass_id));
+    const answered = new Set((state.confirmations ?? []).filter(a => a.server_id === serverId).map(a => a.mass_id));
+    const pending = state.masses.filter(m => Date.parse(m.start_time) <= cutoff && declared.has(m.id) && !answered.has(m.id)).sort((a, b) => a.start_time.localeCompare(b.start_time) || a.id.localeCompare(b.id));
+    return { masses: pending.slice(0, 50), total: pending.length };
+  }
+  const { data, error } = await client().rpc('pending_service_confirmations', { p_server_id: serverId });
+  checkCompetition(error);
+  return data ?? { masses: [], total: 0 };
+}
+
+export async function confirmService(massId: string, serverId: string, attended: boolean): Promise<void> {
+  if (isDemo) return writeDemo(state => {
+    const existing = state.confirmations?.find(c => c.mass_id === massId && c.server_id === serverId);
+    if (existing) {
+      if (existing.attended === attended) return;
+      throw new Error('Ta służba została już potwierdzona na innym urządzeniu. Odśwież listę.');
+    }
+    const mass = state.masses.find(m => m.id === massId);
+    if (!mass || Date.parse(mass.start_time) > Date.now() - 3600000) throw new Error('Służbę można potwierdzić godzinę po jej rozpoczęciu.');
+    if (!aggregateAttendees([mass], state.servers, state.rules, state.exceptions).some(a => a.server_id === serverId)) throw new Error('Nie masz już zapisu na tę służbę. Odśwież listę.');
+    (state.confirmations ??= []).push({ mass_id: massId, server_id: serverId, attended, confirmed_at: new Date().toISOString() });
+    const season = competitionSeason(new Date(mass.start_time)).start;
+    const seasons = state.competitionSeasons ??= [];
+    if (!seasons.some(s => s.season === season)) seasons.push({ season, reset_at: null, reset_revision: 0, revision: 0 });
+    for (const s of seasons) s.revision++;
+    const found = state.exceptions.find(a => a.mass_id === massId && a.server_id === serverId);
+    if (found) found.type = attended ? 'single' : 'excused';
+    else state.exceptions.push({ id: crypto.randomUUID(), mass_id: massId, server_id: serverId, type: attended ? 'single' : 'excused' });
+  });
+  checkCompetition((await client().rpc('confirm_service', { p_mass_id: massId, p_server_id: serverId, p_attended: attended })).error);
+}
+
+export type PointEdit = { serverId: string; mode: 'add' | 'subtract' | 'set'; value: number; reason: string };
+export async function adjustPoints(edit: PointEdit, snapshot: ScheduleData, session: AdminSession | null): Promise<void> {
+  const admin = await requireAdminSession(session);
+  const now = new Date();
+  const { season, profiles } = buildCompetition(snapshot, now);
+  const person = profiles.find(p => p.server.id === edit.serverId);
+  if (!person || !snapshot.competitionState || snapshot.competitionState.season !== season.start) throw new Error('Odśwież wyniki przed zapisem.');
+  const target = edit.mode === 'set' ? edit.value : person.points + (edit.mode === 'add' ? edit.value : -edit.value);
+  if (!Number.isSafeInteger(edit.value) || edit.value < 0 || edit.value > 1000000 || target < 0 || target > 1000000) throw new Error('Wynik musi wynosić od 0 do 1000000 punktów.');
+  if (edit.reason.length > 240) throw new Error('Opis może mieć do 240 znaków.');
+  if (isDemo) return writeDemo(state => {
+    const seasons = state.competitionSeasons ??= [];
+    let current = seasons.find(s => s.season === season.start);
+    if (!current) { current = { season: season.start, reset_at: null, reset_revision: 0, revision: 0 }; seasons.push(current); }
+    if (current.revision !== snapshot.competitionState!.revision) throw new Error('Wyniki zmieniły się. Odśwież i spróbuj ponownie.');
+    current.revision++;
+    (state.pointAdjustments ??= []).push({ id: crypto.randomUUID(), season: season.start, server_id: edit.serverId, delta: target - person.rawPoints, mode: edit.mode, reason: edit.reason.trim(), created_at: now.toISOString(), revision: current.revision });
+  });
+  checkCompetition((await client().rpc('admin_adjust_points', { p_token: admin.token, p_server_id: edit.serverId, p_season: season.start, p_mode: edit.mode, p_value: edit.value, p_current_points: person.rawPoints, p_revision: snapshot.competitionState.revision, p_reason: edit.reason })).error);
+}
+
+export async function resetPoints(snapshot: ScheduleData, session: AdminSession | null): Promise<void> {
+  const admin = await requireAdminSession(session);
+  const season = competitionSeason(new Date()).start;
+  if (!snapshot.competitionState || snapshot.competitionState.season !== season) throw new Error('Odśwież wyniki przed resetem.');
+  if (isDemo) return writeDemo(state => {
+    const seasons = state.competitionSeasons ??= [];
+    let current = seasons.find(s => s.season === season);
+    if (!current) { current = { season, reset_at: null, reset_revision: 0, revision: 0 }; seasons.push(current); }
+    if (current.revision !== snapshot.competitionState!.revision) throw new Error('Wyniki zmieniły się. Odśwież przed resetem.');
+    current.revision++;
+    current.reset_revision = current.revision;
+    current.reset_at = new Date().toISOString();
+  });
+  checkCompetition((await client().rpc('admin_reset_points', { p_token: admin.token, p_season: season, p_revision: snapshot.competitionState.revision })).error);
 }
 
 async function loadScheduleRange(from: string, to: string): Promise<ScheduleData> {
@@ -434,7 +542,7 @@ export function subscribe(onChange: () => void, onStatus: (status: SyncStatus) =
   } else if (supabase) {
     onStatus('connecting');
     const channel = supabase.channel(`schedule-${crypto.randomUUID()}`);
-    for (const table of ['altar_servers', 'masses', 'recurring_rules', 'mass_attendees', 'day_annotations']) {
+    for (const table of ['altar_servers', 'masses', 'recurring_rules', 'mass_attendees', 'day_annotations', 'service_confirmations', 'competition_seasons', 'point_adjustments']) {
       channel.on('postgres_changes', { event: '*', schema: 'public', table }, onChange);
     }
     channel.subscribe(status => {

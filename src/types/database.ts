@@ -67,6 +67,11 @@ export type EffectiveAttendee = {
   attendance_type: 'recurring' | 'single';
 };
 
+export type ServiceConfirmation = { mass_id: string; server_id: string; attended: boolean; confirmed_at: string };
+export type CompetitionState = { season: string; reset_at: string | null; reset_revision: number; revision: number };
+export type PointAdjustment = { id: string; season: string; server_id: string; delta: number; mode: 'add' | 'subtract' | 'set'; reason: string; created_at: string; revision: number };
+export type PendingConfirmations = { masses: Mass[]; total: number };
+
 export type NewMass = Omit<Mass, 'id'>;
 
 export type RecurringMassesInput = {
@@ -97,6 +102,9 @@ type Relation<Name extends string, Column extends string, Table extends string> 
 export type Database = {
   public: {
     Tables: {
+      service_confirmations: { Row: ServiceConfirmation; Insert: ServiceConfirmation; Update: Partial<ServiceConfirmation>; Relationships: [] };
+      competition_seasons: { Row: CompetitionState; Insert: CompetitionState; Update: Partial<CompetitionState>; Relationships: [] };
+      point_adjustments: { Row: PointAdjustment; Insert: PointAdjustment; Update: Partial<PointAdjustment>; Relationships: [] };
       day_annotations: { Row: { day: string; label: string }; Insert: {day:string;label:string}; Update: {label?:string}; Relationships: [] };
       altar_servers: {
         Row: AltarServer;
@@ -133,6 +141,10 @@ export type Database = {
       };
     };
     Functions: {
+      pending_service_confirmations: { Args: { p_server_id: string }; Returns: PendingConfirmations };
+      confirm_service: { Args: { p_server_id: string; p_mass_id: string; p_attended: boolean }; Returns: undefined };
+      admin_adjust_points: { Args: { p_token: string; p_server_id: string; p_season: string; p_mode: string; p_value: number; p_current_points: number; p_revision: number; p_reason: string }; Returns: undefined };
+      admin_reset_points: { Args: { p_token: string; p_season: string; p_revision: number }; Returns: undefined };
       admin_set_day_annotation: { Args: {p_token:string;p_day:string;p_label:string}; Returns: undefined };
       admin_login: { Args: { p_pin: string }; Returns: AdminSession[] };
       admin_logout: { Args: { p_token: string }; Returns: undefined };
@@ -182,6 +194,9 @@ export type Database = {
 };
 
 export interface ScheduleData {
+  confirmations?: ServiceConfirmation[];
+  pointAdjustments?: PointAdjustment[];
+  competitionState?: CompetitionState;
   dayAnnotations?: {day:string;label:string}[];
   servers: AltarServer[];
   masses: Mass[];

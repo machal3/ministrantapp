@@ -4,11 +4,16 @@ import { eventCategory } from './lib/eventCategory';
 import { dayAppearance } from './lib/dayAppearance';
 import EditRuleModal from './components/EditRuleModal';
 import MyServicesView from './components/MyServicesView';
+import CompetitionView from './components/CompetitionView';
+import AdminPointsModal from './components/AdminPointsModal';
+import ConfirmServicesModal from './components/ConfirmServicesModal';
+import { useServiceConfirmations } from './hooks/useServiceConfirmations';
+import { useCompetition } from './hooks/useCompetition';
 import MyRecurringRules from './components/MyRecurringRules';
 import { useUpcomingServices } from './hooks/useUpcomingServices';
 import { Pencil } from 'lucide-react';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { AlertCircle, ArrowRight, CalendarDays, CalendarPlus, Check, Church, HeartHandshake, LoaderCircle, Plus, RefreshCw, Trash2, UserRound, Users, X, ShieldCheck } from 'lucide-react';
+import { AlertCircle, ArrowRight, CalendarDays, CalendarPlus, Check, Church, HeartHandshake, LoaderCircle, Plus, RefreshCw, Trash2, Trophy, UserRound, Users, X, ShieldCheck } from 'lucide-react';
 import UserSelector, { readSelectedServer } from './components/UserSelector';
 import WeekNavigator from './components/WeekNavigator';
 import DaySelector from './components/DaySelector';
@@ -54,7 +59,7 @@ function messageFrom(error: unknown): string {
 }
 
 export default function App() {
-  const [view, setView] = useState<'schedule' | 'services'>('schedule');
+  const [view, setView] = useState<'schedule' | 'services' | 'competition'>('schedule');
   const [week, setWeek] = useState(() => weekStart());
   const [selectedDay, setSelectedDay] = useState<string>(() => {
     const today = dateKey();
@@ -63,6 +68,7 @@ export default function App() {
     return daysInCurrentWeek.includes(today) ? today : currentWeekStart;
   });
   const [selectedId, setSelectedId] = useState(readSelectedServer);
+  const [selectionRequest, setSelectionRequest] = useState(0);
   const [snapshot, setSnapshot] = useState<{ week: string; data: ScheduleData } | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -81,6 +87,7 @@ export default function App() {
   const [editingMass, setEditingMass] = useState<Mass | null>(null);
   const [celebrantsOpen, setCelebrantsOpen] = useState(false);
   const [annotationsOpen, setAnnotationsOpen] = useState(false);
+  const [pointsOpen, setPointsOpen] = useState(false);
   const mutationLock = useRef(false);
   const requestId = useRef(0);
   const resetScrollOnDayOpen = useRef(false);
@@ -95,7 +102,11 @@ export default function App() {
   const servers = snapshot?.data.servers ?? [];
   const activeServer = servers.find(server => server.id === selectedId);
   const activeId = activeServer?.id ?? '';
-  const upcoming = useUpcomingServices(view === 'services', activeId);
+  const upcoming = useUpcomingServices(view === 'services', view === 'services' ? activeId : '');
+  const competition = useCompetition(view === 'competition' || pointsOpen);
+  const serviceConfirmations = useServiceConfirmations(adminSession ? '' : activeId);
+  const pendingRefresh = useRef(serviceConfirmations.refresh);
+  useEffect(() => { pendingRefresh.current = serviceConfirmations.refresh; }, [serviceConfirmations.refresh]);
   const actionRules = view === 'services' ? upcoming.data?.rules ?? [] : data.rules;
 
   useEffect(() => {
@@ -103,7 +114,7 @@ export default function App() {
     const expire = () => {
       if (Date.parse(adminSession.expires_at) <= Date.now()) {
         setAdminSession(null);
-        setEditingServers(false); setEditingMass(null); setAdding(false); setCelebrantsOpen(false); setAnnotationsOpen(false);
+        setEditingServers(false); setEditingMass(null); setAdding(false); setCelebrantsOpen(false); setAnnotationsOpen(false); setPointsOpen(false);
         setConfirmation(current => current?.kind === 'mass' ? null : current);
         setNotice('Sesja administratora wygasła. Aby edytować, wpisz PIN ponownie.');
       }
@@ -116,7 +127,7 @@ export default function App() {
   async function leaveAdmin() {
     const session = adminSession;
     setAdminSession(null);
-    setEditingServers(false); setEditingMass(null); setAdding(false); setCelebrantsOpen(false); setAnnotationsOpen(false);
+    setEditingServers(false); setEditingMass(null); setAdding(false); setCelebrantsOpen(false); setAnnotationsOpen(false); setPointsOpen(false);
     setConfirmation(current => current?.kind === 'mass' ? null : current);
     if (session) {
       try { await logoutAdmin(session); }
@@ -135,8 +146,8 @@ export default function App() {
   }, [week]);
 
   const refresh = useCallback(async () => {
-    await Promise.all([refreshWeek(), upcoming.refresh()]);
-  }, [refreshWeek, upcoming.refresh]);
+    await Promise.all([refreshWeek(), upcoming.refresh(), competition.refresh()]);
+  }, [refreshWeek, upcoming.refresh, competition.refresh]);
 
   const latestRefresh = useRef(refresh);
   useEffect(() => { latestRefresh.current = refresh; }, [refresh]);
@@ -152,7 +163,7 @@ export default function App() {
     let debounce: number | undefined;
     const unsubscribe = subscribe(() => {
       window.clearTimeout(debounce);
-      debounce = window.setTimeout(() => void latestRefresh.current(), 150);
+      debounce = window.setTimeout(() => { void latestRefresh.current(); void pendingRefresh.current(); }, 150);
     }, setSyncStatus);
     return () => { unsubscribe(); window.clearTimeout(debounce); };
   }, []);
@@ -352,23 +363,28 @@ export default function App() {
       <section className="page-heading">
         <div className="page-heading-titles"><h1>Ministrantappka</h1></div>
         <div className="page-heading-controls">
-          <UserSelector ready={snapshot !== null} servers={servers} selectedId={selectedId} onChange={setSelectedId} adminSession={adminSession} onAdminToggle={() => adminSession ? void leaveAdmin() : setAdminLoginOpen(true)} />
+          <UserSelector ready={snapshot !== null} servers={servers} selectedId={selectedId} onChange={setSelectedId} selectionRequest={selectionRequest} adminSession={adminSession} onAdminToggle={() => adminSession ? void leaveAdmin() : setAdminLoginOpen(true)} />
         </div>
       </section>
 
       <nav className="view-navigation" aria-label="Widoki aplikacji">
         <button className={`button ${view === 'schedule' ? 'primary' : 'secondary'}`} aria-current={view === 'schedule' ? 'page' : undefined} onClick={() => setView('schedule')}><CalendarDays size={18} />Grafik</button>
         <button className={`button ${view === 'services' ? 'primary' : 'secondary'}`} aria-current={view === 'services' ? 'page' : undefined} onClick={() => setView('services')}><HeartHandshake size={18} />Moje służby</button>
+        <button className={`button ${view === 'competition' ? 'primary' : 'secondary'}`} aria-current={view === 'competition' ? 'page' : undefined} onClick={() => setView('competition')}><Trophy size={18} />Rywalizacja</button>
       </nav>
+
+      {serviceConfirmations.error && !serviceConfirmations.pending?.masses.length && !adminSession && <div className="error-banner" role="alert"><AlertCircle size={18} /><div><strong>Nie udało się sprawdzić obecności</strong><p>{serviceConfirmations.error}</p></div><button className="button secondary" onClick={() => void serviceConfirmations.refresh()}><RefreshCw size={16} />Ponów sprawdzanie</button></div>}
 
       {adminSession && <div className="admin-toolbar"><span><ShieldCheck size={18} />Tryb administratora aktywny</span>
         <div className="admin-toolbar-actions">
           <button className="button secondary" onClick={() => setAdding(true)} disabled={loading || !!loadError}><Plus size={16} />Dodaj Mszę / wydarzenie</button>
+          <button className="button secondary" onClick={() => setPointsOpen(true)}><Trophy size={16} />Zarządzaj punktacją</button>
           <button className="button secondary" onClick={() => setCelebrantsOpen(true)} disabled={loading || !!loadError}><UserRound size={16} />Księża na tydzień</button>
           <button className="button secondary" onClick={() => setAnnotationsOpen(true)} disabled={loading || !!loadError}><CalendarDays size={16} />Oznaczanie dni</button>
           <button className="button secondary" disabled={loading || !!loadError} onClick={() => setEditingServers(true)}><Users size={16} />Edytuj ministrantów</button>
         </div></div>}
 
+      {view === 'competition' && <CompetitionView key={activeId} data={competition.data} activeId={activeId} now={competition.now} loading={competition.loading} error={competition.error} offline={syncStatus === 'offline'} onRetry={() => void competition.refresh()} onOpenSchedule={() => { resetScrollOnDayOpen.current = true; setView('schedule'); }} />}
       {view === 'services' && <>
         {syncStatus === 'offline' && <div className="info-banner" role="status">Połączenie na żywo jest niedostępne. Służby odświeżają się co minutę oraz po powrocie do karty.</div>}
         {actionError && !confirmation && <div className="error-banner" role="alert"><AlertCircle size={18} /><p>{actionError}</p><button className="icon-button" aria-label="Zamknij komunikat" onClick={() => setActionError('')}><X size={17} /></button></div>}
@@ -451,6 +467,12 @@ export default function App() {
         </aside>
       </div>}
     </main>
+
+    {adminSession && pointsOpen && <AdminPointsModal data={competition.data} now={competition.now} loading={competition.loading} error={competition.error} session={adminSession} onRefresh={competition.refresh} onClose={() => setPointsOpen(false)} onSaved={setNotice} />}
+    {!adminSession && !adminLoginOpen && !editingRule && !confirmation && activeServer && serviceConfirmations.pending?.masses[0] && <ConfirmServicesModal
+      mass={serviceConfirmations.pending.masses[0]} name={activeServer.name} remaining={serviceConfirmations.pending.total} completed={serviceConfirmations.completed}
+      busy={serviceConfirmations.busy} error={serviceConfirmations.error} onRetry={() => void serviceConfirmations.refresh()} onChangePerson={() => { setSelectedId(''); setSelectionRequest(value => value + 1); try { localStorage.removeItem('liturgy.active-server'); } catch { /* The identity is cleared for this tab even without storage. */ } }}
+      onAnswer={attended => { const mass = serviceConfirmations.pending?.masses[0]; if (mass) void serviceConfirmations.answer(mass.id, attended).then(saved => { if (saved) void latestRefresh.current(); }); }} />}
 
     {notice && <div className="toast" role="status"><span><Check size={17} /></span><p>{notice}</p><button className="icon-button" aria-label="Zamknij powiadomienie" onClick={() => setNotice('')}><X size={16} /></button></div>}
     {adminSession && editingDay && <DayAnnotationModal day={editingDay} label={data.dayAnnotations?.find(a=>a.day===editingDay)?.label ?? ''} onClose={()=>setEditingDay(null)} onSave={async label=>{await setDayAnnotation(editingDay,label,adminSession);setNotice('Zapisano oznaczenie dnia.');await latestRefresh.current();}}/>}

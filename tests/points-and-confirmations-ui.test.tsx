@@ -1,0 +1,131 @@
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { competitionSeason } from '../src/lib/competition';
+import { dateKey, shiftDate, zonedIso } from '../src/lib/dates';
+import type { Mass, ScheduleData } from '../src/types/database';
+
+const api = vi.hoisted(() => ({ loadWeek: vi.fn(), loadCompetition: vi.fn(), loadUpcomingServices: vi.fn(), subscribe: vi.fn(), loadPendingConfirmations: vi.fn(), confirmService: vi.fn(), adjustPoints: vi.fn(), resetPoints: vi.fn(), loginAdmin: vi.fn() }));
+vi.mock('../src/lib/repository', () => api);
+vi.mock('../src/lib/admin', () => ({ loginAdmin: api.loginAdmin }));
+vi.mock('../src/lib/supabase', () => ({ isDemo: false }));
+import App from '../src/App';
+
+let data: ScheduleData;
+let pending: Mass[];
+const session = { token: 'admin-token', expires_at: new Date(Date.now() + 1800000).toISOString() };
+
+beforeEach(() => {
+  vi.resetAllMocks();
+  vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+  localStorage.setItem('liturgy.active-server', 'jan');
+  HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', ''); };
+  HTMLDialogElement.prototype.close = function () { this.removeAttribute('open'); };
+  data = {
+    servers: [{ id: 'jan', name: 'Jan Testowy', rank: 'Lektor' }, { id: 'piotr', name: 'Piotr Testowy', rank: 'Ministrant' }],
+    masses: ['Pierwsza Msza', 'Druga Msza'].map((title, index) => ({ id: `m${index}`, title, start_time: zonedIso(shiftDate(dateKey(), -2 + index), '07:00'), is_extra: false, suggested_spots: 4 })),
+    rules: [], exceptions: [], attendees: [], confirmations: [],
+    competitionState: { season: competitionSeason(new Date()).start, revision: 0, reset_revision: 0, reset_at: null },
+  };
+  pending = [];
+  api.loadWeek.mockResolvedValue(data);
+  api.loadUpcomingServices.mockResolvedValue(data);
+  api.loadCompetition.mockResolvedValue(data);
+  api.loadPendingConfirmations.mockImplementation(async (id: string) => ({ masses: id === 'jan' ? [...pending] : [], total: id === 'jan' ? pending.length : 0 }));
+  api.confirmService.mockImplementation(async (id: string) => { pending = pending.filter(m => m.id !== id); });
+  api.subscribe.mockReturnValue(() => {});
+  api.loginAdmin.mockResolvedValue(session);
+});
+afterEach(() => { cleanup(); localStorage.clear(); vi.restoreAllMocks(); });
+
+it('requires sequential answers, blocks dismissal and finishes only after saving each answer', async () => {
+  pending = [...data.masses];
+  render(<App />);
+  const dialog = await screen.findByRole('dialog', { name: 'Potwierdź swoją obecność' });
+  expect(within(dialog).getByText('Służba 1 z 2')).toBeTruthy();
+  expect(within(dialog).queryByRole('button', { name: 'Zamknij okno' })).toBeNull();
+  fireEvent(dialog, new Event('cancel', { bubbles: false, cancelable: true }));
+  fireEvent.click(dialog);
+  expect(screen.getByRole('dialog', { name: 'Potwierdź swoją obecność' })).toBeTruthy();
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Tak, byłem' }));
+  await waitFor(() => expect(within(dialog).getByRole('heading', { name: 'Druga Msza' })).toBeTruthy());
+  expect(within(dialog).getByText('Służba 2 z 2')).toBeTruthy();
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Nie byłem' }));
+  await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Potwierdź swoją obecność' })).toBeNull());
+  expect(api.confirmService.mock.calls).toEqual([['m0', 'jan', true], ['m1', 'jan', false]]);
+});
+
+it('keeps the current question on write failure and never submits it twice while busy', async () => {
+  pending = [...data.masses];
+  let fail!: (cause: Error) => void;
+  api.confirmService.mockImplementationOnce(() => new Promise<void>((_, reject) => { fail = reject; }));
+  render(<App />);
+  const yes = await screen.findByRole('button', { name: 'Tak, byłem' });
+  fireEvent.click(yes); fireEvent.click(yes);
+  expect(api.confirmService).toHaveBeenCalledTimes(1);
+  await act(async () => fail(new Error('Brak połączenia')));
+  const dialog = screen.getByRole('dialog', { name: 'Potwierdź swoją obecność' });
+  expect(within(dialog).getByRole('alert').textContent).toContain('Brak połączenia');
+  expect(within(dialog).getByRole('heading', { name: 'Pierwsza Msza' })).toBeTruthy();
+  expect(within(dialog).getByText('Służba 1 z 2')).toBeTruthy();
+});
+
+it('allows switching a mistaken identity without answering on their behalf', async () => {
+  pending = [...data.masses];
+  render(<App />);
+  fireEvent.click(await screen.findByRole('button', { name: 'To nie ja — zmień osobę' }));
+  expect(localStorage.getItem('liturgy.active-server')).toBeNull();
+  fireEvent.click(await screen.findByRole('button', { name: /Piotr Testowy Ministrant/ }));
+  await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Potwierdź swoją obecność' })).toBeNull());
+  expect(api.confirmService).not.toHaveBeenCalled();
+});
+
+it('reports a pending-load failure and can retry without replacing the schedule', async () => {
+  api.loadPendingConfirmations.mockRejectedValueOnce(new Error('Nie można pobrać kolejki'));
+  render(<App />);
+  expect(await screen.findByRole('alert')).toHaveProperty('textContent', expect.stringContaining('Nie można pobrać kolejki'));
+  expect(screen.getByRole('region', { name: 'Grafik tygodniowy' })).toBeTruthy();
+  pending = [data.masses[0]];
+  fireEvent.click(screen.getByRole('button', { name: 'Ponów sprawdzanie' }));
+  expect(await screen.findByRole('dialog', { name: 'Potwierdź swoją obecność' })).toBeTruthy();
+});
+
+async function openPoints() {
+  render(<App />);
+  await screen.findByRole('button', { name: /Wybrano: Jan/ });
+  expect(screen.queryByRole('button', { name: 'Zarządzaj punktacją' })).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Administrator' }));
+  fireEvent.change(screen.getByLabelText('PIN administratora'), { target: { value: '0403' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Odblokuj' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Zarządzaj punktacją' }));
+  await screen.findByRole('option', { name: 'Jan Testowy' });
+  fireEvent.change(screen.getByLabelText('Ministrant'), { target: { value: 'jan' } });
+}
+
+it('opens the protected points editor beside existing admin controls and sets a specific value', async () => {
+  await openPoints();
+  expect(screen.getAllByRole('button', { name: 'Dodaj Mszę / wydarzenie' }).length).toBeGreaterThan(0);
+  fireEvent.change(screen.getByLabelText('Rodzaj zmiany'), { target: { value: 'set' } });
+  fireEvent.change(screen.getByLabelText('Nowy wynik'), { target: { value: '125' } });
+  fireEvent.change(screen.getByLabelText(/Powód zmiany/), { target: { value: 'Pomoc przy liturgii' } });
+  expect(screen.getByText('Po zapisaniu: 0 → 125 pkt')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Zapisz punktację' }));
+  await waitFor(() => expect(api.adjustPoints).toHaveBeenCalledWith({ serverId: 'jan', mode: 'set', value: 125, reason: 'Pomoc przy liturgii' }, data, session));
+});
+
+it('blocks a negative result, handles save errors and requires typed confirmation for reset', async () => {
+  await openPoints();
+  fireEvent.change(screen.getByLabelText('Rodzaj zmiany'), { target: { value: 'subtract' } });
+  fireEvent.change(screen.getByLabelText('Liczba punktów'), { target: { value: '5' } });
+  expect(screen.getByRole('button', { name: 'Zapisz punktację' })).toHaveProperty('disabled', true);
+  fireEvent.change(screen.getByLabelText('Rodzaj zmiany'), { target: { value: 'add' } });
+  api.adjustPoints.mockRejectedValueOnce(new Error('Wyniki zmieniły się'));
+  fireEvent.click(screen.getByRole('button', { name: 'Zapisz punktację' }));
+  expect(await screen.findByRole('alert')).toHaveProperty('textContent', expect.stringContaining('Wyniki zmieniły się'));
+  fireEvent.click(screen.getByRole('button', { name: 'Resetuj punktację wszystkich' }));
+  const reset = screen.getByRole('button', { name: 'Wyzeruj wszystkim punkty' });
+  expect(reset).toHaveProperty('disabled', true);
+  expect(api.resetPoints).not.toHaveBeenCalled();
+  fireEvent.change(screen.getByLabelText('Aby potwierdzić reset całej wspólnoty, wpisz RESET'), { target: { value: 'RESET' } });
+  fireEvent.click(reset);
+  await waitFor(() => expect(api.resetPoints).toHaveBeenCalledWith(data, session));
+});

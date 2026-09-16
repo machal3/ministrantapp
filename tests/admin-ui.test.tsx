@@ -5,7 +5,7 @@ import type { ScheduleData } from '../src/types/database';
 
 const api = vi.hoisted(() => ({ loginAdmin: vi.fn(), logoutAdmin: vi.fn(), loadWeek: vi.fn(), subscribe: vi.fn(), updateServer: vi.fn(), addServer: vi.fn(), deleteServer: vi.fn(), updateMass: vi.fn(), updateMassTime: vi.fn(), addRecurringMasses: vi.fn(), deleteMass: vi.fn() }));
 vi.mock('../src/lib/admin', () => ({ loginAdmin: api.loginAdmin, logoutAdmin: api.logoutAdmin }));
-vi.mock('../src/lib/repository', () => ({ ...api, addMass: vi.fn(), addRule: vi.fn(), deleteRule: vi.fn(), removeAttendance: vi.fn(), setAttendance: vi.fn() }));
+vi.mock('../src/lib/repository', () => ({ ...api, loadPendingConfirmations: vi.fn(async () => ({ masses: [], total: 0 })), addMass: vi.fn(), addRule: vi.fn(), deleteRule: vi.fn(), removeAttendance: vi.fn(), setAttendance: vi.fn() }));
 vi.mock('../src/lib/supabase', () => ({ isDemo: false }));
 import App from '../src/App';
 

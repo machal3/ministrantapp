@@ -2,9 +2,9 @@ import { useId, useLayoutEffect, useRef } from 'react';
 import type { ReactNode, RefObject } from 'react';
 import { X } from 'lucide-react';
 
-interface Props { title: string; children: ReactNode; onClose: () => void; busy?: boolean; className?: string; initialFocusRef?: RefObject<HTMLElement | null> }
+interface Props { title: string; children: ReactNode; onClose: () => void; busy?: boolean; className?: string; initialFocusRef?: RefObject<HTMLElement | null>; dismissible?: boolean }
 
-export default function Modal({ title, children, onClose, busy = false, className = '', initialFocusRef }: Props) {
+export default function Modal({ title, children, onClose, busy = false, className = '', initialFocusRef, dismissible = true }: Props) {
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
   useLayoutEffect(() => {
@@ -25,12 +25,12 @@ export default function Modal({ title, children, onClose, busy = false, classNam
     };
   }, [initialFocusRef]);
   return <dialog ref={ref} className={`modal ${className}`} aria-labelledby={titleId}
-    onCancel={event => { event.preventDefault(); if (!busy) onClose(); }}
-    onClick={event => { if (event.target === event.currentTarget && !busy) onClose(); }}>
+    onCancel={event => { event.preventDefault(); if (!busy && dismissible) onClose(); }}
+    onClick={event => { if (event.target === event.currentTarget && !busy && dismissible) onClose(); }}>
     <div className="modal-content" onClick={event => event.stopPropagation()}>
       <div className="modal-heading">
         <h2 id={titleId}>{title}</h2>
-        <button type="button" className="icon-button" aria-label="Zamknij okno" onClick={onClose} disabled={busy}><X size={20} /></button>
+        {dismissible && <button type="button" className="icon-button" aria-label="Zamknij okno" onClick={onClose} disabled={busy}><X size={20} /></button>}
       </div>
       {children}
     </div>

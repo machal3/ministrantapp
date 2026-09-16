@@ -6,7 +6,7 @@ import { dateKey, shiftDate, zonedIso } from '../src/lib/dates';
 import type { ScheduleData } from '../src/types/database';
 
 const repository = vi.hoisted(() => ({ loadWeek: vi.fn(), loadUpcomingServices: vi.fn(), subscribe: vi.fn(), setAttendance: vi.fn(), removeAttendance: vi.fn(), updateRule: vi.fn() }));
-vi.mock('../src/lib/repository', () => repository);
+vi.mock('../src/lib/repository', () => ({ ...repository, loadPendingConfirmations: vi.fn(async () => ({ masses: [], total: 0 })) }));
 vi.mock('../src/lib/supabase', () => ({ isDemo: false }));
 import App from '../src/App';
 import MyServicesView from '../src/components/MyServicesView';

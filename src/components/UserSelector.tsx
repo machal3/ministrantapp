@@ -13,18 +13,22 @@ export function readSelectedServer(): string {
 interface Props {
   servers: AltarServer[];
   ready?: boolean;
+  selectionRequest?: number;
   selectedId: string;
   onChange: (id: string) => void;
   adminSession: AdminSession | null;
   onAdminToggle: () => void;
 }
 
-export default function UserSelector({ servers, selectedId, onChange, adminSession, onAdminToggle, ready = true }: Props) {
+export default function UserSelector({ servers, selectedId, onChange, adminSession, onAdminToggle, ready = true, selectionRequest = 0 }: Props) {
   const [storageError, setStorageError] = useState(false);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const checkedInitialSelection = useRef(false);
   const activeServer = servers.find(s => s.id === selectedId);
+  useEffect(() => {
+    if (selectionRequest) { setQuery(''); setOpen(true); }
+  }, [selectionRequest]);
   const initials = activeServer
     ? activeServer.name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()
     : '';

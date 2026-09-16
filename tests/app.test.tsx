@@ -4,6 +4,7 @@ import { dateKey, monday, shiftDate, zonedIso } from '../src/lib/dates';
 import type { ScheduleData } from '../src/types/database';
 
 const repository = vi.hoisted(() => ({
+  loadPendingConfirmations: vi.fn(),
   updateRule: vi.fn(), loadWeek: vi.fn(), setAttendance: vi.fn(), addRule: vi.fn(), removeAttendance: vi.fn(),
   addMass: vi.fn(), deleteMass: vi.fn(), deleteRule: vi.fn(), subscribe: vi.fn(),
 }));
@@ -25,6 +26,7 @@ function weekData(week: string): ScheduleData {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  repository.loadPendingConfirmations.mockResolvedValue({ masses: [], total: 0 });
   HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', ''); };
   HTMLDialogElement.prototype.close = function () { this.removeAttribute('open'); };
   localStorage.setItem('liturgy.active-server', 'jan');

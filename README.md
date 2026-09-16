@@ -2,6 +2,28 @@
 
 Responsywna aplikacja w języku polskim: React, TypeScript, Vite, Tailwind CSS 4, Lucide i Supabase. Wybór ministranta zamiast logowania, otwarte zapisy, stałe dyżury, wyjątki nieobecności oraz synchronizacja pomiędzy przeglądarkami.
 
+## Rywalizacja
+
+Panel „Rywalizacja” działa zarówno z Supabase, jak i w trybie demonstracyjnym. **W Supabase wymaga migracji `202609160003_points_and_confirmations.sql`, uruchomionej po pozostałych migracjach.** Nie usuwa ona grafiku ani istniejących zapisów. Niepotwierdzone deklaracje nie naliczają już punktów — także te sprzed migracji oczekują na odpowiedź użytkownika. Tryb demonstracyjny przechowuje te same informacje lokalnie.
+
+Po wybraniu ministranta aplikacja pokazuje kolejno minione, zadeklarowane służby wymagające odpowiedzi „Tak, byłem” lub „Nie byłem”. Ponieważ wydarzenia nie mają czasu zakończenia, pytanie pojawia się godzinę po rozpoczęciu. Kolejka obejmuje całą historię, także poprzednie sezony; pobiera partie po 50 terminów i nie pozwala pominąć pytania przez Escape lub kliknięcie tła. Można zmienić osobę, jeśli wybrano niewłaściwe imię. Odpowiedzi są trwałe i nie powtarzają się na innym urządzeniu; błąd zapisu pozostawia aktualne pytanie. Odpowiedź „Nie byłem” zapisuje `excused` dla jednego terminu i zachowuje regułę dyżuru. „Tak, byłem” zachowuje niezależny zapis obecności, który nie znika po zmianie reguły. W trybie administratora kolejka jest wstrzymana.
+
+Punkty, serie i odznaki naliczają się wyłącznie za potwierdzone obecności na Mszach i nabożeństwach bieżącego sezonu. Nieobecności, brak odpowiedzi, przyszłe terminy oraz kategoria „inne” są wykluczone.
+
+- Poniedziałek–sobota: 15 pkt za służbę; niedziela: 10 pkt.
+- Co najmniej 2 służby w tygodniu poniedziałek–niedziela dają bonus 10 pkt. Kolejne tygodnie serii: 15, 20, 25, maksymalnie 30 pkt. Bonus jest jednorazowy w tygodniu; różne wydarzenia tego samego dnia się liczą. Trwający niepełny tydzień nie przerywa serii poprzedniego tygodnia.
+- Poziom `n` zaczyna się przy `50 × n × (n − 1)` pkt (0, 100, 300, 600…). Poziom nie zmienia stopnia ministranta w aplikacji.
+- Dziewięć odznak sezonowych nagradza pierwszą służbę, 10 i 50 służb, 5 porannych Mszy (4:00–8:59), Pasterkę, Wigilię Paschalną, wszystkie niedziele pełnego miesiąca w sezonie oraz serie 4 i 12 tygodni. Odznaki nie dodają punktów.
+- Pasterka musi mieć „Pasterka” w nazwie/okazji i zaczynać się 24 grudnia od 18:00 lub 25 grudnia przed 4:00. Wigilia Paschalna musi być nazwana w tytule/okazji i przypadać od 18:00 Wielkiej Soboty do 4:00 Niedzieli Wielkanocnej (kalendarz gregoriański).
+- Sezon rozpoczyna się o 00:00 czasu Europe/Warsaw w pierwszą niedzielę Adwentu, a kończy przed kolejnym takim początkiem. Dzień początku wynika z [kalendarza liturgicznego](https://www.usccb.org/prayer-worship/liturgical-year); godzina 00:00 jest zasadą rozliczeniową aplikacji. Punkty, poziomy, serie i odznaki liczymy od nowa, bez kasowania danych grafiku. Pierwszy niepełny tydzień uwzględnia wyłącznie terminy z nowego sezonu.
+- Remis punktowy daje wspólne miejsce. Osoby bez punktów nie zajmują miejsc w rankingu.
+
+Wynik korzysta z potwierdzeń `service_confirmations`, danych wydarzeń i korekt `point_adjustments`. Zmiana lub usunięcie dawnych wydarzeń może przeliczyć wynik; zmiana reguły dyżuru nie usuwa potwierdzonej obecności. Wyniki odświeżają się wspólnie z aplikacją przez realtime, co minutę i po powrocie do karty. Błąd pobierania pokazuje ponawianie i oznacza wcześniejszy wynik jako nieaktualny; nie zastępuje go fałszywym zerem.
+
+Przycisk **„Zarządzaj punktacją”** znajduje się w pasku administratora obok dodawania wydarzeń. Administrator może dodać, odjąć lub ustawić dokładny wynik osoby (0–1 000 000 pkt) i podać powód widoczny w historii. „Ustaw wynik” zapisuje korektę do bieżącego stanu; późniejsze potwierdzenia nadal dodają punkty. Reset całej wspólnoty wymaga wpisania `RESET`: zeruje punkty i poziomy bieżącego sezonu, zachowując potwierdzenia, serie, odznaki oraz audyt wcześniejszych korekt. Tylko służby rozpoczynające się po resecie naliczają nowe punkty; potwierdzenie dawnego terminu nie przywróci starej punktacji.
+
+Zapisy korekt i reset wymagają zweryfikowanej w bazie sesji administratora. Bezpośrednie modyfikacje nowych tabel są zabronione. Wersjonowanie sezonu chroni edycję wyniku przed równoczesną zmianą danych; przy konflikcie trzeba odświeżyć podgląd. Potwierdzenia są zapisywane atomowo i ponowienie tej samej odpowiedzi jest bezpieczne. Nadal obowiązuje model zaufania i wyboru imienia, bez kont osobistych.
+
 ## Uruchomienie
 
 Wymagany Node.js 22.12+ lub 24 LTS i npm.
