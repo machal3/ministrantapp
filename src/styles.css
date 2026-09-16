@@ -579,8 +579,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .mass-heading { padding: 22px 18px 18px; gap: 14px; align-items: flex-start; }
 .mass-time { min-width: 87px; padding-right: 14px; font: 700 27px/1.15 var(--font-sans); letter-spacing: -1px; }
 .mass-type-label, .mass-time > span:not(.mass-time-digits) { font-size: 9px; letter-spacing: .3px; margin-top: 8px; line-height: 1.4; }
-.mass-meta { gap: 10px; }
-.mass-heading h4, .mass-meta h4 { font-size: 14px; line-height: 1.5; }
+.mass-meta { gap: 4px; }
+.mass-heading h4, .mass-meta h4, .service-calendar h3 { color: var(--ink); font-size: clamp(17px, 2vw, 20px); font-weight: 700; line-height: 1.3; letter-spacing: -.3px; text-wrap: balance; overflow-wrap: anywhere; }
 .capacity { font-size: 11px; padding: 4px 7px; border-radius: 6px; }
 .mass-details { padding: 12px 18px; gap: 10px; flex-wrap: wrap; background: var(--surface); }
 .mass-details .mass-celebrant { font-size: 12px; flex-basis: 130px; }
@@ -758,55 +758,58 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 /* Personal services reuse the schedule's surfaces, controls and attendance colors. */
 .view-navigation { display: flex; gap: 8px; margin-bottom: 26px; }
 .view-navigation .button { min-width: 150px; }
-.my-services { max-width: 920px; margin-inline: auto; min-width: 0; }
-.services-heading { margin-bottom: 24px; }
-.services-heading h2 { margin: 0; font-size: clamp(26px, 4vw, 34px); font-weight: 700; letter-spacing: -.8px; }
-.services-heading p { margin: 5px 0 0; color: var(--muted); }
+.my-services, .services-content, .services-sidebar { min-width: 0; }
+.services-heading { margin-bottom: 18px; }
+.services-heading h2 { margin: 0; }
+.services-heading p { margin: 4px 0 0; font-size: 12px; color: var(--muted); }
 .services-loading { display: flex; align-items: center; gap: 12px; padding: 18px 0; color: var(--muted); }
-.service-card { padding: 22px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); min-width: 0; overflow-wrap: anywhere; }
-.next-service { padding: 30px; border-color: #85ad95; background: linear-gradient(120deg, #eaf3ed, var(--surface) 80%); }
-.next-service > h2 { font-size: 14px; color: var(--green); font-weight: 700; margin: 0 0 20px; }
-.service-date { display: flex; align-items: center; gap: 16px; }
-.service-time { display: block; flex-shrink: 0; padding: 12px; border-radius: 12px; background: var(--surface-soft); color: var(--green); font-size: 30px; font-weight: 700; line-height: 1.2; letter-spacing: -1px; font-variant-numeric: tabular-nums; }
-.next-service .service-time { padding: 16px; background: #dceee3; font-size: clamp(32px, 5vw, 44px); }
-.service-calendar { min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; color: var(--muted); font-size: 12px; }
-.service-calendar strong { font-size: 14px; font-weight: 600; color: var(--ink); }
+.service-card { min-width: 0; height: 100%; display: flex; flex-direction: column; overflow-wrap: anywhere; }
+.next-service { height: auto; }
+.next-service > h2 { font-size: 14px; color: var(--green); font-weight: 700; margin: 0; padding: 16px 18px; border-bottom: 1px solid var(--border); }
+.service-date { align-items: center; }
+.service-calendar { min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; color: var(--muted); font-size: 12px; }
+.service-calendar h3 { margin: 0; }
+.service-calendar-date { display: flex; align-items: baseline; flex-wrap: wrap; gap: 2px 7px; line-height: 1.45; }
+.service-calendar strong { font-size: 13px; font-weight: 600; color: var(--liturgy-accent); }
 .service-calendar strong::first-letter { text-transform: uppercase; }
-.service-calendar .today-badge { margin-top: 4px; }
+.service-calendar .today-badge { margin-top: 1px; }
 .service-open-day { margin-left: auto; flex-shrink: 0; }
-.service-main { margin: 18px 0 14px; padding-top: 16px; border-top: 1px solid var(--border); }
-.service-description { min-width: 0; }
-.service-title { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; margin-bottom: 8px; }
-.service-category { color: var(--muted); font-size: 11px; padding: 3px 8px; border: 1px solid var(--border); border-radius: 6px; }
-.service-description h3 { font-size: 18px; font-weight: 700; line-height: 1.4; margin: 0; }
-.next-service h3 { font-size: 23px; }
-.service-description p { display: flex; align-items: baseline; gap: 7px; color: var(--muted); font-size: 13px; margin: 4px 0; }
+.service-main { padding: 16px 18px; border-bottom: 1px solid var(--border); }
+.service-description p { display: flex; align-items: baseline; gap: 7px; color: var(--muted); font-size: 12px; margin: 4px 0; }
 .service-description svg { flex-shrink: 0; align-self: center; }
-.service-status { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: 12px; font-weight: 600; color: var(--green); }
+.service-companions { padding: 18px; }
+.service-companions h4 { display: flex; align-items: center; gap: 7px; margin: 0; font-size: 12px; font-weight: 600; color: var(--muted); }
+.service-companions p { margin: 12px 0 0; font-size: 12px; color: var(--muted); }
+.service-companions .avatar { flex-shrink: 0; }
+.service-companions .attendee-person { min-width: 0; }
+.service-status { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: 12px; color: var(--green); margin: auto 18px 0; padding: 10px 12px; background: var(--surface-soft); border-radius: var(--control-radius); }
 .service-status strong { flex-basis: 100%; color: #845325; }
-.service-companions + .service-status { margin-top: 16px; }
-.service-companions { margin-top: 16px; }
-.service-companions h4 { display: flex; align-items: center; gap: 6px; margin: 0 0 8px; font-size: 12px; font-weight: 600; color: var(--muted); }
-.service-companions ul { display: flex; flex-wrap: wrap; gap: 6px; list-style: none; padding: 0; margin: 0; }
-.service-companions li { max-width: 100%; padding: 5px 9px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-soft); font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
-.service-companions p { margin: 0; font-size: 12px; color: var(--muted); }
 .service-excused { border-style: dashed; }
-.service-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
-.service-actions .button { white-space: normal; }
-.services-section-heading { margin: 30px 0 16px; }
-.services-section-heading h2 { font-size: 19px; font-weight: 700; margin: 0; }
+.service-actions { display: flex; flex-wrap: wrap; gap: 10px; padding: 18px; }
+.service-actions .button { flex: 1 1 200px; min-width: 0; white-space: normal; }
+.services-section-heading { margin: 26px 0 18px; }
+.services-section-heading h2 { font-size: 16px; font-weight: 700; margin: 0; }
 .services-section-heading p { color: var(--muted); font-size: 12px; margin: 4px 0 0; }
-.upcoming-services > ul { padding: 0; margin: 0; list-style: none; display: grid; gap: 12px; }
-.my-services > .rules-panel { margin-top: 30px; }
-.services-stat { display: flex; align-items: center; justify-content: space-between; gap: 18px; font-size: 13px; color: var(--muted); border-top: 1px solid var(--border); margin-top: 24px; padding-top: 20px; }
-.services-stat strong { font-size: 24px; color: var(--green); }
+.upcoming-services > ul { padding: 0; margin: 0; list-style: none; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.upcoming-services > ul > li { min-width: 0; }
 .my-services .error-banner { flex-wrap: wrap; }
+.my-services .empty-state { margin-top: 0; }
+.my-services .rules-panel li > div { min-width: 0; overflow-wrap: anywhere; }
+.services-sidebar > section { min-width: 0; width: 100%; overflow-wrap: anywhere; }
+@media (min-width: 901px) and (max-width: 1199px) {
+  .upcoming-services > ul { grid-template-columns: 1fr; }
+}
 @media (max-width: 640px) {
   .view-navigation { position: sticky; top: 0; z-index: 30; background: var(--canvas); padding-block: 8px; margin-top: -8px; }
   .view-navigation .button { flex: 1; min-width: 0; }
-  .service-card, .next-service { padding: 20px 16px; }
-  .service-date { gap: 10px; }
-  .service-time { font-size: 28px; padding: 10px; }
+  .upcoming-services > ul { grid-template-columns: 1fr; }
   .service-actions { flex-direction: column; }
-  .service-actions .button { width: 100%; min-height: 48px; }
+  .service-actions .button { flex: auto; width: 100%; min-height: 48px; }
+}
+@media (max-width: 380px) {
+  .service-date { flex-wrap: wrap; }
+  .service-calendar { flex: 1; }
+  .service-open-day { min-width: 44px; }
+  .service-main, .service-companions, .service-actions { padding-inline: 14px; }
+  .service-status { margin-inline: 14px; }
 }
