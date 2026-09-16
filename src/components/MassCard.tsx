@@ -4,7 +4,7 @@ import { eventCategory } from '../lib/eventCategory';
 import { Check, CirclePlus, Repeat2, Trash2, UserMinus, Users, Undo2, LoaderCircle, Clock3, UserRound } from 'lucide-react';
 import type { EffectiveAttendee, Mass, MassAttendee, RecurringRule } from '../types/database';
 import { dateKey, DAY_NAMES, timeSlot, weekday } from '../lib/dates';
-import { matchesRule } from '../lib/attendance';
+import { attendanceState } from '../lib/attendance';
 
 export type MassAction = 'single' | 'recurring' | 'withdraw' | 'excuse' | 'restore';
 interface Props {
@@ -25,8 +25,7 @@ export default memo(function MassCard({ mass, attendees, rules, exceptions, acti
   const handleEdit = onEdit ?? onEditTime;
   const attendance = attendees.find(a => a.server_id === activeId);
   const hasSlotRule = rules.some(r => r.server_id === activeId && r.day_of_week === weekday(dateKey(mass.start_time)) && r.time_slot === timeSlot(mass.start_time));
-  const hasRule = rules.some(r => r.server_id === activeId && matchesRule(mass, r));
-  const excused = exceptions.some(a => a.mass_id === mass.id && a.server_id === activeId && a.type === 'excused');
+  const { hasRule, excused } = attendanceState(mass, activeId, rules, exceptions);
   const count = attendees.length;
   const full = mass.suggested_spots !== null && count >= mass.suggested_spots;
   const extra = mass.suggested_spots === null ? 0 : count - mass.suggested_spots;

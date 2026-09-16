@@ -3,10 +3,12 @@ import { setDayAnnotation } from './lib/repository';
 import { eventCategory } from './lib/eventCategory';
 import { dayAppearance } from './lib/dayAppearance';
 import EditRuleModal from './components/EditRuleModal';
-import { describeRule } from './lib/recurrence';
+import MyServicesView from './components/MyServicesView';
+import MyRecurringRules from './components/MyRecurringRules';
+import { useUpcomingServices } from './hooks/useUpcomingServices';
 import { Pencil } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertCircle, ArrowRight, CalendarDays, CalendarPlus, Check, Church, CircleHelp, HeartHandshake, LoaderCircle, Plus, RefreshCw, Repeat2, Trash2, UserRound, Users, X, ShieldCheck } from 'lucide-react';
+import { AlertCircle, ArrowRight, CalendarDays, CalendarPlus, Check, Church, HeartHandshake, LoaderCircle, Plus, RefreshCw, Trash2, UserRound, Users, X, ShieldCheck } from 'lucide-react';
 import UserSelector, { readSelectedServer } from './components/UserSelector';
 import WeekNavigator from './components/WeekNavigator';
 import DaySelector from './components/DaySelector';
@@ -52,6 +54,7 @@ function messageFrom(error: unknown): string {
 }
 
 export default function App() {
+  const [view, setView] = useState<'schedule' | 'services'>('schedule');
   const [week, setWeek] = useState(() => weekStart());
   const [selectedDay, setSelectedDay] = useState<string>(() => {
     const today = dateKey();
@@ -84,6 +87,8 @@ export default function App() {
   const servers = snapshot?.data.servers ?? [];
   const activeServer = servers.find(server => server.id === selectedId);
   const activeId = activeServer?.id ?? '';
+  const upcoming = useUpcomingServices(view === 'services', activeId);
+  const actionRules = view === 'services' ? upcoming.data?.rules ?? [] : data.rules;
 
   useEffect(() => {
     if (!adminSession) return;
@@ -111,7 +116,7 @@ export default function App() {
     }
   }
 
-  const refresh = useCallback(async () => {
+  const refreshWeek = useCallback(async () => {
     const request = ++requestId.current;
     try {
       const next = await loadWeek(week);
@@ -121,6 +126,10 @@ export default function App() {
     } finally { if (request === requestId.current) setLoading(false); }
   }, [week]);
 
+  const refresh = useCallback(async () => {
+    await Promise.all([refreshWeek(), upcoming.refresh()]);
+  }, [refreshWeek, upcoming.refresh]);
+
   const latestRefresh = useRef(refresh);
   useEffect(() => { latestRefresh.current = refresh; }, [refresh]);
 
@@ -128,13 +137,17 @@ export default function App() {
     setLoading(true);
     setLoadError('');
     void refresh();
+    return () => { ++requestId.current; };
+  }, [refresh]);
+
+  useEffect(() => {
     let debounce: number | undefined;
     const unsubscribe = subscribe(() => {
       window.clearTimeout(debounce);
-      debounce = window.setTimeout(() => void refresh(), 150);
+      debounce = window.setTimeout(() => void latestRefresh.current(), 150);
     }, setSyncStatus);
-    return () => { ++requestId.current; unsubscribe(); window.clearTimeout(debounce); };
-  }, [refresh]);
+    return () => { unsubscribe(); window.clearTimeout(debounce); };
+  }, []);
 
   useEffect(() => {
     if (!notice) return;
@@ -167,10 +180,10 @@ export default function App() {
     if (!activeId) return;
     const serverId = activeId;
     if (action === 'recurring') {
-      const existing = data.rules.find(r => r.server_id === serverId && r.day_of_week === weekday(dateKey(mass.start_time)) && r.time_slot === timeSlot(mass.start_time));
+      const existing = actionRules.find(r => r.server_id === serverId && r.day_of_week === weekday(dateKey(mass.start_time)) && r.time_slot === timeSlot(mass.start_time));
       if (existing) { setEditingRule(existing); return; }
     }
-    const hasRule = data.rules.some(rule => rule.server_id === serverId && matchesRule(mass, rule));
+    const hasRule = actionRules.some(rule => rule.server_id === serverId && matchesRule(mass, rule));
     const isDevotion = mass.is_extra;
     const noun = eventCategory(mass) === 'other' ? 'wydarzenie' : isDevotion ? 'nabożeństwo' : 'Mszę Świętą';
     const messages: Record<MassAction, string> = {
@@ -185,7 +198,7 @@ export default function App() {
       else if (action === 'withdraw' || (action === 'restore' && hasRule)) await removeAttendance(mass.id, serverId);
       else await setAttendance(mass.id, serverId, action === 'excuse' ? 'excused' : 'single');
     }, messages[action]);
-  }, [activeId, data.rules, mutate]);
+  }, [activeId, actionRules, mutate]);
 
   const requestMassDeletion = useCallback((mass: Mass) => {
     setActionError('');
@@ -294,8 +307,6 @@ export default function App() {
     if (ok) setConfirmation(null);
   }
 
-  const ownRules = useMemo(() => data.rules.filter(rule => rule.server_id === activeId).sort((a, b) =>
-    ((a.day_of_week + 6) % 7) - ((b.day_of_week + 6) % 7) || a.time_slot.localeCompare(b.time_slot)), [data.rules, activeId]);
   // Index each snapshot once instead of scanning all attendees for every card.
   const attendeesByMass = useMemo(() => {
     const grouped = new Map<string, ScheduleData['attendees']>();
@@ -334,6 +345,11 @@ export default function App() {
         </div>
       </section>
 
+      <nav className="view-navigation" aria-label="Widoki aplikacji">
+        <button className={`button ${view === 'schedule' ? 'primary' : 'secondary'}`} aria-current={view === 'schedule' ? 'page' : undefined} onClick={() => setView('schedule')}><CalendarDays size={18} />Grafik</button>
+        <button className={`button ${view === 'services' ? 'primary' : 'secondary'}`} aria-current={view === 'services' ? 'page' : undefined} onClick={() => setView('services')}><HeartHandshake size={18} />Moje służby</button>
+      </nav>
+
       {adminSession && <div className="admin-toolbar"><span><ShieldCheck size={18} />Tryb administratora aktywny</span>
         <div className="admin-toolbar-actions">
           <button className="button secondary" onClick={() => setAdding(true)} disabled={loading || !!loadError}><Plus size={16} />Dodaj Mszę / wydarzenie</button>
@@ -342,7 +358,16 @@ export default function App() {
           <button className="button secondary" disabled={loading || !!loadError} onClick={() => setEditingServers(true)}><Users size={16} />Edytuj ministrantów</button>
         </div></div>}
 
-      <div className="dashboard-layout">
+      {view === 'services' && <>
+        {syncStatus === 'offline' && <div className="info-banner" role="status">Połączenie na żywo jest niedostępne. Służby odświeżają się co minutę oraz po powrocie do karty.</div>}
+        {actionError && !confirmation && <div className="error-banner" role="alert"><AlertCircle size={18} /><p>{actionError}</p><button className="icon-button" aria-label="Zamknij komunikat" onClick={() => setActionError('')}><X size={17} /></button></div>}
+        {!snapshot && loadError && <div className="error-banner" role="alert"><p>{loadError}</p><button className="button secondary" onClick={() => void refresh()}>Ponów pobieranie ministrantów</button></div>}
+        <MyServicesView server={activeServer} data={upcoming.data} loading={upcoming.loading} error={upcoming.error} now={upcoming.now} busy={busy}
+          onRetry={() => void upcoming.refresh()} onAction={handleAction}
+          onOpenDay={(day = dateKey()) => { setWeek(weekStart(day)); setSelectedDay(day); setView('schedule'); }}
+          onEditRule={setEditingRule} onDeleteRule={rule => { setActionError(''); setConfirmation({ kind: 'rule', rule }); }} />
+      </>}
+      {view === 'schedule' && <div className="dashboard-layout">
         <section className="schedule-panel" aria-label="Grafik tygodniowy">
           <WeekNavigator week={week} onChange={changeWeek} />
           <DaySelector week={week} selected={selectedDay} onChange={setSelectedDay} counts={counts} dayAnnotations={data.dayAnnotations} />
@@ -408,16 +433,12 @@ export default function App() {
             {ownMasses.length > 0 && <button className="personal-link" onClick={() => { const d = dateKey(ownMasses[0].start_time); if (weekStart(d) !== week) setWeek(weekStart(d)); setSelectedDay(d); }}>Zobacz pierwszy termin<ArrowRight size={15} /></button>}
           </section>
 
-          <section className="sidebar-panel rules-panel"><h2><Repeat2 size={18} />Moje stałe dyżury<span>{ownRules.length}</span></h2>
-            {ownRules.length ? <ul>{ownRules.map(rule => <li key={rule.id}><span className="rule-marker"><Repeat2 size={15} /></span><div><strong>{DAY_NAMES[rule.day_of_week]}</strong><span>{describeRule(rule)} · {rule.time_slot.slice(0, 5)}</span></div><button className="icon-button rule-edit" disabled={busy} aria-label={`Edytuj stały dyżur: ${DAY_NAMES[rule.day_of_week]} ${rule.time_slot.slice(0, 5)}`} onClick={() => setEditingRule(rule)}><Pencil size={15} /></button><button className="icon-button" disabled={busy} aria-label={`Usuń stały dyżur: ${DAY_NAMES[rule.day_of_week]} ${rule.time_slot.slice(0, 5)}`} onClick={() => { setActionError(''); setConfirmation({ kind: 'rule', rule }); }}><X size={16} /></button></li>)}</ul>
-              : <p className="sidebar-empty">{activeId ? 'Nie masz jeszcze stałego dyżuru. Ustaw go przy wybranej Mszy.' : 'Tutaj pojawią się Twoje stałe dyżury po wybraniu imienia.'}</p>}
-            <div className="rules-tip"><CircleHelp size={15} /><p>Nie możesz przyjść? Zgłoś nieobecność przy danej Mszy. Pozostałe dyżury zostaną bez zmian.</p></div>
-          </section>
+          <MyRecurringRules rules={data.rules} activeId={activeId} busy={busy} onEdit={setEditingRule} onDelete={rule => { setActionError(''); setConfirmation({ kind: 'rule', rule }); }} />
 
           <section className="sidebar-panel week-summary"><h2>Ten tydzień w parafii</h2><div><span><CalendarDays size={16} />Msze, nabożeństwa i inne</span><strong>{data.masses.length}</strong></div><div><span><Users size={16} />Ministranci w naszej wspólnocie</span><strong>{servers.length}</strong></div><div><span><Check size={16} />Pełna obstawa</span><strong>{fullMasses}<small> / {data.masses.length}</small></strong></div></section>
           <div className="open-invitation"><Church size={28} strokeWidth={1.2} /><p>„Służcie Panu z weselem!”</p><span>Ps 100, 2</span></div>
         </aside>
-      </div>
+      </div>}
     </main>
 
     {notice && <div className="toast" role="status"><span><Check size={17} /></span><p>{notice}</p><button className="icon-button" aria-label="Zamknij powiadomienie" onClick={() => setNotice('')}><X size={16} /></button></div>}

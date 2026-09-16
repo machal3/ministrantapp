@@ -31,6 +31,18 @@ async function allRows<T>(query: (from: number, to: number) => PromiseLike<{ dat
 
 export async function loadWeek(start: string): Promise<ScheduleData> {
   const [from, to] = weekBounds(start);
+  return loadScheduleRange(from, to);
+}
+
+/** One bounded date range, using the same SQL attendance view as the weekly schedule.
+ * Keep the whole roster in this range so capacity counts include every server.
+ * `to` is exclusive. Existing pagination prevents silently truncated rosters.
+ */
+export async function loadUpcomingServices(from: string, to: string): Promise<ScheduleData> {
+  return loadScheduleRange(from, to);
+}
+
+async function loadScheduleRange(from: string, to: string): Promise<ScheduleData> {
   if (isDemo) return demoWeek(from, to);
   const db = client();
   const from30 = zonedIso(shiftDate(dateKey(), -30), '00:00');
@@ -68,7 +80,7 @@ export async function loadWeek(start: string): Promise<ScheduleData> {
     }
   }
 
-  const annotations = await db.from('day_annotations').select('*').gte('day', start).lt('day', shiftDate(start, 7));
+  const annotations = await db.from('day_annotations').select('*').gte('day', dateKey(from)).lt('day', dateKey(to));
   check(annotations.error);
   return { dayAnnotations: annotations.data ?? [], servers: serversResult.value, masses, rules: rulesResult.value, exceptions: exceptionsResult.value, attendees, recentAttendance };
 }

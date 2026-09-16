@@ -84,6 +84,18 @@ Czterocyfrowy, wspólny PIN jest prostym zabezpieczeniem, nie odpowiednikiem ind
 
 ## Pliki
 
+### Ekran „Moje służby”
+
+Przełącznik przy nagłówku prowadzi do najbliższej aktywnej służby, kolejnych terminów z najbliższych 30 dni (wraz ze zgłoszonymi nieobecnościami), stałych dyżurów i dotychczasowej statystyki. Wybór osoby jest wspólny z grafikiem. Strzałka przy terminie otwiera właściwy dzień grafiku; główna karta ma przycisk z opisem. Na telefonie przełącznik widoków pozostaje dostępny podczas przewijania.
+
+`loadUpcomingServices(from, to)` i `loadWeek()` korzystają ze wspólnego odczytu zakresu w repository. Zakres przyszły zaczyna się teraz i kończy na początku dnia za 30 dni w strefie Europe/Warsaw (koniec wyłączny). Repozytorium pobiera wydarzenia i wyjątki z tego zakresu, reguły oraz efektywną obsadę z istniejącego widoku `effective_attendees`, zachowując stronicowanie i paczki identyfikatorów. Są to zapytania dla jednego zakresu, bez osobnego pobierania każdego tygodnia. Pełna obsada jest potrzebna do liczników miejsc. Statystyka pochodzi z istniejącego `recentAttendance` i zachowuje dotychczasową definicję. Nie są wymagane nowe migracje SQL.
+
+Oba ekrany mają jedną subskrypcję Realtime z dotychczasowym odświeżaniem po powrocie do karty i co minutę. Nowy zakres jest pobierany tylko podczas korzystania z „Moich służb”. Błędy odczytu mają przycisk ponowienia; zachowany wynik jest oznaczony jako nieaktualny, a jego akcje są zablokowane do udanego odświeżenia. Starsze odpowiedzi po zmianie osoby są ignorowane.
+
+`MyServicesView`, `ServiceCard` i wspólny `MyRecurringRules` składają ekran; `useUpcomingServices` zarządza jego odczytem, a `personalServices` filtruje i sortuje terminy. Akcje wywołują ten sam handler aplikacji co `MassCard`: nieobecność zapisuje wyjątek dla jednej Mszy, przywrócenie usuwa wyjątek przy aktywnym dyżurze, a wypisanie usuwa jednorazowy zapis. Stałe dyżury zachowują istniejący edytor i `describeRule()`.
+
+Testy funkcji i integracji ekranu: `tests/my-services.test.tsx`. Uruchom `npm test` i `npm run build` (obejmuje TypeScript). Widok sprawdzono również w przeglądarce przy 375, 390, 430, 768 i 1440 px.
+
 `src/types/database.ts` zawiera typy tabel, relacji i widoku. `src/lib/repository.ts` obsługuje bazę, upserty, stronicowanie i subskrypcje. Wymagane komponenty są w `src/components`, a całość integruje `src/App.tsx`. Style są lokalne i nie pobierają zewnętrznych fontów.
 
 Dokumentacja integracji: [Supabase Upsert](https://supabase.com/docs/reference/javascript/upsert), [Supabase RLS](https://supabase.com/docs/guides/database/postgres/row-level-security), [Tailwind + Vite](https://tailwindcss.com/docs/installation/using-vite), [Vite](https://vite.dev/guide/).

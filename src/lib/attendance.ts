@@ -1,6 +1,13 @@
 import type { EffectiveAttendee, Mass, MassAttendee, RecurringRule, AltarServer } from '../types/database';
 import { dateKey, timeSlot, weekday, shiftDate } from './dates';
 
+/** Shared by the schedule and personal services; an exception wins over a rule. */
+export function attendanceState(mass: Mass, serverId: string, rules: RecurringRule[], exceptions: MassAttendee[]) {
+  const hasRule = rules.some(rule => rule.server_id === serverId && matchesRule(mass, rule));
+  const excused = exceptions.some(entry => entry.mass_id === mass.id && entry.server_id === serverId && entry.type === 'excused');
+  return { hasRule, excused, action: excused ? 'restore' as const : hasRule ? 'excuse' as const : 'withdraw' as const };
+}
+
 export function matchesRule(mass: Mass, rule: RecurringRule): boolean {
   const date = dateKey(mass.start_time);
   if (rule.day_of_week !== weekday(date) || rule.time_slot !== timeSlot(mass.start_time)) return false;
