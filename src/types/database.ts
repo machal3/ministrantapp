@@ -21,6 +21,10 @@ export type Mass = {
   liturgy_type?: string | null;
 };
 
+export type MassEditScope = 'single' | 'future' | 'future_time' | 'future_day_time';
+
+export type FieldSeriesScope = 'single' | 'series';
+
 export type MassEditInput = {
   title: string;
   time: string;
@@ -29,7 +33,11 @@ export type MassEditInput = {
   category?: 'mass' | 'devotion' | 'other';
   celebrant?: string | null;
   liturgy_type?: string | null;
-  scope: 'single' | 'future';
+  scope: MassEditScope;
+  /** Okazja: cała seria w wybranym zakresie albo tylko ten termin. */
+  liturgy_scope?: FieldSeriesScope;
+  /** Celebrans: cała seria w wybranym zakresie albo tylko ten termin. */
+  celebrant_scope?: FieldSeriesScope;
 };
 
 export type RecurringRule = {
@@ -132,7 +140,7 @@ export type Database = {
       admin_update_server: { Args: { p_token: string; p_id: string; p_name: string; p_rank: string }; Returns: undefined };
       admin_delete_server: { Args: { p_token: string; p_id: string }; Returns: undefined };
       admin_update_mass_time: { Args: { p_token: string; p_id: string; p_start_time: string }; Returns: undefined };
-      admin_update_event: { Args: { p_token: string; p_id: string; p_scope: string; p_title: string; p_time: string; p_suggested_spots: number | null; p_is_extra: boolean; p_category: string }; Returns: number };
+      admin_update_event: { Args: { p_token: string; p_id: string; p_scope: string; p_title: string; p_time: string; p_suggested_spots: number | null; p_is_extra: boolean; p_category: string; p_celebrant?: string | null; p_liturgy_type?: string | null; p_liturgy_scope?: string | null; p_celebrant_scope?: string | null }; Returns: number };
       admin_update_mass: {
         Args: {
           p_token: string;

@@ -314,21 +314,7 @@ export async function updateMass(id: string, input: MassEditInput, session: Admi
     writeDemo(state => {
       const target = state.masses.find(m => m.id === id);
       if (!target) throw new Error('Ten termin już nie istnieje.');
-      if (input.scope === 'future') {
-        const targets = target.series_id
-          ? state.masses.filter(m => m.series_id === target.series_id && m.start_time >= target.start_time)
-          : state.masses.filter(m => m.start_time >= target.start_time && m.title === target.title && timeSlot(m.start_time).slice(0, 5) === timeSlot(target.start_time).slice(0, 5));
-        for (const m of targets) {
-          const date = dateKey(m.start_time);
-          m.start_time = zonedIso(date, time);
-          m.title = title;
-          m.suggested_spots = input.suggested_spots;
-          m.is_extra = input.is_extra; m.category = eventCategory(input);
-          m.celebrant = input.celebrant ? input.celebrant.trim() : null;
-          if (m.id === id) m.liturgy_type = input.liturgy_type ? input.liturgy_type.trim() : null;
-          updatedCount++;
-        }
-      } else {
+      if (input.scope === 'single') {
         const date = dateKey(target.start_time);
         target.start_time = zonedIso(date, time);
         target.title = title;
@@ -337,24 +323,90 @@ export async function updateMass(id: string, input: MassEditInput, session: Admi
         target.celebrant = input.celebrant ? input.celebrant.trim() : null;
         target.liturgy_type = input.liturgy_type ? input.liturgy_type.trim() : null;
         updatedCount = 1;
+      } else {
+        // 'future' (starszy zakres) traktujemy jak 'future_time' dla zgodności wstecz.
+        // Dopasowanie globalne po tytule i godzinie (ściana Europe/Warsaw), niezależnie od series_id,
+        // dzięki czemu edycja obejmuje też terminy spoza pierwotnej serii.
+        const targetTime = timeSlot(target.start_time).slice(0, 5);
+        const targetDow = weekday(dateKey(target.start_time));
+        const narrowByDow = input.scope === 'future_day_time';
+        const targets = state.masses.filter(m =>
+          m.start_time >= target.start_time &&
+          m.title === target.title &&
+          timeSlot(m.start_time).slice(0, 5) === targetTime &&
+          (!narrowByDow || weekday(dateKey(m.start_time)) === targetDow),
+        );
+        if (!targets.length) throw new Error('Nie znaleziono przyszłych terminów do edycji.');
+        const liturgyValue = input.liturgy_type ? input.liturgy_type.trim() : null;
+        const celebrantValue = input.celebrant ? input.celebrant.trim() : null;
+        const applyLiturgyToSeries = input.liturgy_scope === 'series';
+        const applyCelebrantToSeries = input.celebrant_scope === 'series';
+        for (const m of targets) {
+          const date = dateKey(m.start_time);
+          m.start_time = zonedIso(date, time);
+          m.title = title;
+          m.suggested_spots = input.suggested_spots;
+          m.is_extra = input.is_extra; m.category = eventCategory(input);
+          if (applyCelebrantToSeries || m.id === id) m.celebrant = celebrantValue;
+          if (applyLiturgyToSeries || m.id === id) m.liturgy_type = liturgyValue;
+          updatedCount++;
+        }
       }
     });
     return updatedCount;
   }
 
-  const { data, error } = await client().rpc('admin_update_event', { p_category: eventCategory(input),
-    p_token: admin.token,
-    p_id: id,
-    p_scope: input.scope,
-    p_title: title,
-    p_time: time.length === 5 ? `${time}:00` : time,
-    p_suggested_spots: input.suggested_spots,
-    p_is_extra: input.is_extra,
-    p_celebrant: input.celebrant ? input.celebrant.trim() : null,
-    p_liturgy_type: input.liturgy_type ? input.liturgy_type.trim() : null,
-  });
+  const liturgyScope = input.scope === 'single' ? 'single' : (input.liturgy_scope ?? 'single');
+  const celebrantScope = input.scope === 'single' ? 'single' : (input.celebrant_scope ?? 'single');
+
+  async function callUpdate(scope: string, extras: 'both' | 'liturgy' | 'none') {
+    const base = { p_category: eventCategory(input),
+      p_token: admin.token,
+      p_id: id,
+      p_scope: scope,
+      p_title: title,
+      p_time: time.length === 5 ? `${time}:00` : time,
+      p_suggested_spots: input.suggested_spots,
+      p_is_extra: input.is_extra,
+      p_celebrant: input.celebrant ? input.celebrant.trim() : null,
+      p_liturgy_type: input.liturgy_type ? input.liturgy_type.trim() : null,
+    };
+    if (extras === 'both') {
+      return client().rpc('admin_update_event', { ...base, p_liturgy_scope: liturgyScope, p_celebrant_scope: celebrantScope });
+    }
+    if (extras === 'liturgy') {
+      return client().rpc('admin_update_event', { ...base, p_liturgy_scope: liturgyScope });
+    }
+    return client().rpc('admin_update_event', base);
+  }
+
+  let { data, error } = await callUpdate(input.scope, 'both');
+  if (error && error.code === 'PGRST202') {
+    if (celebrantScope === 'series') {
+      throw new Error('Seryjny zapis celebransa wymaga aktualizacji bazy. Uruchom migrację 202609160002_mass_liturgy_scope.sql w Supabase.');
+    }
+    ({ data, error } = await callUpdate(input.scope, 'liturgy'));
+  }
+  if (error && error.code === 'PGRST202') {
+    if (liturgyScope === 'series') {
+      throw new Error('Seryjny zapis okazji wymaga aktualizacji bazy. Uruchom migrację 202609160002_mass_liturgy_scope.sql w Supabase.');
+    }
+    ({ data, error } = await callUpdate(input.scope, 'none'));
+  }
+  if (error && (/Nieprawidłowy zakres edycji/.test(error.message)) && input.scope === 'future_time') {
+    ({ data, error } = await callUpdate('future', 'both'));
+    if (error && error.code === 'PGRST202') {
+      ({ data, error } = await callUpdate('future', 'liturgy'));
+    }
+    if (error && error.code === 'PGRST202') {
+      ({ data, error } = await callUpdate('future', 'none'));
+    }
+  }
+  if (error?.code === 'PGRST202') throw new Error('Ta operacja wymaga aktualizacji bazy. Uruchom najnowsze migracje Supabase, w tym 202609160002_mass_liturgy_scope.sql.');
   check(error);
-  return data ?? 1;
+  const count = data ?? 1;
+  if (count === 0) throw new Error('Nie znaleziono przyszłych terminów do edycji. Sprawdź godzinę i dzień tygodnia.');
+  return count;
 }
 
 export async function updateMassTime(id: string, startTime: string, session: AdminSession | null): Promise<void> {

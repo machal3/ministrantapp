@@ -111,6 +111,8 @@ it('changes mass details with scope choice, then locks management on logout', as
     celebrant: null,
     liturgy_type: null,
     scope: 'single',
+    liturgy_scope: 'single',
+    celebrant_scope: 'single',
   }, session);
   fireEvent.click(screen.getByRole('button', { name: 'Wyłącz tryb admina' }));
   await waitFor(() => expect(api.logoutAdmin).toHaveBeenCalledWith(session));
@@ -126,7 +128,7 @@ it('edits entire future series when future scope is selected in EditMassModal', 
   fireEvent.click(screen.getByRole('heading', { name: 'Msza Święta' }));
   fireEvent.click(screen.getByRole('button', { name: 'Edytuj Mszę' }));
   fireEvent.change(screen.getByLabelText('Godzina'), { target: { value: '18:30' } });
-  fireEvent.click(screen.getByLabelText(/Ten i wszystkie przyszłe terminy z serii/));
+  fireEvent.click(screen.getByLabelText(/Ten i wszystkie przyszłe o tej godzinie/));
   fireEvent.click(screen.getByRole('button', { name: 'Zapisz serię terminów' }));
   await waitFor(() => expect(api.updateMass).toHaveBeenCalledWith('mass', {
     title: 'Msza Święta',
@@ -135,9 +137,68 @@ it('edits entire future series when future scope is selected in EditMassModal', 
     is_extra: false, category: 'mass',
     celebrant: null,
     liturgy_type: null,
-    scope: 'future',
+    scope: 'future_time',
+    liturgy_scope: 'single',
+    celebrant_scope: 'single',
   }, session));
-  expect(await screen.findByText(/Zaktualizowano całą serię/)).toBeTruthy();
+  expect(await screen.findByText(/Zaktualizowano terminy/)).toBeTruthy();
+});
+
+it('edits future masses on the same weekday and hour when day scope is selected', async () => {
+  api.updateMass.mockResolvedValue(3);
+  render(<App />);
+  await screen.findByRole('heading', { name: 'Msza Święta' });
+  await unlock();
+  fireEvent.click(screen.getByRole('heading', { name: 'Msza Święta' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Edytuj Mszę' }));
+  fireEvent.click(screen.getByLabelText(/Ten i wszystkie przyszłe w .* o tej godzinie/));
+  fireEvent.click(screen.getByRole('button', { name: 'Zapisz serię terminów' }));
+  await waitFor(() => expect(api.updateMass).toHaveBeenCalledWith('mass', expect.objectContaining({
+    scope: 'future_day_time',
+    liturgy_scope: 'single',
+    celebrant_scope: 'single',
+  }), session));
+  expect(await screen.findByText(/w tym dniu tygodnia/)).toBeTruthy();
+});
+
+it('lets you apply celebrant and occasion to the series from nested toggles', async () => {
+  api.updateMass.mockResolvedValue(3);
+  render(<App />);
+  await screen.findByRole('heading', { name: 'Msza Święta' });
+  await unlock();
+  fireEvent.click(screen.getByRole('heading', { name: 'Msza Święta' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Edytuj Mszę' }));
+  fireEvent.click(screen.getByLabelText(/Ten i wszystkie przyszłe w .* o tej godzinie/));
+  fireEvent.change(screen.getByLabelText(/Okazja tego wydarzenia/), { target: { value: 'Ślubna' } });
+  fireEvent.change(screen.getByLabelText(/Ksiądz celebrujący/), { target: { value: 'ks. Jan' } });
+  fireEvent.click(screen.getByLabelText('Okazja seryjnie'));
+  fireEvent.click(screen.getByLabelText('Celebrans seryjnie'));
+  fireEvent.click(screen.getByRole('button', { name: 'Zapisz serię terminów' }));
+  await waitFor(() => expect(api.updateMass).toHaveBeenCalledWith('mass', expect.objectContaining({
+    scope: 'future_day_time',
+    liturgy_scope: 'series',
+    celebrant_scope: 'series',
+    liturgy_type: 'Ślubna',
+    celebrant: 'ks. Jan',
+  }), session));
+});
+
+it('keeps celebrant and occasion on one date when series field toggles stay off', async () => {
+  api.updateMass.mockResolvedValue(3);
+  render(<App />);
+  await screen.findByRole('heading', { name: 'Msza Święta' });
+  await unlock();
+  fireEvent.click(screen.getByRole('heading', { name: 'Msza Święta' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Edytuj Mszę' }));
+  fireEvent.click(screen.getByLabelText(/Ten i wszystkie przyszłe o tej godzinie/));
+  fireEvent.change(screen.getByLabelText(/Okazja tego wydarzenia/), { target: { value: 'Chrzcielna' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Zapisz serię terminów' }));
+  await waitFor(() => expect(api.updateMass).toHaveBeenCalledWith('mass', expect.objectContaining({
+    scope: 'future_time',
+    liturgy_scope: 'single',
+    celebrant_scope: 'single',
+    liturgy_type: 'Chrzcielna',
+  }), session));
 });
 
 it('retains the editing dialog and entered values if the backend rejects a write', async () => {

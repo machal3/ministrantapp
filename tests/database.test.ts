@@ -47,6 +47,12 @@ beforeAll(async () => {
   const dayAnnotations = await readFile(new URL('../supabase/migrations/202609150007_day_annotations.sql', import.meta.url), 'utf8');
   await db.exec(dayAnnotations);
   await db.exec(dayAnnotations);
+  const editScopes = await readFile(new URL('../supabase/migrations/202609160001_mass_edit_scopes.sql', import.meta.url), 'utf8');
+  await db.exec(editScopes);
+  await db.exec(editScopes);
+  const liturgyScope = await readFile(new URL('../supabase/migrations/202609160002_mass_liturgy_scope.sql', import.meta.url), 'utf8');
+  await db.exec(liturgyScope);
+  await db.exec(liturgyScope);
 });
 afterAll(async () => { await db?.close(); });
 
@@ -335,8 +341,75 @@ it('stores whole-day annotations separately and changes the occasion only on the
  await db.query("select admin_add_pattern_events($1,'Occasion series',4,false,array[0],'18:00','2026-11-01','2026-11-15','weekly',1,1,array[1],'mass','ks. Jan','Chrzcielna')",[token]);
  const series=await db.query<{id:string,liturgy_type:string|null}>("select id,liturgy_type from masses where title='Occasion series' order by start_time");
  expect(series.rows).toHaveLength(3); expect(series.rows.every(r=>r.liturgy_type===null)).toBe(true);
- await db.query("select admin_update_event($1,$2,'future','Occasion series','18:30',4,false,'mass','ks. Jan','Chrzcielna')",[token,series.rows[0].id]);
+ await db.query("select admin_update_event($1,$2,'future','Occasion series','18:30',4,false,'mass','ks. Jan','Chrzcielna','single')",[token,series.rows[0].id]);
  expect((await db.query<{liturgy_type:string|null}>("select liturgy_type from masses where title='Occasion series' order by start_time")).rows.map(r=>r.liturgy_type)).toEqual(['Chrzcielna',null,null]);
- await db.query("select admin_set_day_annotation($1,'2026-11-01','')",[token]);
- expect((await db.query("select day from day_annotations where day='2026-11-01'")).rows).toHaveLength(0);
+  await db.query("select admin_set_day_annotation($1,'2026-11-01','')",[token]);
+  expect((await db.query("select day from day_annotations where day='2026-11-01'")).rows).toHaveLength(0);
+});
+
+it('edits all future at the same hour and only the same weekday at the same hour', async () => {
+  await db.exec('reset role;');
+  const { rows } = await db.query<{ token: string }>("select * from admin_login('0403')");
+  const token = rows[0].token;
+  await db.exec('set role anon;');
+  await db.exec("reset role; delete from masses where title like 'Scope test%'; set role anon;");
+  // Pon (2026-11-02) i śr (2026-11-04) o 18:00 + niedz (2026-11-08) o 18:00, ten sam tytuł, różne serie/dni.
+  await db.query("select admin_add_event($1,'2026-11-02 18:00 Europe/Warsaw','Scope test',4,'mass')", [token]);
+  await db.query("select admin_add_event($1,'2026-11-04 18:00 Europe/Warsaw','Scope test',4,'mass')", [token]);
+  await db.query("select admin_add_event($1,'2026-11-08 18:00 Europe/Warsaw','Scope test',4,'mass')", [token]);
+  await db.query("select admin_add_event($1,'2026-11-09 18:00 Europe/Warsaw','Scope test',4,'mass')", [token]);
+  const all = await db.query<{ id: string }>("select id from masses where title='Scope test' order by start_time");
+  expect(all.rows).toHaveLength(4);
+  // future_day_time od środy: środa + poniedziałek 09.11 (ten sam dow=1? nie) — środa to dow 3, więc tylko 04.11.
+  // Użyj poniedziałku 02.11 (dow=1): powinien zaktualizować 02.11 i 09.11, ale nie 04.11 ani 08.11.
+  const monday = (await db.query<{ id: string }>("select id from masses where title='Scope test' and start_time='2026-11-02 18:00 Europe/Warsaw'")).rows[0].id;
+  const dayRes = await db.query<{ admin_update_event: number }>(
+    "select admin_update_event($1,$2,'future_day_time','Scope test day', '19:00',4,false,'mass')",
+    [token, monday],
+  );
+  expect(dayRes.rows[0].admin_update_event).toBe(2);
+  expect((await db.query("select id from masses where title='Scope test day'")).rows).toHaveLength(2);
+  expect((await db.query("select id from masses where title='Scope test'")).rows).toHaveLength(2);
+  // future_time od środy 04.11 (została jako 'Scope test'): powinna objąć 04.11 i 08.11 (ta sama godzina, różne dni).
+  const wednesday = (await db.query<{ id: string }>("select id from masses where title='Scope test' order by start_time")).rows[0].id;
+  const timeRes = await db.query<{ admin_update_event: number }>(
+    "select admin_update_event($1,$2,'future_time','Scope test time', '18:00',4,false,'mass')",
+    [token, wednesday],
+  );
+  expect(timeRes.rows[0].admin_update_event).toBe(2);
+  // Starszy zakres 'future' działa jak 'future_time' (zgodność wstecz).
+  await db.query("select admin_add_event($1,'2026-12-01 18:00 Europe/Warsaw','Scope legacy',4,'mass')", [token]);
+  await db.query("select admin_add_event($1,'2026-12-02 18:00 Europe/Warsaw','Scope legacy',4,'mass')", [token]);
+  const legacyId = (await db.query<{ id: string }>("select id from masses where title='Scope legacy' order by start_time")).rows[0].id;
+  const legacyRes = await db.query<{ admin_update_event: number }>(
+    "select admin_update_event($1,$2,'future','Scope legacy new', '18:00',4,false,'mass')",
+    [token, legacyId],
+  );
+  expect(legacyRes.rows[0].admin_update_event).toBe(2);
+  await db.exec("reset role; delete from masses where title like 'Scope %'; set role anon;");
+});
+
+it('applies occasion and celebrant to the series only when those scopes are series', async () => {
+  await db.exec('reset role;');
+  const { rows } = await db.query<{ token: string }>("select * from admin_login('0403')");
+  const token = rows[0].token;
+  await db.exec('set role anon;');
+  await db.exec("reset role; delete from masses where title like 'Liturgy scope%'; set role anon;");
+  await db.query("select admin_add_event($1,'2026-11-02 18:00 Europe/Warsaw','Liturgy scope',4,'mass')", [token]);
+  await db.query("select admin_add_event($1,'2026-11-09 18:00 Europe/Warsaw','Liturgy scope',4,'mass')", [token]);
+  await db.query("select admin_add_event($1,'2026-11-16 18:00 Europe/Warsaw','Liturgy scope',4,'mass')", [token]);
+  const first = (await db.query<{ id: string }>("select id from masses where title='Liturgy scope' order by start_time")).rows[0].id;
+  // Domyślnie: okazja i celebrans tylko w wybranym terminie.
+  await db.query("select admin_update_event($1,$2,'future_day_time','Liturgy scope','18:00',4,false,'mass','ks. Jan','Chrzcielna')", [token, first]);
+  expect((await db.query<{ liturgy_type: string | null }>("select liturgy_type from masses where title='Liturgy scope' order by start_time")).rows.map(r => r.liturgy_type)).toEqual(['Chrzcielna', null, null]);
+  expect((await db.query<{ celebrant: string | null }>("select celebrant from masses where title='Liturgy scope' order by start_time")).rows.map(r => r.celebrant)).toEqual(['ks. Jan', null, null]);
+  await db.query("select admin_update_event($1,$2,'future_day_time','Liturgy scope','18:00',4,false,'mass','ks. Marek','Ślubna','series','series')", [token, first]);
+  expect((await db.query<{ liturgy_type: string | null }>("select liturgy_type from masses where title='Liturgy scope' order by start_time")).rows.map(r => r.liturgy_type)).toEqual(['Ślubna', 'Ślubna', 'Ślubna']);
+  expect((await db.query<{ celebrant: string | null }>("select celebrant from masses where title='Liturgy scope' order by start_time")).rows.map(r => r.celebrant)).toEqual(['ks. Marek', 'ks. Marek', 'ks. Marek']);
+  await db.query("select admin_update_event($1,$2,'future_day_time','Liturgy scope','18:00',4,false,'mass','ks. Jan',null,'series','single')", [token, first]);
+  expect((await db.query<{ liturgy_type: string | null }>("select liturgy_type from masses where title='Liturgy scope' order by start_time")).rows.every(r => r.liturgy_type === null)).toBe(true);
+  expect((await db.query<{ celebrant: string | null }>("select celebrant from masses where title='Liturgy scope' order by start_time")).rows.map(r => r.celebrant)).toEqual(['ks. Jan', 'ks. Marek', 'ks. Marek']);
+  await expect(db.query("select admin_update_event($1,$2,'future_day_time','Liturgy scope','18:00',4,false,'mass','ks. Jan','X','invalid')", [token, first])).rejects.toThrow();
+  await expect(db.query("select admin_update_event($1,$2,'future_day_time','Liturgy scope','18:00',4,false,'mass','ks. Jan','X','series','invalid')", [token, first])).rejects.toThrow();
+  await db.exec("reset role; delete from masses where title like 'Liturgy scope%'; set role anon;");
 });

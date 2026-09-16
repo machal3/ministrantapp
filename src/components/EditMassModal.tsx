@@ -1,10 +1,10 @@
 import { useRef, useState } from 'react';
 import type { FormEvent } from 'react';
-import { Church, Flame, LoaderCircle, Save } from 'lucide-react';
+import { Church, Flame, LoaderCircle, Save, Sparkles, UserRound } from 'lucide-react';
 import Modal from './Modal';
 import { CELEBRANT_PRESETS } from './WeekCelebrantsModal';
-import { dateKey, polishDate, timeSlot } from '../lib/dates';
-import type { Mass, MassEditInput } from '../types/database';
+import { dateKey, DAY_NAMES, polishDate, timeSlot, weekday } from '../lib/dates';
+import type { Mass, MassEditInput, MassEditScope } from '../types/database';
 
 interface Props {
   mass: Mass;
@@ -23,8 +23,48 @@ export default function EditMassModal({ mass, onClose, onSave }: Props) {
   const [time, setTime] = useState(() => timeSlot(mass.start_time).slice(0, 5));
   const [spots, setSpots] = useState(mass.suggested_spots ?? 4);
   const [noSpots, setNoSpots] = useState(mass.suggested_spots === null);
-  const [scope, setScope] = useState<'single' | 'future'>('single');
+  const [scope, setScope] = useState<MassEditScope>('single');
+  const [applyLiturgyToSeries, setApplyLiturgyToSeries] = useState(false);
+  const [applyCelebrantToSeries, setApplyCelebrantToSeries] = useState(false);
   const lock = useRef(false);
+  const massDay = dateKey(mass.start_time);
+  const massTime = timeSlot(mass.start_time).slice(0, 5);
+  const massDowName = DAY_NAMES[weekday(massDay)];
+
+  function seriesFieldToggles() {
+    return (
+      <div className="scope-extra-toggles">
+        <label className="scope-extra-toggle">
+          <span className="scope-extra-toggle-head">
+            <input
+              type="checkbox"
+              checked={applyCelebrantToSeries}
+              onChange={e => setApplyCelebrantToSeries(e.target.checked)}
+              disabled={busy}
+              aria-label="Celebrans seryjnie"
+            />
+            <UserRound size={15} />
+            Celebrans
+          </span>
+          <small>Zapisz księdza we wszystkich terminach tego zakresu</small>
+        </label>
+        <label className="scope-extra-toggle">
+          <span className="scope-extra-toggle-head">
+            <input
+              type="checkbox"
+              checked={applyLiturgyToSeries}
+              onChange={e => setApplyLiturgyToSeries(e.target.checked)}
+              disabled={busy}
+              aria-label="Okazja seryjnie"
+            />
+            <Sparkles size={15} />
+            Okazja
+          </span>
+          <small>Zapisz okazję we wszystkich terminach tego zakresu</small>
+        </label>
+      </div>
+    );
+  }
 
   function handleTypeChange(devotion: boolean) {
     setIsOther(false);
@@ -66,6 +106,8 @@ export default function EditMassModal({ mass, onClose, onSave }: Props) {
         celebrant: celebrant.trim() || null,
         liturgy_type: liturgyType.trim() || null,
         scope,
+        liturgy_scope: scope !== 'single' && applyLiturgyToSeries ? 'series' : 'single',
+        celebrant_scope: scope !== 'single' && applyCelebrantToSeries ? 'series' : 'single',
       });
       onClose();
     } catch (cause) {
@@ -189,7 +231,7 @@ export default function EditMassModal({ mass, onClose, onSave }: Props) {
             </div>
           </div>
 
-          <p className="field-hint">Okazja zmienia się tylko w tym terminie, również przy edycji serii. Uroczystość lub święto ustaw w „Oznacz dzień” nad wydarzeniami.</p>
+          <p className="field-hint">Uroczystość lub święto ustaw w „Oznacz dzień” nad wydarzeniami.</p>
           <label className="capacity-option"><input type="checkbox" checked={noSpots} onChange={e => setNoSpots(e.target.checked)} />Bez określonej liczby osób</label>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <label className="field">
@@ -234,26 +276,48 @@ export default function EditMassModal({ mass, onClose, onSave }: Props) {
                 <span>
                   <strong>Tylko ten termin</strong>
                   <small>
-                    Zmiana dotyczy wyłącznie nabożeństwa {polishDate(dateKey(mass.start_time), { day: 'numeric', month: 'long' })} o godz. {timeSlot(mass.start_time).slice(0, 5)}.
+                    Zmiana dotyczy wyłącznie terminu {polishDate(massDay, { day: 'numeric', month: 'long' })} o godz. {massTime}.
                   </small>
                 </span>
               </label>
-              <label className="radio-label">
-                <input
-                  type="radio"
-                  name="edit-scope"
-                  value="future"
-                  checked={scope === 'future'}
-                  onChange={() => setScope('future')}
-                  disabled={busy}
-                />
-                <span>
-                  <strong>Ten i wszystkie przyszłe terminy z serii</strong>
-                  <small>
-                    Zmiany zostaną zastosowane do wszystkich przyszłych terminów tej serii (niezależnie od tego, w które dni tygodnia wypadają).
-                  </small>
-                </span>
-              </label>
+              <div className={`scope-choice${scope === 'future_day_time' ? ' is-open' : ''}`}>
+                <label className="radio-label">
+                  <input
+                    type="radio"
+                    name="edit-scope"
+                    value="future_day_time"
+                    checked={scope === 'future_day_time'}
+                    onChange={() => setScope('future_day_time')}
+                    disabled={busy}
+                  />
+                  <span>
+                    <strong>Ten i wszystkie przyszłe w {massDowName} o tej godzinie</strong>
+                    <small>
+                      Zmiany zostaną zastosowane do wszystkich przyszłych terminów „{mass.title}” wypadających w {massDowName.toLowerCase()} o godz. {massTime}.
+                    </small>
+                  </span>
+                </label>
+                {scope === 'future_day_time' && seriesFieldToggles()}
+              </div>
+              <div className={`scope-choice${scope === 'future_time' || scope === 'future' ? ' is-open' : ''}`}>
+                <label className="radio-label">
+                  <input
+                    type="radio"
+                    name="edit-scope"
+                    value="future_time"
+                    checked={scope === 'future_time' || scope === 'future'}
+                    onChange={() => setScope('future_time')}
+                    disabled={busy}
+                  />
+                  <span>
+                    <strong>Ten i wszystkie przyszłe o tej godzinie</strong>
+                    <small>
+                      Zmiany zostaną zastosowane do wszystkich przyszłych terminów „{mass.title}” o godz. {massTime}, niezależnie od dnia tygodnia.
+                    </small>
+                  </span>
+                </label>
+                {(scope === 'future_time' || scope === 'future') && seriesFieldToggles()}
+              </div>
             </div>
           </div>
 
@@ -270,7 +334,7 @@ export default function EditMassModal({ mass, onClose, onSave }: Props) {
           </button>
           <button type="submit" className="button primary" disabled={busy}>
             {busy ? <LoaderCircle size={16} className="animate-spin" /> : <Save size={16} />}
-            {scope === 'future' ? 'Zapisz serię terminów' : 'Zapisz zmiany'}
+            {scope === 'single' ? 'Zapisz zmiany' : 'Zapisz serię terminów'}
           </button>
         </div>
       </form>

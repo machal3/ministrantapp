@@ -258,11 +258,14 @@ export default function App() {
 
   async function handleMassEdit(id: string, input: MassEditInput): Promise<number> {
     const count = await updateMass(id, input, adminSession);
-    if (input.scope === 'future') {
+    if (input.scope !== 'single') {
       const noun = input.is_extra
         ? (count === 1 ? 'nabożeństwo' : count < 5 ? 'nabożeństwa' : 'nabożeństw')
         : (count === 1 ? 'Mszę Świętą' : count < 5 ? 'Msze Święte' : 'Mszy Świętych');
-      setNotice(`Zaktualizowano całą serię (${count} ${noun}). Zadeklarowane obecności pozostały zachowane.`);
+      const where = input.scope === 'future_day_time'
+        ? 'w tym dniu tygodnia o tej godzinie'
+        : 'o tej godzinie';
+      setNotice(`Zaktualizowano terminy ${where} (${count} ${noun}). Zadeklarowane obecności pozostały zachowane.`);
     } else {
       const noun = input.is_extra ? 'nabożeństwo' : 'Mszę Świętą';
       setNotice(`Zapisano zmiany: ${noun}.`);

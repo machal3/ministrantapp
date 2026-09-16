@@ -323,6 +323,44 @@ h1 { font-family: var(--font-sans); font-size: clamp(31px, 3vw, 42px); font-weig
 .radio-label span { display: flex; flex-direction: column; gap: 2px; }
 .radio-label strong { font-size: 14px; color: #2a3d2e; }
 .radio-label small { font-size: 13px; color: var(--muted); line-height: 1.4; }
+.scope-choice { display: flex; flex-direction: column; }
+.scope-choice.is-open .radio-label { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+.scope-extra-toggles {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 10px;
+  margin-top: -1px;
+  border: 1px solid #c8d8bd;
+  border-top: 1px dashed #d5e4cc;
+  border-radius: 0 0 12px 12px;
+  background: #f6faf3;
+}
+.scope-extra-toggle {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 0;
+  padding: 10px 11px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fff;
+  cursor: pointer;
+}
+.scope-extra-toggle:has(input:checked) {
+  border-color: #b7cea8;
+  background: #eef6ea;
+}
+.scope-extra-toggle-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #2a3d2e;
+}
+.scope-extra-toggle-head svg { color: var(--green); flex-shrink: 0; }
+.scope-extra-toggle small { font-size: 11px; line-height: 1.45; color: var(--muted); padding-left: 25px; }
 .confirmation-footnote { font-size: 13px; color: var(--muted); line-height: 1.5; margin: 0; }
 .servers-list-view { display: flex; flex-direction: column; gap: 10px; }
 .servers-filter-bar { display: flex; flex-direction: column; gap: 8px; }
@@ -613,7 +651,10 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .radio-label { padding: 14px; }
 .radio-label small { font-size: 12px; line-height: 1.6; }
 .checkbox-field, .capacity-option { font-size: 13px; min-height: 44px; }
-.checkbox-field input, .capacity-option input, .month-week-options input, .radio-label input { width: 18px; height: 18px; flex-shrink: 0; }
+.checkbox-field input, .capacity-option input, .month-week-options input, .radio-label input, .scope-extra-toggle input { width: 18px; height: 18px; flex-shrink: 0; }
+.scope-extra-toggle { min-height: 72px; }
+.scope-extra-toggle-head { font-size: 13px; }
+.scope-extra-toggle small { font-size: 11px; }
 .rule-form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .server-admin-card { border-radius: 12px; padding: 14px; }
 .server-header-row { overflow-wrap: anywhere; }
