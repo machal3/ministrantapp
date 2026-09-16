@@ -31,12 +31,13 @@ import type { AnnotationUpdate } from './components/MonthAnnotationsModal';
 import { logoutAdmin } from './lib/admin';
 import { dateKey, DAY_NAMES, weekStart, polishDate, shiftDate, timeSlot, weekday } from './lib/dates';
 import { matchesRule } from './lib/attendance';
-import { addMass, addRecurringMasses, addRule, addServer, deleteMass, deleteRule, deleteServer, loadWeek, removeAttendance, setAttendance, subscribe, updateServer, updateMass, updateRule } from './lib/repository';
+import { addMass, addRecurringMasses, addRule, addServer, confirmService, deleteMass, deleteRule, deleteServer, loadWeek, removeAttendance, setAttendance, subscribe, updateServer, updateMass, updateRule } from './lib/repository';
 import type { SyncStatus } from './lib/repository';
 import { isDemo } from './lib/supabase';
 import type { AdminSession, AltarServer, Mass, MassEditInput, NewMass, RecurringMassesInput, RecurringRule, ScheduleData } from './types/database';
 
 const EMPTY: ScheduleData = { servers: [], masses: [], rules: [], exceptions: [], attendees: [] };
+const EMPTY_PRESENCE: Map<string, boolean> = new Map();
 type Confirmation = { kind: 'mass'; mass: Mass } | { kind: 'rule'; rule: RecurringRule };
 
 function formatLiturgyCount(masses: Mass[]): string {
@@ -81,6 +82,7 @@ export default function App() {
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
   const [deleteScope, setDeleteScope] = useState<'single' | 'future'>('single');
   const [busy, setBusy] = useState(false);
+  const [nowMs, setNowMs] = useState(() => Date.now());
   const [adminSession, setAdminSession] = useState<AdminSession | null>(null);
   const [adminLoginOpen, setAdminLoginOpen] = useState(false);
   const [editingServers, setEditingServers] = useState(false);
@@ -108,6 +110,13 @@ export default function App() {
   const pendingRefresh = useRef(serviceConfirmations.refresh);
   useEffect(() => { pendingRefresh.current = serviceConfirmations.refresh; }, [serviceConfirmations.refresh]);
   const actionRules = view === 'services' ? upcoming.data?.rules ?? [] : data.rules;
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNowMs(Date.now()), 60_000);
+    const onVisible = () => setNowMs(Date.now());
+    window.addEventListener('focus', onVisible);
+    return () => { window.clearInterval(timer); window.removeEventListener('focus', onVisible); };
+  }, []);
 
   useEffect(() => {
     if (!adminSession) return;
@@ -195,6 +204,64 @@ export default function App() {
     finally { mutationLock.current = false; setBusy(false); }
   }, []);
 
+  // Optimistic roster + presence update so signup feels instant.
+  // The server refresh right after reconciles any difference.
+  const applyOptimistic = useCallback((mass: Mass, action: MassAction, serverId: string) => {
+    setSnapshot(current => {
+      if (!current) return current;
+      const data = current.data;
+      const rule = data.rules.find(r => r.server_id === serverId && matchesRule(mass, r));
+      const hasRule = !!rule;
+      let exceptions = data.exceptions;
+      let attendees = data.attendees;
+      let confirmations = data.confirmations;
+      const me = data.servers.find(s => s.id === serverId);
+      const attendeeFor = (type: 'recurring' | 'single') => me
+        ? [{ mass_id: mass.id, server_id: serverId, name: me.name, rank: me.rank, attendance_type: type } as const]
+        : [];
+      if (action === 'single' || action === 'excuse' || action === 'recurring') {
+        const type = action === 'excuse' ? 'excused' : 'single';
+        const found = exceptions.some(e => e.mass_id === mass.id && e.server_id === serverId);
+        exceptions = found
+          ? exceptions.map(e => e.mass_id === mass.id && e.server_id === serverId ? { ...e, type } : e)
+          : [...exceptions, { id: `optimistic-${mass.id}`, mass_id: mass.id, server_id: serverId, type }];
+        if (type === 'excused') attendees = attendees.filter(a => !(a.mass_id === mass.id && a.server_id === serverId));
+        else if (!attendees.some(a => a.mass_id === mass.id && a.server_id === serverId)) {
+          attendees = [...attendees, ...attendeeFor(hasRule || action === 'recurring' ? 'recurring' : 'single')];
+        }
+      } else if (action === 'withdraw' || action === 'restore' || action === 'undeclare') {
+        if (action === 'undeclare' && hasRule) {
+          const found = exceptions.some(e => e.mass_id === mass.id && e.server_id === serverId);
+          exceptions = found
+            ? exceptions.map(e => e.mass_id === mass.id && e.server_id === serverId ? { ...e, type: 'excused' as const } : e)
+            : [...exceptions, { id: `optimistic-${mass.id}`, mass_id: mass.id, server_id: serverId, type: 'excused' as const }];
+          attendees = attendees.filter(a => !(a.mass_id === mass.id && a.server_id === serverId));
+        } else {
+          exceptions = exceptions.filter(e => !(e.mass_id === mass.id && e.server_id === serverId));
+          if (hasRule && !attendees.some(a => a.mass_id === mass.id && a.server_id === serverId)) {
+            attendees = [...attendees, ...attendeeFor('recurring')];
+          } else if (!hasRule) {
+            attendees = attendees.filter(a => !(a.mass_id === mass.id && a.server_id === serverId));
+          }
+        }
+      } else if (action === 'attended' || action === 'absent') {
+        const attended = action === 'attended';
+        const entry = { mass_id: mass.id, server_id: serverId, attended, confirmed_at: new Date().toISOString() };
+        confirmations = [...(confirmations ?? []).filter(c => !(c.mass_id === mass.id && c.server_id === serverId)), entry];
+        // Retroactive "was there" also joins the visible roster.
+        if (attended && !attendees.some(a => a.mass_id === mass.id && a.server_id === serverId)) {
+          exceptions = exceptions.filter(e => !(e.mass_id === mass.id && e.server_id === serverId && e.type === 'excused'));
+          const stillHasRule = data.rules.some(r => r.server_id === serverId && matchesRule(mass, r));
+          if (!exceptions.some(e => e.mass_id === mass.id && e.server_id === serverId) && !stillHasRule) {
+            exceptions = [...exceptions, { id: `optimistic-${mass.id}`, mass_id: mass.id, server_id: serverId, type: 'single' as const }];
+          }
+          attendees = [...attendees, ...attendeeFor(stillHasRule ? 'recurring' : 'single')];
+        }
+      }
+      return { ...current, data: { ...data, exceptions, attendees, confirmations } };
+    });
+  }, []);
+
   const handleAction = useCallback(async (mass: Mass, action: MassAction) => {
     if (!activeId) return;
     const serverId = activeId;
@@ -203,6 +270,10 @@ export default function App() {
       if (existing) { setEditingRule(existing); return; }
     }
     const hasRule = actionRules.some(rule => rule.server_id === serverId && matchesRule(mass, rule));
+    const actionExceptions = view === 'services' ? upcoming.data?.exceptions ?? [] : data.exceptions;
+    const roster = view === 'services' ? upcoming.data?.attendees ?? [] : data.attendees;
+    const excused = actionExceptions.some(entry => entry.mass_id === mass.id && entry.server_id === serverId && entry.type === 'excused');
+    const declared = roster.some(a => a.mass_id === mass.id && a.server_id === serverId);
     const isDevotion = mass.is_extra;
     const noun = eventCategory(mass) === 'other' ? 'wydarzenie' : isDevotion ? 'nabożeństwo' : 'Mszę Świętą';
     const messages: Record<MassAction, string> = {
@@ -211,13 +282,36 @@ export default function App() {
       withdraw: 'Usunięto Twój jednorazowy zapis.',
       excuse: 'Zgłoszono nieobecność tylko w tym terminie. Twój stały dyżur pozostaje aktywny.',
       restore: 'Twoja obecność została przywrócona.',
+      attended: 'Zapisano Twoją obecność.',
+      absent: 'Zapisano Twoją nieobecność.',
+      undeclare: 'Usunięto Twój zapis z tego terminu. Stały dyżur pozostał bez zmian.',
     };
-    await mutate(async () => {
-      if (action === 'recurring') await addRule({ server_id: serverId, day_of_week: weekday(dateKey(mass.start_time)), time_slot: timeSlot(mass.start_time) });
+    applyOptimistic(mass, action, serverId);
+    const ok = await mutate(async () => {
+      if (action === 'attended') {
+        // Retroactive presence also restores/creates the visible declaration,
+        // otherwise confirm_service succeeds while the roster stays empty
+        // (or excused) and the "was there" badge never appears.
+        if (excused) {
+          if (hasRule) await removeAttendance(mass.id, serverId);
+          else await setAttendance(mass.id, serverId, 'single');
+        } else if (!declared) {
+          await setAttendance(mass.id, serverId, 'single');
+        }
+        await confirmService(mass.id, serverId, true);
+      }
+      else if (action === 'absent') await confirmService(mass.id, serverId, false);
+      else if (action === 'undeclare') {
+        if (hasRule) await setAttendance(mass.id, serverId, 'excused');
+        else await removeAttendance(mass.id, serverId);
+      }
+      else if (action === 'recurring') await addRule({ server_id: serverId, day_of_week: weekday(dateKey(mass.start_time)), time_slot: timeSlot(mass.start_time) });
       else if (action === 'withdraw' || (action === 'restore' && hasRule)) await removeAttendance(mass.id, serverId);
       else await setAttendance(mass.id, serverId, action === 'excuse' ? 'excused' : 'single');
     }, messages[action]);
-  }, [activeId, actionRules, mutate]);
+    if (ok && (action === 'attended' || action === 'absent' || action === 'undeclare')) void pendingRefresh.current();
+    if (!ok) void latestRefresh.current();
+  }, [activeId, actionRules, data.attendees, data.exceptions, upcoming.data, view, mutate, applyOptimistic]);
 
   const requestMassDeletion = useCallback((mass: Mass) => {
     setActionError('');
@@ -336,6 +430,15 @@ export default function App() {
     for (const attendee of data.attendees) grouped.get(attendee.mass_id)?.push(attendee);
     return grouped;
   }, [data.masses, data.attendees]);
+  const confirmationsByMass = useMemo(() => {
+    const grouped = new Map<string, Map<string, boolean>>();
+    for (const confirmation of data.confirmations ?? []) {
+      let own = grouped.get(confirmation.mass_id);
+      if (!own) { own = new Map(); grouped.set(confirmation.mass_id, own); }
+      own.set(confirmation.server_id, confirmation.attended);
+    }
+    return grouped;
+  }, [data.confirmations]);
   const ownMasses = useMemo(() => {
     const ids = new Set(data.attendees.filter(a => a.server_id === activeId).map(a => a.mass_id));
     return data.masses.filter(mass => ids.has(mass.id));
@@ -441,6 +544,9 @@ export default function App() {
                       onEditTime={setEditingMass}
                       activeId={activeId}
                       busy={busy}
+                      presence={confirmationsByMass.get(mass.id) ?? EMPTY_PRESENCE}
+                      now={nowMs}
+                      servers={servers}
                       onAction={handleAction}
                       onDelete={requestMassDeletion}
                     />

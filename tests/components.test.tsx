@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import MassCard from '../src/components/MassCard';
 import UserSelector from '../src/components/UserSelector';
 import WeekNavigator from '../src/components/WeekNavigator';
+import { dateKey, shiftDate, weekday, zonedIso } from '../src/lib/dates';
 import type { AltarServer, EffectiveAttendee, Mass } from '../src/types/database';
 
 beforeEach(() => {
@@ -11,7 +12,10 @@ beforeEach(() => {
 });
 
 afterEach(() => { cleanup(); localStorage.clear(); });
-const mass: Mass = { id: 'm', title: 'Msza Święta', start_time: '2026-09-20T08:30:00Z', suggested_spots: 4, is_extra: false };
+// Next Sunday 10:30 stays in the future on any run day; the rule test relies on Sunday + 10:30.
+const sunday = shiftDate(dateKey(), (7 - weekday(dateKey())) % 7 || 7);
+const mass: Mass = { id: 'm', title: 'Msza Święta', start_time: zonedIso(sunday, '10:30'), suggested_spots: 4, is_extra: false };
+const pastMass: Mass = { ...mass, id: 'past', start_time: '2020-09-20T08:30:00Z' };
 const attendees: EffectiveAttendee[] = Array.from({ length: 5 }, (_, i) => ({ mass_id: 'm', server_id: `${i}`, name: `Osoba ${i}`, rank: 'Lektor', attendance_type: 'single' }));
 
 describe('MassCard', () => {
@@ -35,6 +39,94 @@ describe('MassCard', () => {
     rerender(<MassCard {...props} attendees={[]} exceptions={[{ id: 'e', mass_id: 'm', server_id: '0', type: 'excused' }]} />);
     fireEvent.click(screen.getByRole('button', { name: 'Przywróć obecność w tym dniu' }));
     expect(onAction).toHaveBeenLastCalledWith(mass, 'restore');
+  });
+  it('shows a single toggle button after the term passes', () => {
+    const onAction = vi.fn();
+    const declared = [{ ...attendees[0], server_id: 'jan', name: 'Jan Kowalski' }];
+    render(<MassCard mass={pastMass} attendees={declared} rules={[]} exceptions={[]} activeId="jan" busy={false} onAction={onAction} onDelete={vi.fn()} />);
+    expect(screen.queryByRole('button', { name: 'Zadeklaruj się jednorazowo' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Ustaw jako mój stały dyżur' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Zmień na nie byłem' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Byłem' }));
+    expect(onAction).toHaveBeenCalledWith(pastMass, 'attended');
+  });
+  it('offers a single retroactive claim without a declaration and allows correcting an answer', () => {
+    const onAction = vi.fn();
+    const props = { mass: pastMass, attendees: [], rules: [], exceptions: [], activeId: 'jan', busy: false, onAction, onDelete: vi.fn() };
+    const { rerender } = render(<MassCard {...props} />);
+    expect(screen.queryByRole('button', { name: 'Zmień na nie byłem' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Byłem' }));
+    expect(onAction).toHaveBeenCalledWith(pastMass, 'attended');
+    rerender(<MassCard {...props} presence={new Map([['jan', true]])} />);
+    expect(screen.getByText('Potwierdziłeś: byłeś na tej służbie.')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Byłem' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Zmień na „Byłem”' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Zmień na nie byłem' }));
+    expect(onAction).toHaveBeenCalledWith(pastMass, 'absent');
+    rerender(<MassCard {...props} presence={new Map([['jan', false]])} />);
+    expect(screen.queryByText('Zapisano: nie było Cię na tej służbie.')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Zmień na nie byłem' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Byłem' }));
+    expect(onAction).toHaveBeenCalledWith(pastMass, 'attended');
+  });
+  it('offers past declaration removal without touching presence', () => {
+    const onAction = vi.fn();
+    const declared = [{ ...attendees[0], server_id: 'jan', name: 'Jan Kowalski' }];
+    const { rerender } = render(<MassCard mass={pastMass} attendees={declared} rules={[]} exceptions={[]} activeId="jan" busy={false} onAction={onAction} onDelete={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Wypisz się z tego terminu' }));
+    expect(onAction).toHaveBeenCalledWith(pastMass, 'undeclare');
+    rerender(<MassCard mass={pastMass} attendees={[]} rules={[]} exceptions={[]} activeId="jan" busy={false} onAction={onAction} onDelete={vi.fn()} />);
+    expect(screen.queryByRole('button', { name: 'Wypisz się z tego terminu' })).toBeNull();
+    rerender(<MassCard mass={mass} attendees={declared} rules={[]} exceptions={[]} activeId="jan" busy={false} onAction={onAction} onDelete={vi.fn()} />);
+    expect(screen.queryByRole('button', { name: 'Wypisz się z tego terminu' })).toBeNull();
+  });
+  it('marks presence on the roster without removing declarations', () => {
+    const props = {
+      mass: pastMass,
+      attendees: [
+        { mass_id: 'past', server_id: 'jan', name: 'Jan Kowalski', rank: 'Lektor' as const, attendance_type: 'single' as const },
+        { mass_id: 'past', server_id: 'piotr', name: 'Piotr Nowak', rank: 'Ministrant' as const, attendance_type: 'single' as const },
+      ],
+      rules: [], exceptions: [], activeId: 'jan', busy: false, onAction: vi.fn(), onDelete: vi.fn(),
+    };
+    const { rerender, container } = render(<MassCard {...props} />);
+    expect(container.querySelectorAll('.attendee-list > li')).toHaveLength(2);
+    expect(screen.queryByText('Był')).toBeNull();
+    expect(screen.queryByText('Nie był')).toBeNull();
+    rerender(<MassCard {...props} presence={new Map([['jan', true], ['piotr', false]])} />);
+    expect(container.querySelectorAll('.attendee-list > li')).toHaveLength(2);
+    expect(screen.getByText('Był')).toBeTruthy();
+    expect(screen.getByText('Nie był')).toBeTruthy();
+  });
+  it('distinguishes a confirmed presence from an unconfirmed declaration on past masses', () => {
+    const props = {
+      mass: pastMass,
+      attendees: [
+        { mass_id: 'past', server_id: 'jan', name: 'Jan Kowalski', rank: 'Lektor' as const, attendance_type: 'single' as const },
+        { mass_id: 'past', server_id: 'piotr', name: 'Piotr Nowak', rank: 'Ministrant' as const, attendance_type: 'single' as const },
+      ],
+      rules: [], exceptions: [], activeId: 'jan', busy: false, onAction: vi.fn(), onDelete: vi.fn(),
+    };
+    const { rerender, container } = render(<MassCard {...props} presence={new Map()} />);
+    expect(container.querySelectorAll('.presence-badge.is-pending')).toHaveLength(2);
+    expect(screen.queryByText('Był')).toBeNull();
+    rerender(<MassCard {...props} presence={new Map([['jan', true]])} />);
+    expect(screen.getByText('Był')).toBeTruthy();
+    expect(screen.getByText('Niepotwierdzona')).toBeTruthy();
+    expect(container.querySelectorAll('.presence-badge.is-pending')).toHaveLength(1);
+  });
+  it('shows no presence badges before the term passes', () => {
+    render(<MassCard mass={mass} attendees={[{ mass_id: 'm', server_id: 'jan', name: 'Jan Kowalski', rank: 'Lektor', attendance_type: 'single' }]} rules={[]} exceptions={[]} activeId="jan" busy={false} onAction={vi.fn()} onDelete={vi.fn()} presence={new Map([['jan', true]])} />);
+    expect(screen.queryByText('Był')).toBeNull();
+    expect(screen.queryByText('Nie był')).toBeNull();
+  });
+  it('offers only the Byłem correction for an excused past term', () => {
+    const onAction = vi.fn();
+    render(<MassCard mass={pastMass} attendees={[]} rules={[]} exceptions={[{ id: 'e', mass_id: 'past', server_id: 'jan', type: 'excused' }]} activeId="jan" busy={false} onAction={onAction} onDelete={vi.fn()} />);
+    expect(screen.queryByRole('button', { name: 'Zmień na nie byłem' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Zadeklaruj się jednorazowo' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Byłem' }));
+    expect(onAction).toHaveBeenCalledWith(pastMass, 'attended');
   });
   it('offers deletion for any Mass when administrator, but hides for standard users, and distinguishes Mass vs Devotion', () => {
     const props = { attendees: [], rules: [], exceptions: [], activeId: '', busy: false, onAction: vi.fn(), onDelete: vi.fn(), isAdmin: true };

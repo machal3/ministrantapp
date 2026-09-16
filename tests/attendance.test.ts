@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { aggregateAttendees, ruleHistoryToPreserve } from '../src/lib/attendance';
+import { aggregateAttendees, isPastEvent, ruleHistoryToPreserve } from '../src/lib/attendance';
 import { dateKey, monday, shiftDate, timeSlot, weekBounds, zonedIso } from '../src/lib/dates';
 import type { AltarServer, Mass, MassAttendee, RecurringRule } from '../src/types/database';
 
@@ -9,6 +9,13 @@ const rule: RecurringRule = { id: 'r1', server_id: 'jan', day_of_week: 0, time_s
 const entry: MassAttendee = { id: 'a1', mass_id: 'm1', server_id: 'jan', type: 'single' };
 
 describe('presence model', () => {
+  it('treats events as past one hour after start', () => {
+    const start = Date.parse('2026-09-20T10:00:00Z');
+    const mass = { start_time: '2026-09-20T10:00:00Z' };
+    expect(isPastEvent(mass, start + 3599999)).toBe(false);
+    expect(isPastEvent(mass, start + 3600000)).toBe(true);
+    expect(isPastEvent(mass, start - 1)).toBe(false);
+  });
   it('counts an overlapping single and recurring signup exactly once as recurring', () => {
     expect(aggregateAttendees([mass], servers, [rule], [entry])).toEqual([
       { mass_id: 'm1', server_id: 'jan', name: 'Jan Kowalski', rank: 'Lektor', attendance_type: 'recurring' },

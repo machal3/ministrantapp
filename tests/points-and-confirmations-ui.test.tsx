@@ -4,7 +4,7 @@ import { competitionSeason } from '../src/lib/competition';
 import { dateKey, shiftDate, zonedIso } from '../src/lib/dates';
 import type { Mass, ScheduleData } from '../src/types/database';
 
-const api = vi.hoisted(() => ({ loadWeek: vi.fn(), loadCompetition: vi.fn(), loadUpcomingServices: vi.fn(), subscribe: vi.fn(), loadPendingConfirmations: vi.fn(), confirmService: vi.fn(), adjustPoints: vi.fn(), resetPoints: vi.fn(), loginAdmin: vi.fn() }));
+const api = vi.hoisted(() => ({ loadWeek: vi.fn(), loadCompetition: vi.fn(), loadUpcomingServices: vi.fn(), subscribe: vi.fn(), loadPendingConfirmations: vi.fn(), confirmService: vi.fn(), removeAttendance: vi.fn(), adjustPoints: vi.fn(), resetPoints: vi.fn(), loginAdmin: vi.fn() }));
 vi.mock('../src/lib/repository', () => api);
 vi.mock('../src/lib/admin', () => ({ loginAdmin: api.loginAdmin }));
 vi.mock('../src/lib/supabase', () => ({ isDemo: false }));
@@ -16,6 +16,8 @@ const session = { token: 'admin-token', expires_at: new Date(Date.now() + 180000
 
 beforeEach(() => {
   vi.resetAllMocks();
+  // Freeze midday: the fixture masses stay in the past and a 07:00 mass lands on the selected day.
+  vi.spyOn(Date, 'now').mockReturnValue(Date.parse(zonedIso(dateKey(), '12:00')));
   vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
   localStorage.setItem('liturgy.active-server', 'jan');
   HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', ''); };
@@ -100,6 +102,33 @@ async function openPoints() {
   await screen.findByRole('option', { name: 'Jan Testowy' });
   fireEvent.change(screen.getByLabelText('Ministrant'), { target: { value: 'jan' } });
 }
+
+it('confirms a past service from the schedule card instead of signing up', async () => {
+  const todayMass = { id: 'm0', title: 'Poranna Msza', start_time: zonedIso(dateKey(), '07:00'), is_extra: false, suggested_spots: 4 };
+  data.masses = [todayMass];
+  data.attendees = [{ mass_id: 'm0', server_id: 'jan', name: 'Jan Testowy', rank: 'Lektor', attendance_type: 'single' }];
+  pending = [todayMass];
+  render(<App />);
+  const card = await screen.findByRole('article', { name: /Poranna Msza/ });
+  expect(within(card).queryByRole('button', { name: 'Zadeklaruj się jednorazowo' })).toBeNull();
+  expect(within(card).queryByRole('button', { name: 'Ustaw jako mój stały dyżur' })).toBeNull();
+  expect(within(card).queryByRole('button', { name: 'Zmień na nie byłem' })).toBeNull();
+  fireEvent.click(within(card).getByRole('button', { name: 'Byłem' }));
+  await waitFor(() => expect(api.confirmService).toHaveBeenCalledWith('m0', 'jan', true));
+  expect(await screen.findByText('Zapisano Twoją obecność.')).toBeTruthy();
+});
+
+it('removes a past declaration from the schedule card without asking about presence', async () => {
+  const todayMass = { id: 'm0', title: 'Poranna Msza', start_time: zonedIso(dateKey(), '07:00'), is_extra: false, suggested_spots: 4 };
+  data.masses = [todayMass];
+  data.attendees = [{ mass_id: 'm0', server_id: 'jan', name: 'Jan Testowy', rank: 'Lektor', attendance_type: 'single' }];
+  pending = [];
+  render(<App />);
+  const card = await screen.findByRole('article', { name: /Poranna Msza/ });
+  fireEvent.click(within(card).getByRole('button', { name: 'Wypisz się z tego terminu' }));
+  await waitFor(() => expect(api.removeAttendance).toHaveBeenCalledWith('m0', 'jan'));
+  expect(await screen.findByText('Usunięto Twój zapis z tego terminu. Stały dyżur pozostał bez zmian.')).toBeTruthy();
+});
 
 it('opens the protected points editor beside existing admin controls and sets a specific value', async () => {
   await openPoints();

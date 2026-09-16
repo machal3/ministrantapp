@@ -1,12 +1,12 @@
 import { memo } from 'react';
 import { peopleWord } from '../lib/people';
 import { eventCategory } from '../lib/eventCategory';
-import { Check, CirclePlus, Repeat2, Trash2, UserMinus, Users, Undo2, LoaderCircle, Clock3, UserRound } from 'lucide-react';
-import type { EffectiveAttendee, Mass, MassAttendee, RecurringRule } from '../types/database';
+import { Check, CirclePlus, Repeat2, Trash2, UserMinus, Users, Undo2, LoaderCircle, Clock3, UserRound, X } from 'lucide-react';
+import type { AltarServer, EffectiveAttendee, Mass, MassAttendee, RecurringRule } from '../types/database';
 import { dateKey, DAY_NAMES, timeSlot, weekday } from '../lib/dates';
-import { attendanceState } from '../lib/attendance';
+import { attendanceState, isPastEvent } from '../lib/attendance';
 
-export type MassAction = 'single' | 'recurring' | 'withdraw' | 'excuse' | 'restore';
+export type MassAction = 'single' | 'recurring' | 'withdraw' | 'excuse' | 'restore' | 'attended' | 'absent' | 'undeclare';
 interface Props {
   mass: Mass;
   attendees: EffectiveAttendee[];
@@ -19,13 +19,28 @@ interface Props {
   isAdmin?: boolean;
   onEdit?: (mass: Mass) => void;
   onEditTime?: (mass: Mass) => void;
+  /** Presence answers for this mass by server id; undefined means unanswered. */
+  presence?: Map<string, boolean>;
+  now?: number;
+  /** Full roster, used to display retroactive confirmations made without a declaration. */
+  servers?: AltarServer[];
 }
 
-export default memo(function MassCard({ mass, attendees, rules, exceptions, activeId, busy, onAction, onDelete, isAdmin = false, onEdit, onEditTime }: Props) {
+export default memo(function MassCard({ mass, attendees, rules, exceptions, activeId, busy, onAction, onDelete, isAdmin = false, onEdit, onEditTime, presence, now, servers }: Props) {
   const handleEdit = onEdit ?? onEditTime;
   const attendance = attendees.find(a => a.server_id === activeId);
   const hasSlotRule = rules.some(r => r.server_id === activeId && r.day_of_week === weekday(dateKey(mass.start_time)) && r.time_slot === timeSlot(mass.start_time));
   const { hasRule, excused } = attendanceState(mass, activeId, rules, exceptions);
+  const past = isPastEvent(mass, now ?? Date.now());
+  const confirmed = presence?.get(activeId);
+  // Retroactive "Byłem" without a prior declaration (allowed by confirm_service)
+  // is not part of effective_attendees. Show it so the roster stays truthful.
+  const rosterIds = new Set(attendees.map(a => a.server_id));
+  const extraConfirmed = past && presence && servers
+    ? [...presence.entries()].filter(([serverId, attended]) => attended && !rosterIds.has(serverId))
+      .map(([serverId]) => servers.find(s => s.id === serverId)).filter((s): s is AltarServer => !!s)
+      .sort((a, b) => a.name.localeCompare(b.name, 'pl'))
+    : [];
   const count = attendees.length;
   const full = mass.suggested_spots !== null && count >= mass.suggested_spots;
   const extra = mass.suggested_spots === null ? 0 : count - mass.suggested_spots;
@@ -61,7 +76,7 @@ export default memo(function MassCard({ mass, attendees, rules, exceptions, acti
       <div className="attendance-label"><Users size={14} /><span>Zadeklarowani</span><span>{count}</span>
         {attendance && <span className="you-attend"><Check size={12} />Służysz</span>}
       </div>
-      {attendees.length ? <ul className="attendee-list">
+      {attendees.length || extraConfirmed.length ? <ul className="attendee-list">
         {attendees.map(person => <li key={person.server_id}>
           <span className={`avatar ${person.server_id === activeId ? 'own-avatar' : ''}`} aria-hidden="true">{person.name.split(' ').map(n => n[0]).slice(0, 2).join('')}</span>
           <div className="attendee-person"><span>{person.name}{person.server_id === activeId && <small> Ty</small>}</span><span>{person.rank}</span></div>
@@ -69,11 +84,32 @@ export default memo(function MassCard({ mass, attendees, rules, exceptions, acti
             {person.attendance_type === 'recurring' && <Repeat2 size={11} />}
             {person.attendance_type === 'recurring' ? 'Stały' : 'Jednorazowy'}
           </span>
+          {past && presence?.get(person.server_id) === true && <span className="presence-badge is-present"><Check size={11} />Był</span>}
+          {past && presence?.get(person.server_id) === false && <span className="presence-badge is-absent"><X size={11} />Nie był</span>}
+          {past && presence && !presence.has(person.server_id) && <span className="presence-badge is-pending">Niepotwierdzona</span>}
+        </li>)}
+        {extraConfirmed.map(person => <li key={`confirmed-${person.id}`}>
+          <span className={`avatar ${person.id === activeId ? 'own-avatar' : ''}`} aria-hidden="true">{person.name.split(' ').map(n => n[0]).slice(0, 2).join('')}</span>
+          <div className="attendee-person"><span>{person.name}{person.id === activeId && <small> Ty</small>}</span><span>{person.rank}</span></div>
+          <span className="presence-badge is-present"><Check size={11} />Był</span>
         </li>)}
       </ul> : <div className="no-attendees"><Users size={22} strokeWidth={1.3} /><p>Jeszcze nikt się nie zapisał.<br /><span>Możesz być pierwszy.</span></p></div>}
     </div>
     <div className="mass-actions">
-      {!activeId ? <p className="select-prompt">Wybierz ministranta w nagłówku, aby się zapisać.</p> : <>
+      {!activeId ? <p className="select-prompt">Wybierz ministranta w nagłówku, aby się zapisać.</p> : past ? <>
+        {confirmed === true && <p className="confirmed-note"><Check size={13} />Potwierdziłeś: byłeś na tej służbie.</p>}
+        {confirmed === undefined && excused && <p className="excused-note">Zgłoszono Twoją nieobecność w tym terminie.</p>}
+        {confirmed === undefined && attendance && !excused && <p className="past-confirm-hint">Ta służba już się odbyła. Potwierdź swoją obecność:</p>}
+        {confirmed === undefined && !attendance && !excused && <p className="past-confirm-hint">Ta służba już się odbyła. Nie byłeś zapisany? Możesz dopisać swoją obecność wstecz.</p>}
+        {confirmed === undefined && attendance && !excused && <button className="button primary w-full" disabled={busy} onClick={() => onAction(mass, 'attended')}><Check size={16} />Byłem</button>}
+        {confirmed === undefined && attendance && !excused && <button className="button secondary w-full" disabled={busy} onClick={() => onAction(mass, 'absent')}><X size={16} />Nie byłem</button>}
+        {confirmed === undefined && !attendance && <button className="button primary w-full" disabled={busy} onClick={() => onAction(mass, 'attended')}><Check size={16} />Byłem</button>}
+        {confirmed === true && <button className="button secondary w-full" disabled={busy} onClick={() => onAction(mass, 'absent')}><X size={16} />Zmień na nie byłem</button>}
+        {confirmed === false && <button className="button secondary w-full" disabled={busy} onClick={() => onAction(mass, 'attended')}><Check size={16} />Byłem</button>}
+        {excused && confirmed === undefined && <button type="button" className="button secondary w-full" disabled={busy} onClick={() => onAction(mass, 'restore')}><Undo2 size={16} />Cofnij zgłoszenie nieobecności</button>}
+        {attendance && <button type="button" className="link-button" disabled={busy} onClick={() => onAction(mass, 'undeclare')}>{hasRule ? 'Zgłoś nieobecność w tym terminie' : 'Wypisz się z tego terminu'}</button>}
+        {!attendance && !excused && confirmed === undefined && <button type="button" className="link-button" disabled={busy} onClick={() => onAction(mass, 'excuse')}>Zgłoś nieobecność wstecz</button>}
+      </> : <>
         {excused && <p className="excused-note">Zgłoszono Twoją nieobecność w tym terminie.</p>}
         {excused ? <button className="button secondary w-full" disabled={busy} onClick={() => onAction(mass, 'restore')}><Undo2 size={16} />{hasRule ? 'Przywróć obecność w tym dniu' : 'Zadeklaruj się jednorazowo'}</button>
           : attendance ? <button className="button registered w-full" disabled={busy} onClick={() => onAction(mass, hasRule ? 'excuse' : 'withdraw')}>

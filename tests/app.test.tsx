@@ -26,6 +26,8 @@ function weekData(week: string): ScheduleData {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  // Freeze mid-morning: fixtures at 18:00 stay signable (presence confirmation opens an hour after start).
+  vi.spyOn(Date, 'now').mockReturnValue(Date.parse(zonedIso(todayKey, '10:00')));
   repository.loadPendingConfirmations.mockResolvedValue({ masses: [], total: 0 });
   HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', ''); };
   HTMLDialogElement.prototype.close = function () { this.removeAttribute('open'); };

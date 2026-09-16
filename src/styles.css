@@ -151,6 +151,10 @@ h1 { font-family: var(--font-sans); font-size: clamp(31px, 3vw, 42px); font-weig
 .attendee-person small { color: var(--muted); font-size: 11px; margin-left: 5px; }
 .type-badge { display: inline-flex; align-items: center; gap: 3px; background: #f3f3f0; border-radius: 4px; padding: 3px 5px; font-size: 11px; color: var(--muted); white-space: nowrap; }
 .type-badge.recurring { color: #6f845d; background: #f0f5e9; }
+.presence-badge { display: inline-flex; align-items: center; gap: 3px; border-radius: 4px; padding: 3px 5px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+.presence-badge.is-present { color: #2b563d; background: #e9f2e4; }
+.presence-badge.is-absent { color: #8a6d3b; background: #f5f0e8; }
+.presence-badge.is-pending { color: var(--muted); background: #eef2ea; border: 1px dashed #c9d8c2; }
 .no-attendees { min-height: 65px; display: flex; align-items: center; justify-content: center; gap: 10px; color: #b4bcae; margin-top: 7px; }
 .no-attendees p { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.8; }
 .no-attendees p > span { font-size: 11px; color: var(--muted); }
@@ -196,6 +200,13 @@ h1 { font-family: var(--font-sans); font-size: clamp(31px, 3vw, 42px); font-weig
 }
 .select-prompt { margin: 0; padding: 9px 8px; border-radius: 5px; background: #f5f7f1; font-size: 12px; color: var(--muted); text-align: center; line-height: 1.6; }
 .excused-note { font-size: 12px; color: #a17d4a; margin: 0 0 10px; line-height: 1.6; }
+.confirmed-note { display: flex; align-items: center; gap: 6px; margin: 0; padding: 8px 10px; border-radius: 6px; background: #eef5ea; border: 1px solid #d5e2cf; color: #2b563d; font-size: 12px; font-weight: 600; line-height: 1.5; }
+.confirmed-note.is-absent { background: #f5f7f1; border-color: var(--border); color: var(--muted); font-weight: 500; }
+.confirmed-note svg { flex-shrink: 0; }
+.past-confirm-hint { font-size: 12px; color: var(--muted); margin: 0; line-height: 1.6; }
+.link-button { background: none; border: 0; padding: 6px 4px; color: var(--muted); font-size: 12px; line-height: 1.5; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.link-button:hover:not(:disabled) { color: var(--green); }
+.link-button:disabled { opacity: 0.5; cursor: default; }
 .sidebar { display: flex; flex-direction: column; gap: 18px; }
 .personal-panel { background: #285345; color: #fff; padding: 24px 22px 20px; border-radius: 10px; position: relative; overflow: hidden; }
 .personal-panel::after { content: ''; position: absolute; width: 160px; height: 210px; border: 1px solid #ffffff0b; border-radius: 90px 90px 0 0; top: 29px; right: -45px; pointer-events: none; transform: rotate(15deg); }
@@ -812,4 +823,15 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .service-open-day { min-width: 44px; }
   .service-main, .service-companions, .service-actions { padding-inline: 14px; }
   .service-status { margin-inline: 14px; }
+}
+
+/* Rendering performance: isolate cards and skip offscreen work without
+ * changing the visual design. */
+.mass-card, .service-card { contain: layout style; }
+.mass-grid > .mass-card, .upcoming-services > ul > li { content-visibility: auto; contain-intrinsic-size: auto 420px; }
+.day-selector, .week-navigator { contain: layout style; }
+.toast, .modal { contain: layout style paint; }
+.avatar, .status-dot { contain: strict; }
+@media (prefers-reduced-motion: reduce) {
+  .mass-grid > .mass-card, .upcoming-services > ul > li { content-visibility: visible; }
 }

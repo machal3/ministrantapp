@@ -8,6 +8,11 @@ export function attendanceState(mass: Mass, serverId: string, rules: RecurringRu
   return { hasRule, excused, action: excused ? 'restore' as const : hasRule ? 'excuse' as const : 'withdraw' as const };
 }
 
+/** Events count as finished one hour after start: signups close and presence confirmation opens. */
+export function isPastEvent(mass: Pick<Mass, 'start_time'>, now: number = Date.now()): boolean {
+  return Date.parse(mass.start_time) <= now - 3600000;
+}
+
 export function matchesRule(mass: Mass, rule: RecurringRule): boolean {
   const date = dateKey(mass.start_time);
   if (rule.day_of_week !== weekday(date) || rule.time_slot !== timeSlot(mass.start_time)) return false;

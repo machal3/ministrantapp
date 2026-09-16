@@ -20,7 +20,6 @@ beforeAll(async () => {
   await db.exec(await readFile(new URL('../supabase/schema.sql', import.meta.url), 'utf8'));
   const dir = new URL('../supabase/migrations/', import.meta.url);
   for (const file of (await readdir(dir)).filter(name => name.endsWith('.sql')).sort()) await db.exec(await readFile(new URL(file, dir), 'utf8'));
-  await db.exec(await readFile(new URL('202609160003_points_and_confirmations.sql', dir), 'utf8'));
   await db.query("insert into altar_servers(id,name,rank) values($1,'Jan Testowy','Lektor'),($2,'Piotr Testowy','Ministrant')", [server, other]);
   await db.query("insert into masses(id,start_time,title,category) values($1,now()-interval '2 hours','Pierwsza','mass'),($2,now()-interval '90 minutes','Druga','mass'),($3,now()+interval '1 hour','Przyszła','mass')", [mass, absent, future]);
   await db.query("insert into mass_attendees(mass_id,server_id,type) values($1,$4,'single'),($2,$4,'single'),($3,$4,'single')", [mass, absent, future, server]);
@@ -35,7 +34,7 @@ async function revision() {
 async function pending() {
   return (await db.query<{ data: PendingConfirmations }>('select pending_service_confirmations($1) data', [server])).rows[0].data;
 }
-async function score() {
+async function score(id = server) {
   const data: ScheduleData = {
     servers: (await db.query<ScheduleData['servers'][number]>('select * from altar_servers')).rows,
     masses: (await db.query<ScheduleData['masses'][number]>('select * from masses')).rows,
@@ -45,7 +44,7 @@ async function score() {
     competitionState: (await db.query<NonNullable<ScheduleData['competitionState']>>('select season::text,reset_at,reset_revision,revision from competition_seasons where season=$1', [season])).rows[0],
   };
   // PGlite decodes timestamp columns as Date objects; the REST API returns strings.
-  return buildCompetition(JSON.parse(JSON.stringify(data)), new Date()).profiles.find(p => p.server.id === server)!;
+  return buildCompetition(JSON.parse(JSON.stringify(data)), new Date()).profiles.find(p => p.server.id === id)!;
 }
 
 describe.sequential('persistent confirmations and protected point management', () => {
@@ -54,21 +53,30 @@ describe.sequential('persistent confirmations and protected point management', (
     expect((await pending()).total).toBe(2);
     expect((await score()).points).toBe(0);
     await expect(db.query('select confirm_service($1,$2,true)', [server, future])).rejects.toThrow('godzinę');
-    await expect(db.query('select confirm_service($1,$2,true)', [other, mass])).rejects.toThrow('zapisu');
+    await expect(db.query('select confirm_service($1,$2,false)', [other, mass])).rejects.toThrow('zapisu');
   });
-  it('persists yes, is idempotent on retries and rejects a conflicting answer', async () => {
+  it('persists yes, is idempotent on retries and allows correcting the answer', async () => {
     await db.query('select confirm_service($1,$2,true)', [server, mass]);
     await db.query('select confirm_service($1,$2,true)', [server, mass]);
     expect((await db.query('select * from service_confirmations')).rows).toHaveLength(1);
     expect((await pending()).total).toBe(1);
     expect((await score()).points).toBeGreaterThan(0);
-    await expect(db.query('select confirm_service($1,$2,false)', [server, mass])).rejects.toThrow('już potwierdzona');
+    await db.query('select confirm_service($1,$2,false)', [server, mass]);
+    expect((await db.query('select * from service_confirmations')).rows).toHaveLength(1);
+    expect((await db.query<{ attended: boolean }>('select attended from service_confirmations where mass_id=$1 and server_id=$2', [mass, server])).rows[0].attended).toBe(false);
+    expect((await db.query<{ type: string }>('select type from mass_attendees where mass_id=$1 and server_id=$2', [mass, server])).rows[0].type).toBe('single');
+    expect((await db.query('select * from effective_attendees where mass_id=$1 and server_id=$2', [mass, server])).rows).toHaveLength(1);
+    expect((await pending()).total).toBe(1);
+    expect((await score()).points).toBe(0);
+    await db.query('select confirm_service($1,$2,true)', [server, mass]);
+    expect((await score()).points).toBeGreaterThan(0);
   });
-  it('persists no as an excused single occurrence without scoring it', async () => {
+  it('persists no without touching the declaration and without scoring it', async () => {
     const before = (await score()).points;
     await db.query('select confirm_service($1,$2,false)', [server, absent]);
     expect((await pending()).total).toBe(0);
-    expect((await db.query<{ type: string }>('select type from mass_attendees where mass_id=$1', [absent])).rows[0].type).toBe('excused');
+    expect((await db.query<{ type: string }>('select type from mass_attendees where mass_id=$1', [absent])).rows[0].type).toBe('single');
+    expect((await db.query('select * from effective_attendees where mass_id=$1 and server_id=$2', [absent, server])).rows).toHaveLength(1);
     expect((await score()).points).toBe(before);
   });
   it('blocks direct writes, forged and expired sessions', async () => {
@@ -106,6 +114,24 @@ describe.sequential('persistent confirmations and protected point management', (
     await db.query("update masses set title='Zmieniona' where id=$1", [mass]);
     await db.exec('set role anon');
     await expect(db.query("select admin_adjust_points($1,$2,$3,'set',100,250,$4,'')", [token, server, season, oldRevision])).rejects.toThrow('zmieniły');
+  });
+  it('scores retroactive claims without a declaration and never touches the roster', async () => {
+    const retro = '30000000-0000-4000-8000-000000000001';
+    await db.exec('reset role');
+    await db.query("insert into masses(id,start_time,title,category) values($1,now()-interval '2 hours','Retro','mass')", [retro]);
+    await db.exec('set role anon');
+    await db.query('select confirm_service($1,$2,true)', [other, retro]);
+    expect((await db.query<{ attended: boolean }>('select attended from service_confirmations where mass_id=$1 and server_id=$2', [retro, other])).rows[0].attended).toBe(true);
+    expect((await db.query('select * from mass_attendees where mass_id=$1 and server_id=$2', [retro, other])).rows).toHaveLength(0);
+    expect((await db.query('select * from effective_attendees where mass_id=$1 and server_id=$2', [retro, other])).rows).toHaveLength(0);
+    expect((await score(other)).points).toBeGreaterThan(0);
+    await db.query('select confirm_service($1,$2,false)', [other, retro]);
+    expect((await db.query('select * from service_confirmations where mass_id=$1 and server_id=$2', [retro, other])).rows).toHaveLength(1);
+    expect((await db.query('select * from mass_attendees where mass_id=$1 and server_id=$2', [retro, other])).rows).toHaveLength(0);
+    expect((await score(other)).points).toBe(0);
+    await db.exec('reset role');
+    await db.query('delete from masses where id=$1', [retro]);
+    await db.exec('set role anon');
   });
   it('resets points durably, keeping attendance, badges and the adjustment audit', async () => {
     await db.query('select admin_reset_points($1,$2,$3)', [token, season, await revision()]);

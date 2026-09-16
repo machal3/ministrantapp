@@ -66,10 +66,7 @@ export async function loadCompetition(from: string, to: string): Promise<Schedul
       loadScheduleRange(from, to),
       allRows((a, b) => db.from('point_adjustments').select('*').eq('season', season).order('revision').order('id').range(a, b)),
     ]);
-    const confirmations: NonNullable<ScheduleData['confirmations']> = [];
-    for (let index = 0; index < schedule.masses.length; index += 80) {
-      confirmations.push(...await allRows((a, b) => db.from('service_confirmations').select('*').in('mass_id', schedule.masses.slice(index, index + 80).map(m => m.id)).order('mass_id').order('server_id').range(a, b)));
-    }
+    const confirmations = schedule.confirmations ?? [];
     const after = await db.from('competition_seasons').select('*').eq('season', season).maybeSingle();
     checkCompetition(after.error);
     if (state.revision === (after.data?.revision ?? 0)) return { ...schedule, confirmations, pointAdjustments: adjustments, competitionState: state };
@@ -93,22 +90,24 @@ export async function loadPendingConfirmations(serverId: string): Promise<Pendin
 
 export async function confirmService(massId: string, serverId: string, attended: boolean): Promise<void> {
   if (isDemo) return writeDemo(state => {
+    const mass = state.masses.find(m => m.id === massId);
+    if (!mass || Date.parse(mass.start_time) > Date.now() - 3600000) throw new Error('Służbę można potwierdzić godzinę po jej rozpoczęciu.');
+    const declared = aggregateAttendees([mass], state.servers, state.rules, state.exceptions).some(a => a.server_id === serverId);
     const existing = state.confirmations?.find(c => c.mass_id === massId && c.server_id === serverId);
     if (existing) {
       if (existing.attended === attended) return;
-      throw new Error('Ta służba została już potwierdzona na innym urządzeniu. Odśwież listę.');
+      // Correcting an earlier answer keeps a single durable record.
+      // Answers never rewrite declarations; the roster stays intact.
+      existing.attended = attended;
+      existing.confirmed_at = new Date().toISOString();
+    } else {
+      if (!attended && !declared) throw new Error('Nie masz już zapisu na tę służbę. Odśwież listę.');
+      (state.confirmations ??= []).push({ mass_id: massId, server_id: serverId, attended, confirmed_at: new Date().toISOString() });
+      const season = competitionSeason(new Date(mass.start_time)).start;
+      const seasons = state.competitionSeasons ??= [];
+      if (!seasons.some(s => s.season === season)) seasons.push({ season, reset_at: null, reset_revision: 0, revision: 0 });
     }
-    const mass = state.masses.find(m => m.id === massId);
-    if (!mass || Date.parse(mass.start_time) > Date.now() - 3600000) throw new Error('Służbę można potwierdzić godzinę po jej rozpoczęciu.');
-    if (!aggregateAttendees([mass], state.servers, state.rules, state.exceptions).some(a => a.server_id === serverId)) throw new Error('Nie masz już zapisu na tę służbę. Odśwież listę.');
-    (state.confirmations ??= []).push({ mass_id: massId, server_id: serverId, attended, confirmed_at: new Date().toISOString() });
-    const season = competitionSeason(new Date(mass.start_time)).start;
-    const seasons = state.competitionSeasons ??= [];
-    if (!seasons.some(s => s.season === season)) seasons.push({ season, reset_at: null, reset_revision: 0, revision: 0 });
-    for (const s of seasons) s.revision++;
-    const found = state.exceptions.find(a => a.mass_id === massId && a.server_id === serverId);
-    if (found) found.type = attended ? 'single' : 'excused';
-    else state.exceptions.push({ id: crypto.randomUUID(), mass_id: massId, server_id: serverId, type: attended ? 'single' : 'excused' });
+    for (const s of state.competitionSeasons ?? []) s.revision++;
   });
   checkCompetition((await client().rpc('confirm_service', { p_mass_id: massId, p_server_id: serverId, p_attended: attended })).error);
 }
@@ -167,30 +166,63 @@ async function loadScheduleRange(from: string, to: string): Promise<ScheduleData
   const [serversResult, massesResult, rulesResult, exceptionsResult, recentMassesResult] = results;
   if (serversResult.status !== 'fulfilled' || massesResult.status !== 'fulfilled' || rulesResult.status !== 'fulfilled' || exceptionsResult.status !== 'fulfilled' || recentMassesResult.status !== 'fulfilled') throw new Error('Nie udało się pobrać grafiku.');
   const masses = massesResult.value;
-  const attendees: ScheduleData['attendees'] = [];
-  // Chunk IDs to keep REST URLs bounded. Ordering is stable for pagination.
+  // Chunk IDs to keep REST URLs bounded. Batches run in parallel so a week
+  // with many masses loads in ~1 round-trip wave instead of N sequential ones.
+  const massIdChunks: string[][] = [];
   for (let index = 0; index < masses.length; index += 80) {
-    attendees.push(...await allRows((a, b) => db.from('effective_attendees').select('*')
-      .in('mass_id', masses.slice(index, index + 80).map(m => m.id))
-      .order('mass_id').order('server_id').range(a, b)));
+    massIdChunks.push(masses.slice(index, index + 80).map(m => m.id));
   }
+  const [attendeeChunks, confirmationChunks, annotations] = await Promise.all([
+    Promise.all(massIdChunks.map(chunk =>
+      allRows((a, b) => db.from('effective_attendees').select('*')
+        .in('mass_id', chunk)
+        .order('mass_id').order('server_id').range(a, b)),
+    )),
+    Promise.all(massIdChunks.map(chunk => loadConfirmationsBatch(chunk))),
+    db.from('day_annotations').select('*').gte('day', dateKey(from)).lt('day', dateKey(to)),
+  ]);
+  const attendees: ScheduleData['attendees'] = attendeeChunks.flat();
   attendees.sort((a, b) => a.name.localeCompare(b.name, 'pl'));
+  const confirmations = confirmationChunks.flat();
 
   const recentMasses = recentMassesResult.value;
-  const recentAttendance: Record<string, number> = {};
+  const recentIdChunks: string[][] = [];
   for (let index = 0; index < recentMasses.length; index += 80) {
-    const batch = recentMasses.slice(index, index + 80).map(m => m.id);
-    const rows = await allRows((a, b) => db.from('effective_attendees').select('server_id')
+    recentIdChunks.push(recentMasses.slice(index, index + 80).map(m => m.id));
+  }
+  const recentChunks = await Promise.all(recentIdChunks.map(batch =>
+    allRows<{ server_id: string }>((a, b) => db.from('effective_attendees').select('server_id')
       .in('mass_id', batch)
-      .range(a, b));
+      .range(a, b)),
+  ));
+  const recentAttendance: Record<string, number> = {};
+  for (const rows of recentChunks) {
     for (const row of rows) {
       recentAttendance[row.server_id] = (recentAttendance[row.server_id] ?? 0) + 1;
     }
   }
 
-  const annotations = await db.from('day_annotations').select('*').gte('day', dateKey(from)).lt('day', dateKey(to));
   check(annotations.error);
-  return { dayAnnotations: annotations.data ?? [], servers: serversResult.value, masses, rules: rulesResult.value, exceptions: exceptionsResult.value, attendees, recentAttendance };
+  return { dayAnnotations: annotations.data ?? [], servers: serversResult.value, masses, rules: rulesResult.value, exceptions: exceptionsResult.value, attendees, recentAttendance, confirmations };
+}
+
+/** Single bounded batch of presence answers. Missing table means the
+ * competition migration has not been applied yet; the schedule still works
+ * and the pending queue surfaces the migration hint. */
+async function loadConfirmationsBatch(batch: string[]): Promise<NonNullable<ScheduleData['confirmations']>> {
+  const result: NonNullable<ScheduleData['confirmations']> = [];
+  const db = client();
+  for (let offset = 0; ; offset += 500) {
+    const { data, error } = await db.from('service_confirmations').select('*')
+      .in('mass_id', batch).order('mass_id').order('server_id').range(offset, offset + 499);
+    if (error) {
+      if (['PGRST202', 'PGRST205', '42P01'].includes(error.code ?? '')) return [];
+      throw new Error(error.message);
+    }
+    result.push(...(data ?? []));
+    if (!data || data.length < 500) break;
+  }
+  return result;
 }
 
 export async function setAttendance(massId: string, serverId: string, type: AttendanceType): Promise<void> {
@@ -251,20 +283,26 @@ export async function deleteRule(id: string): Promise<void> {
     const past = await allRows<{ id: string; start_time: string }>((a, b) =>
       db.from('masses').select('id,start_time').lt('start_time', nowIso).order('start_time').order('id').range(a, b));
     const candidates = past.filter(mass => mass.start_time < nowIso);
-    let occupied: { mass_id: string; server_id: string }[] = [];
+    const candidateChunks: { id: string; start_time: string }[][] = [];
     for (let index = 0; index < candidates.length; index += 80) {
-      const batch = candidates.slice(index, index + 80);
-      occupied.push(...await allRows<{ mass_id: string; server_id: string }>((a, b) =>
+      candidateChunks.push(candidates.slice(index, index + 80));
+    }
+    const occupiedChunks = await Promise.all(candidateChunks.map(batch =>
+      allRows<{ mass_id: string; server_id: string }>((a, b) =>
         db.from('mass_attendees').select('mass_id,server_id').eq('server_id', rule.server_id)
-          .in('mass_id', batch.map(mass => mass.id)).range(a, b)));
-    }
+          .in('mass_id', batch.map(mass => mass.id)).range(a, b))));
+    const occupied = occupiedChunks.flat();
     const freshIds = ruleHistoryToPreserve(candidates, occupied, rule, nowIso);
+    const freshChunks: string[][] = [];
     for (let index = 0; index < freshIds.length; index += 80) {
-      check((await db.from('mass_attendees').upsert(
-        freshIds.slice(index, index + 80).map(mass_id => ({ mass_id, server_id: rule.server_id, type: 'single' as const })),
-        { onConflict: 'mass_id,server_id' },
-      )).error);
+      freshChunks.push(freshIds.slice(index, index + 80));
     }
+    const upserts = await Promise.all(freshChunks.map(chunk =>
+      db.from('mass_attendees').upsert(
+        chunk.map(mass_id => ({ mass_id, server_id: rule.server_id, type: 'single' as const })),
+        { onConflict: 'mass_id,server_id' },
+      )));
+    for (const upsert of upserts) check(upsert.error);
   }
   check((await db.from('recurring_rules').delete().eq('id', id)).error);
 }
