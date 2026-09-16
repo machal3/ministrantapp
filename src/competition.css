@@ -50,9 +50,10 @@
 .competition-view progress::-webkit-progress-value { background: var(--green); border-radius: 999px; }
 .competition-view progress::-moz-progress-bar { background: var(--green); border-radius: 999px; }
 .competition-level { display: flex; flex-direction: column; padding: 24px; }
-.competition-level-top { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; font-size: 11px; color: #dce9e1; }
-.competition-level-top > span:first-child { display: inline-flex; align-items: center; gap: 6px; }
-.competition-level-number { background: #ffffff14; border: 1px solid #ffffff30; padding: 4px 9px; border-radius: 8px; font-weight: 700; color: white; }
+.competition-level-top { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+.competition-level-top > span:first-child { display: inline-flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 700; line-height: 1.4; letter-spacing: -.3px; color: white; }
+.competition-level-top > span:first-child svg { color: #d3e6a5; flex-shrink: 0; }
+.competition-level-number { background: #ffffff14; border: 1px solid #ffffff30; padding: 4px 9px; border-radius: 8px; font-weight: 700; color: white; font-size: 11px; }
 .competition-level h3 { font-size: 25px; margin-top: 20px; color: white; letter-spacing: -.6px; }
 .competition-level > p { font-size: 12px; margin-top: 6px; }
 .competition-points { display: flex; align-items: baseline; flex-wrap: wrap; gap: 9px; margin: 18px 0; }
@@ -66,15 +67,17 @@
 .competition-level-caption strong { color: white; }
 .competition-point-breakdown { display: flex; flex-wrap: wrap; gap: 12px 24px; padding-top: 16px; margin-top: 18px; border-top: 1px solid #ffffff25; font-size: 11px; color: #dce9e1; }
 .competition-point-breakdown strong { display: block; color: white; font-size: 13px; }
-.competition-streak-total { display: flex; align-items: center; gap: 12px; margin: 16px 0; }
-.competition-streak-total strong { font-size: 42px; line-height: 1.2; color: #94692e; font-weight: 700; }
-.competition-streak-total span { font-size: 12px; color: var(--muted); max-width: 120px; }
-.competition-streak h3 svg { color: #94692e; }
+.competition-streak { display: flex; flex-direction: column; padding: 24px; }
+.competition-streak-header { display: flex; flex-direction: column; }
+.competition-streak-total { display: flex; align-items: baseline; flex-wrap: wrap; gap: 9px; margin: 18px 0; }
+.competition-streak-total strong { font-size: clamp(36px, 4vw, 48px); font-weight: 700; line-height: 1.15; letter-spacing: -1.5px; color: #94692e; }
+.competition-streak-total span { font-size: 13px; color: var(--muted); }
+.competition-streak h3 svg { color: #94692e; flex-shrink: 0; }
+.competition-streak-progress { margin: auto 0; padding: 12px 0; }
 .competition-week-goal { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px 8px; font-size: 11px; margin-bottom: 8px; color: var(--muted); }
 .competition-week-goal strong { color: var(--ink); }
-.competition-streak > p { font-size: 12px; color: var(--muted); margin: 12px 0; }
-.competition-best { display: flex; justify-content: space-between; gap: 12px; font-size: 11px; padding-top: 12px; border-top: 1px solid var(--border); }
-.competition-streak .button { margin-top: 16px; width: 100%; white-space: normal; }
+.competition-streak-progress > p { font-size: 12px; color: var(--muted); margin: 12px 0 0; line-height: 1.6; }
+.competition-best { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 11px; padding-top: 16px; margin-top: auto; border-top: 1px solid var(--border); }
 .competition-section-heading { margin-bottom: 16px; }
 .competition-section-heading > span { font-size: 11px; color: var(--muted); }
 .competition-badges > ul { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; padding: 0; margin: 0; list-style: none; }

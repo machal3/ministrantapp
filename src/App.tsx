@@ -568,7 +568,7 @@ export default function App() {
         </div></div>}
 
       <Suspense fallback={null}>
-        {view === 'competition' && <CompetitionView key={activeId} data={competition.data} activeId={activeId} now={competition.now} loading={competition.loading} error={competition.error} offline={syncStatus === 'offline'} onRetry={() => void competition.refresh()} onOpenSchedule={() => { resetScrollOnDayOpen.current = true; setView('schedule'); }} onJoinCompetition={handleJoinCompetition} onLeaveCompetition={handleLeaveCompetition} />}
+        {view === 'competition' && <CompetitionView key={activeId} data={competition.data} activeId={activeId} now={competition.now} loading={competition.loading} error={competition.error} offline={syncStatus === 'offline'} onRetry={() => void competition.refresh()} onJoinCompetition={handleJoinCompetition} onLeaveCompetition={handleLeaveCompetition} />}
         {view === 'services' && <>
           {syncStatus === 'offline' && <div className="info-banner" role="status">Połączenie na żywo jest niedostępne. Służby odświeżają się co minutę oraz po powrocie do karty.</div>}
           {actionError && !confirmation && <div className="error-banner" role="alert"><AlertCircle size={18} /><p>{actionError}</p><button className="icon-button" aria-label="Zamknij komunikat" onClick={() => setActionError('')}><X size={17} /></button></div>}

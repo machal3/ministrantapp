@@ -47,7 +47,7 @@ it('loads one bounded season only on opening, while keeping both existing views 
   expect(Math.abs(Date.parse(to) - Date.now())).toBeLessThan(5000);
   const history = screen.getByRole('region', { name: 'Historia punktów' });
   expect(within(history).getByText('Msza poranna')).toBeTruthy();
-  fireEvent.click(screen.getByRole('button', { name: 'Zaplanuj kolejną służbę' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Grafik' }));
   expect(await screen.findByRole('region', { name: 'Grafik tygodniowy' })).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: 'Moje służby' }));
   expect(await screen.findByText('Nie masz obecnie żadnych zaplanowanych służb.')).toBeTruthy();
@@ -56,11 +56,12 @@ it('loads one bounded season only on opening, while keeping both existing views 
 
 it('switches personal progress with the existing user selector without reloading the season', async () => {
   await openCompetition();
-  await screen.findByText('Jan Kowalski, każda służba ma znaczenie.');
+  await screen.findByRole('heading', { name: 'Twoje odznaki' });
+  expect(screen.getAllByText('25')).toHaveLength(2);
   fireEvent.click(screen.getByRole('button', { name: /Wybrano: Jan/ }));
   fireEvent.click(screen.getByRole('button', { name: /Piotr Nowak Ministrant/ }));
-  expect(await screen.findByText('Piotr Nowak, każda służba ma znaczenie.')).toBeTruthy();
-  expect(screen.getByText('Start przed Tobą')).toBeTruthy();
+  expect(await screen.findByText('Start przed Tobą')).toBeTruthy();
+  expect(screen.getAllByText('0')).toHaveLength(2);
   expect(repository.loadCompetition).toHaveBeenCalledTimes(1);
 });
 
@@ -74,7 +75,7 @@ it('shows a retryable error without claiming an empty ranking and retains stale 
   repository.loadCompetition.mockRejectedValue(new Error('Offline'));
   act(() => repository.subscribe.mock.calls[0][0]());
   expect(await screen.findByText('Wyświetlane wyniki mogą być nieaktualne.')).toBeTruthy();
-  expect(screen.getByText('Jan Kowalski, każda służba ma znaczenie.')).toBeTruthy();
+  expect(screen.getAllByText('25')).toHaveLength(2);
 });
 
 it('refreshes points and badges after an absence using the existing realtime subscription', async () => {

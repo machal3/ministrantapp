@@ -13,7 +13,6 @@ interface Props {
   error: string;
   offline: boolean;
   onRetry: () => void;
-  onOpenSchedule: () => void;
   onJoinCompetition?: (serverId: string) => Promise<void> | void;
   onLeaveCompetition?: (serverId: string) => Promise<void> | void;
 }
@@ -55,32 +54,34 @@ function OptedOutPanel({ profile, onJoin, busy }: { profile: CompetitionProfile;
   </div>;
 }
 
-function PersonalProgress({ profile, onOpenSchedule }: { profile: CompetitionProfile; onOpenSchedule: () => void }) {
+function PersonalProgress({ profile }: { profile: CompetitionProfile }) {
   const { level } = profile;
   const remaining = Math.max(0, 2 - profile.weekCount);
   return <>
     <section className="personal-panel competition-level" aria-labelledby="level-heading">
-      <div className="competition-level-top"><span><Sparkles size={16} />Twój rozwój w tym sezonie</span><span className="competition-level-number">Poziom {level.level}</span></div>
+      <div className="competition-level-top"><span><Sparkles size={19} />Twój rozwój w tym sezonie</span><span className="competition-level-number">Poziom {level.level}</span></div>
       <h3 id="level-heading">{level.name}</h3>
-      <p>{profile.server.name}, każda służba ma znaczenie.</p>
       <div className="competition-points"><strong>{profile.points.toLocaleString('pl-PL')}</strong><span>punktów</span></div>
       <progress max={level.required} value={level.progress} aria-label="Postęp do następnego poziomu" />
-      <div className="competition-level-caption"><span>Do poziomu {level.level + 1}</span><strong>{level.next - profile.points} pkt</strong></div>
+      <div className="competition-level-caption"><span>Do poziomu {level.level + 1}</span><strong>{profile.points.toLocaleString('pl-PL')} / {level.next.toLocaleString('pl-PL')} pkt</strong></div>
       <div className="competition-point-breakdown"><span>Służby <strong>{profile.servicePoints} pkt</strong></span><span>Regularność <strong>+{profile.bonusPoints} pkt</strong></span><span>Odznaki <strong>+{profile.badgePoints} pkt</strong></span>{profile.adjustmentPoints !== 0 && <span>Korekty <strong>{profile.adjustmentPoints > 0 ? '+' : ''}{profile.adjustmentPoints} pkt</strong></span>}</div>
     </section>
     <section className="sidebar-panel competition-streak" aria-labelledby="streak-heading">
-      <h3 id="streak-heading"><Flame size={19} />Twój rytm</h3>
-      <div className="competition-streak-total"><strong>{profile.streak}</strong><span>tygodni w aktualnej serii</span></div>
-      <div className="competition-week-goal"><span>Ten tydzień · pon.–niedz.</span><strong>{profile.weekCount} / 2 służby</strong></div>
-      <progress max={2} value={Math.min(profile.weekCount, 2)} aria-label="Cel dwóch służb w tym tygodniu" />
-      <p>{remaining ? `Jeszcze ${remaining === 1 ? '1 potwierdzona służba' : '2 potwierdzone służby'}, aby ${profile.streak ? 'przedłużyć' : 'rozpocząć'} serię. Niedziela też się liczy!` : 'Cel obecności osiągnięty! W tym tygodniu masz już co najmniej dwie potwierdzone służby.'}</p>
+      <div className="competition-streak-header">
+        <h3 id="streak-heading"><Flame size={19} />Twój rytm</h3>
+        <div className="competition-streak-total"><strong>{profile.streak}</strong><span>tygodni w aktualnej serii</span></div>
+      </div>
+      <div className="competition-streak-progress">
+        <div className="competition-week-goal"><span>Ten tydzień · pon.–niedz.</span><strong>{profile.weekCount} / 2 służby</strong></div>
+        <progress max={2} value={Math.min(profile.weekCount, 2)} aria-label="Cel dwóch służb w tym tygodniu" />
+        <p>{remaining ? `Jeszcze ${remaining === 1 ? '1 potwierdzona służba' : '2 potwierdzone służby'}, aby ${profile.streak ? 'przedłużyć' : 'rozpocząć'} serię. Niedziela też się liczy!` : 'Cel obecności osiągnięty! W tym tygodniu masz już co najmniej dwie potwierdzone służby.'}</p>
+      </div>
       <div className="competition-best"><span>Najdłuższa seria</span><strong>{profile.bestStreak} tyg.</strong></div>
-      <button className="button secondary" onClick={onOpenSchedule}><CalendarDays size={16} />Zaplanuj kolejną służbę</button>
     </section>
   </>;
 }
 
-export default function CompetitionView({ data, activeId, now, loading, error, offline, onRetry, onOpenSchedule, onJoinCompetition, onLeaveCompetition }: Props) {
+export default function CompetitionView({ data, activeId, now, loading, error, offline, onRetry, onJoinCompetition, onLeaveCompetition }: Props) {
   const result = useMemo(() => data ? buildCompetition(data, now) : null, [data, now]);
   const profile = result?.profiles.find(person => person.server.id === activeId);
   const isParticipant = profile?.isParticipant ?? false;
@@ -104,7 +105,7 @@ export default function CompetitionView({ data, activeId, now, loading, error, o
       <div className="competition-main">
         {profile ? (
           isParticipant ? (
-            <div className="competition-personal-grid"><PersonalProgress profile={profile} onOpenSchedule={onOpenSchedule} /></div>
+            <div className="competition-personal-grid"><PersonalProgress profile={profile} /></div>
           ) : (
             <div className="competition-personal-grid"><OptedOutPanel profile={profile} onJoin={() => void onJoinCompetition?.(profile.server.id)} busy={loading} /></div>
           )
