@@ -61,7 +61,7 @@ export default function CompetitionView({ data, activeId, now, loading, error, o
   const [rankingLimit, setRankingLimit] = useState(10);
   const earned = profile?.badges.filter(badge => badge.earned).length ?? 0;
   return <section className="competition-view" aria-labelledby="competition-heading">
-    <header className="competition-heading"><div><h2 id="competition-heading" className="section-title"><Trophy size={20} />Rywalizacja</h2><p>Małe kroki. Dobry rytm. Wspólna służba.</p></div><span className="competition-season"><CalendarDays size={15} />Sezon {season.label}</span></header>
+    <header className="competition-heading"><div><h2 id="competition-heading" className="section-title"><Trophy size={20} />Rywalizacja</h2></div><span className="competition-season"><CalendarDays size={15} />Sezon {season.label}</span></header>
     <div className="competition-season-note"><span>{displayDate(season.start)} – {displayDate(shiftDate(season.end, -1))}</span><span>Nowy start: {displayDate(season.end)}</span></div>
     {data?.competitionState?.reset_at && <div className="info-banner">Administrator zresetował punktację {new Date(data.competitionState.reset_at).toLocaleString('pl-PL', { timeZone: 'Europe/Warsaw' })}. Punkty naliczają się za służby rozpoczynające się po resecie. Serie i odznaki są zachowane.</div>}
     {result && <nav className="competition-shortcuts" aria-label="Sekcje rywalizacji">{profile && <><a href="#level-heading">Twój postęp</a><a href="#badges-heading">Odznaki</a></>}<a href="#ranking-heading">Ranking</a><a href="#competition-rules-heading">Zasady</a></nav>}

@@ -248,15 +248,7 @@ export default function App() {
         const attended = action === 'attended';
         const entry = { mass_id: mass.id, server_id: serverId, attended, confirmed_at: new Date().toISOString() };
         confirmations = [...(confirmations ?? []).filter(c => !(c.mass_id === mass.id && c.server_id === serverId)), entry];
-        // Retroactive "was there" also joins the visible roster.
-        if (attended && !attendees.some(a => a.mass_id === mass.id && a.server_id === serverId)) {
-          exceptions = exceptions.filter(e => !(e.mass_id === mass.id && e.server_id === serverId && e.type === 'excused'));
-          const stillHasRule = data.rules.some(r => r.server_id === serverId && matchesRule(mass, r));
-          if (!exceptions.some(e => e.mass_id === mass.id && e.server_id === serverId) && !stillHasRule) {
-            exceptions = [...exceptions, { id: `optimistic-${mass.id}`, mass_id: mass.id, server_id: serverId, type: 'single' as const }];
-          }
-          attendees = [...attendees, ...attendeeFor(stillHasRule ? 'recurring' : 'single')];
-        }
+        // Presence never touches the roster: no signups, no excuse changes.
       }
       return { ...current, data: { ...data, exceptions, attendees, confirmations } };
     });
@@ -270,10 +262,6 @@ export default function App() {
       if (existing) { setEditingRule(existing); return; }
     }
     const hasRule = actionRules.some(rule => rule.server_id === serverId && matchesRule(mass, rule));
-    const actionExceptions = view === 'services' ? upcoming.data?.exceptions ?? [] : data.exceptions;
-    const roster = view === 'services' ? upcoming.data?.attendees ?? [] : data.attendees;
-    const excused = actionExceptions.some(entry => entry.mass_id === mass.id && entry.server_id === serverId && entry.type === 'excused');
-    const declared = roster.some(a => a.mass_id === mass.id && a.server_id === serverId);
     const isDevotion = mass.is_extra;
     const noun = eventCategory(mass) === 'other' ? 'wydarzenie' : isDevotion ? 'nabożeństwo' : 'Mszę Świętą';
     const messages: Record<MassAction, string> = {
@@ -288,19 +276,7 @@ export default function App() {
     };
     applyOptimistic(mass, action, serverId);
     const ok = await mutate(async () => {
-      if (action === 'attended') {
-        // Retroactive presence also restores/creates the visible declaration,
-        // otherwise confirm_service succeeds while the roster stays empty
-        // (or excused) and the "was there" badge never appears.
-        if (excused) {
-          if (hasRule) await removeAttendance(mass.id, serverId);
-          else await setAttendance(mass.id, serverId, 'single');
-        } else if (!declared) {
-          await setAttendance(mass.id, serverId, 'single');
-        }
-        await confirmService(mass.id, serverId, true);
-      }
-      else if (action === 'absent') await confirmService(mass.id, serverId, false);
+      if (action === 'attended' || action === 'absent') await confirmService(mass.id, serverId, action === 'attended');
       else if (action === 'undeclare') {
         if (hasRule) await setAttendance(mass.id, serverId, 'excused');
         else await removeAttendance(mass.id, serverId);
@@ -311,7 +287,7 @@ export default function App() {
     }, messages[action]);
     if (ok && (action === 'attended' || action === 'absent' || action === 'undeclare')) void pendingRefresh.current();
     if (!ok) void latestRefresh.current();
-  }, [activeId, actionRules, data.attendees, data.exceptions, upcoming.data, view, mutate, applyOptimistic]);
+  }, [activeId, actionRules, mutate, applyOptimistic]);
 
   const requestMassDeletion = useCallback((mass: Mass) => {
     setActionError('');
