@@ -1,37 +1,82 @@
-import DayAnnotationModal from './components/DayAnnotationModal';
 import { setDayAnnotation } from './lib/repository';
 import { eventCategory } from './lib/eventCategory';
 import { dayAppearance } from './lib/dayAppearance';
 import EditRuleModal from './components/EditRuleModal';
-import MyServicesView from './components/MyServicesView';
-import CompetitionView from './components/CompetitionView';
-import AdminPointsModal from './components/AdminPointsModal';
 import ConfirmServicesModal from './components/ConfirmServicesModal';
 import { useServiceConfirmations } from './hooks/useServiceConfirmations';
 import { useCompetition } from './hooks/useCompetition';
 import MyRecurringRules from './components/MyRecurringRules';
 import { useUpcomingServices } from './hooks/useUpcomingServices';
 import { Pencil } from 'lucide-react';
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { AlertCircle, ArrowRight, CalendarDays, CalendarPlus, Check, Church, HeartHandshake, LoaderCircle, Plus, RefreshCw, Trash2, Trophy, UserRound, Users, X, ShieldCheck } from 'lucide-react';
 import UserSelector, { readSelectedServer } from './components/UserSelector';
 import WeekNavigator from './components/WeekNavigator';
 import DaySelector from './components/DaySelector';
 import MassCard from './components/MassCard';
 import type { MassAction } from './components/MassCard';
-import AddMassModal from './components/AddMassModal';
 import Modal from './components/Modal';
 import AdminLoginModal from './components/AdminLoginModal';
-import AdminServersModal from './components/AdminServersModal';
-import EditMassModal from './components/EditMassModal';
-import WeekCelebrantsModal from './components/WeekCelebrantsModal';
 import type { CelebrantUpdate } from './components/WeekCelebrantsModal';
-import MonthAnnotationsModal from './components/MonthAnnotationsModal';
 import type { AnnotationUpdate } from './components/MonthAnnotationsModal';
+
+function lazyWithPreload<T extends React.ComponentType<any>>(factory: () => Promise<{ default: T }>) {
+  let LoadedComponent: T | null = null;
+  let factoryPromise: Promise<{ default: T }> | null = null;
+
+  const preload = () => {
+    if (!factoryPromise) {
+      factoryPromise = factory().then(mod => {
+        LoadedComponent = mod.default;
+        return mod;
+      });
+    }
+    return factoryPromise;
+  };
+
+  const LazyComponent = lazy(preload);
+
+  const Component = (props: React.ComponentProps<T>) => {
+    if (LoadedComponent) {
+      const Comp = LoadedComponent;
+      return <Comp {...props} />;
+    }
+    return <LazyComponent {...props} />;
+  };
+
+  Component.preload = preload;
+  return Component;
+}
+
+const AdminPointsModal = lazyWithPreload(() => import('./components/AdminPointsModal'));
+const AdminServersModal = lazyWithPreload(() => import('./components/AdminServersModal'));
+const EditMassModal = lazyWithPreload(() => import('./components/EditMassModal'));
+const AddMassModal = lazyWithPreload(() => import('./components/AddMassModal'));
+const WeekCelebrantsModal = lazyWithPreload(() => import('./components/WeekCelebrantsModal'));
+const MonthAnnotationsModal = lazyWithPreload(() => import('./components/MonthAnnotationsModal'));
+const DayAnnotationModal = lazyWithPreload(() => import('./components/DayAnnotationModal'));
+const MyServicesView = lazyWithPreload(() => import('./components/MyServicesView'));
+const CompetitionView = lazyWithPreload(() => import('./components/CompetitionView'));
+
+function preloadAdminModals() {
+  void AdminPointsModal.preload();
+  void AdminServersModal.preload();
+  void EditMassModal.preload();
+  void AddMassModal.preload();
+  void WeekCelebrantsModal.preload();
+  void MonthAnnotationsModal.preload();
+  void DayAnnotationModal.preload();
+}
+
+if (import.meta.env.MODE === 'test') {
+  preloadAdminModals();
+  void MyServicesView.preload();
+  void CompetitionView.preload();
+}
 import { logoutAdmin } from './lib/admin';
 import { dateKey, DAY_NAMES, weekStart, polishDate, shiftDate, timeSlot, weekday } from './lib/dates';
 import { matchesRule } from './lib/attendance';
-import { addMass, addRecurringMasses, addRule, addServer, confirmService, deleteMass, deleteRule, deleteServer, loadWeek, removeAttendance, setAttendance, subscribe, updateServer, updateMass, updateRule } from './lib/repository';
+import { addMass, addRecurringMasses, addRule, addServer, confirmService, deleteMass, deleteRule, deleteServer, joinCompetition, leaveCompetition, loadWeek, removeAttendance, setAttendance, subscribe, updateServer, updateMass, updateRule } from './lib/repository';
 import type { SyncStatus } from './lib/repository';
 import { isDemo } from './lib/supabase';
 import type { AdminSession, AltarServer, Mass, MassEditInput, NewMass, RecurringMassesInput, RecurringRule, ScheduleData } from './types/database';
@@ -90,9 +135,11 @@ export default function App() {
   const [celebrantsOpen, setCelebrantsOpen] = useState(false);
   const [annotationsOpen, setAnnotationsOpen] = useState(false);
   const [pointsOpen, setPointsOpen] = useState(false);
+  const [confirmDismissed, setConfirmDismissed] = useState(false);
   const mutationLock = useRef(false);
   const requestId = useRef(0);
   const resetScrollOnDayOpen = useRef(false);
+  const weekCache = useRef<Map<string, ScheduleData>>(new Map());
 
   useLayoutEffect(() => {
     if (view !== 'schedule' || !resetScrollOnDayOpen.current) return;
@@ -100,15 +147,18 @@ export default function App() {
     // Reset after mounting the destination, before paint, regardless of data loading.
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
   }, [view, selectedDay]);
-  const data = snapshot?.week === week ? snapshot.data : EMPTY;
-  const servers = snapshot?.data.servers ?? [];
+  const cachedWeekData = weekCache.current.get(week);
+  const data = snapshot?.week === week ? snapshot.data : (cachedWeekData ?? EMPTY);
+  const servers = (snapshot?.week === week ? snapshot.data.servers : cachedWeekData?.servers) ?? snapshot?.data.servers ?? [];
   const activeServer = servers.find(server => server.id === selectedId);
   const activeId = activeServer?.id ?? '';
   const upcoming = useUpcomingServices(view === 'services', view === 'services' ? activeId : '');
   const competition = useCompetition(view === 'competition' || pointsOpen);
-  const serviceConfirmations = useServiceConfirmations(adminSession ? '' : activeId);
+  const isParticipant = Boolean((data.competitionParticipants ?? competition.data?.competitionParticipants)?.includes(activeId));
+  const serviceConfirmations = useServiceConfirmations(adminSession || !isParticipant ? '' : activeId);
   const pendingRefresh = useRef(serviceConfirmations.refresh);
   useEffect(() => { pendingRefresh.current = serviceConfirmations.refresh; }, [serviceConfirmations.refresh]);
+  useEffect(() => { setConfirmDismissed(false); }, [selectedId]);
   const actionRules = view === 'services' ? upcoming.data?.rules ?? [] : data.rules;
 
   useEffect(() => {
@@ -120,6 +170,7 @@ export default function App() {
 
   useEffect(() => {
     if (!adminSession) return;
+    preloadAdminModals();
     const expire = () => {
       if (Date.parse(adminSession.expires_at) <= Date.now()) {
         setAdminSession(null);
@@ -144,11 +195,26 @@ export default function App() {
     }
   }
 
+  const prefetchWeek = useCallback((targetWeek: string) => {
+    if (weekCache.current.has(targetWeek)) return;
+    void loadWeek(targetWeek).then(next => {
+      weekCache.current.set(targetWeek, next);
+    }).catch(() => { /* silent */ });
+  }, []);
+
   const refreshWeek = useCallback(async () => {
     const request = ++requestId.current;
+    const targetWeek = week;
+    if (!weekCache.current.has(targetWeek)) {
+      setLoading(true);
+    }
     try {
-      const next = await loadWeek(week);
-      if (request === requestId.current) { setSnapshot({ week, data: next }); setLoadError(''); }
+      const next = await loadWeek(targetWeek);
+      if (request === requestId.current) {
+        weekCache.current.set(targetWeek, next);
+        setSnapshot({ week: targetWeek, data: next });
+        setLoadError('');
+      }
     } catch (error) {
       if (request === requestId.current) setLoadError(messageFrom(error));
     } finally { if (request === requestId.current) setLoading(false); }
@@ -162,17 +228,36 @@ export default function App() {
   useEffect(() => { latestRefresh.current = refresh; }, [refresh]);
 
   useEffect(() => {
-    setLoading(true);
+    if (!weekCache.current.has(week)) {
+      setLoading(true);
+    }
     setLoadError('');
     void refresh();
     return () => { ++requestId.current; };
-  }, [refresh]);
+  }, [refresh, week]);
+
+  useEffect(() => {
+    if (import.meta.env.MODE === 'test') return;
+    if (!snapshot || snapshot.week !== week || loading) return;
+    const nextWeek = shiftDate(week, 7);
+    if (weekCache.current.has(nextWeek)) return;
+
+    const timer = window.setTimeout(() => {
+      prefetchWeek(nextWeek);
+    }, 1500);
+
+    return () => window.clearTimeout(timer);
+  }, [snapshot, week, loading, prefetchWeek]);
 
   useEffect(() => {
     let debounce: number | undefined;
     const unsubscribe = subscribe(() => {
       window.clearTimeout(debounce);
-      debounce = window.setTimeout(() => { void latestRefresh.current(); void pendingRefresh.current(); }, 150);
+      debounce = window.setTimeout(() => {
+        weekCache.current.clear();
+        void latestRefresh.current();
+        void pendingRefresh.current();
+      }, 150);
     }, setSyncStatus);
     return () => { unsubscribe(); window.clearTimeout(debounce); };
   }, []);
@@ -185,6 +270,12 @@ export default function App() {
 
   function changeWeek(next: string) {
     setWeek(next);
+    const cached = weekCache.current.get(next);
+    if (cached) {
+      setSnapshot({ week: next, data: cached });
+      setLoading(false);
+      setLoadError('');
+    }
     const today = dateKey();
     const nextWeekDays = Array.from({ length: 7 }, (_, i) => shiftDate(next, i));
     setSelectedDay(nextWeekDays.includes(today) ? today : next);
@@ -197,12 +288,25 @@ export default function App() {
     setActionError('');
     try {
       await action();
+      weekCache.current.clear();
       setNotice(success);
       await latestRefresh.current();
       return true;
     } catch (error) { setActionError(messageFrom(error)); return false; }
     finally { mutationLock.current = false; setBusy(false); }
   }, []);
+
+  const handleJoinCompetition = useCallback(async (serverId: string) => {
+    await mutate(async () => {
+      await joinCompetition(serverId);
+    }, 'Zapisano do rywalizacji.');
+  }, [mutate]);
+
+  const handleLeaveCompetition = useCallback(async (serverId: string) => {
+    await mutate(async () => {
+      await leaveCompetition(serverId);
+    }, 'Wypisano z rywalizacji. Twoje punkty nadal naliczają się w tle.');
+  }, [mutate]);
 
   // Optimistic roster + presence update so signup feels instant.
   // The server refresh right after reconciles any difference.
@@ -442,14 +546,14 @@ export default function App() {
       <section className="page-heading">
         <div className="page-heading-titles"><h1>Ministrantappka</h1></div>
         <div className="page-heading-controls">
-          <UserSelector ready={snapshot !== null} servers={servers} selectedId={selectedId} onChange={setSelectedId} selectionRequest={selectionRequest} adminSession={adminSession} onAdminToggle={() => adminSession ? void leaveAdmin() : setAdminLoginOpen(true)} />
+          <UserSelector ready={snapshot !== null} servers={servers} selectedId={selectedId} onChange={setSelectedId} selectionRequest={selectionRequest} adminSession={adminSession} onAdminToggle={() => { if (adminSession) { void leaveAdmin(); } else { preloadAdminModals(); setAdminLoginOpen(true); } }} />
         </div>
       </section>
 
       <nav className="view-navigation" aria-label="Widoki aplikacji">
         <button className={`button ${view === 'schedule' ? 'primary' : 'secondary'}`} aria-current={view === 'schedule' ? 'page' : undefined} onClick={() => setView('schedule')}><CalendarDays size={18} />Grafik</button>
-        <button className={`button ${view === 'services' ? 'primary' : 'secondary'}`} aria-current={view === 'services' ? 'page' : undefined} onClick={() => setView('services')}><HeartHandshake size={18} />Moje służby</button>
-        <button className={`button ${view === 'competition' ? 'primary' : 'secondary'}`} aria-current={view === 'competition' ? 'page' : undefined} onClick={() => setView('competition')}><Trophy size={18} />Rywalizacja</button>
+        <button className={`button ${view === 'services' ? 'primary' : 'secondary'}`} aria-current={view === 'services' ? 'page' : undefined} onClick={() => setView('services')} onMouseEnter={() => void MyServicesView.preload()} onTouchStart={() => void MyServicesView.preload()}><HeartHandshake size={18} />Moje służby</button>
+        <button className={`button ${view === 'competition' ? 'primary' : 'secondary'}`} aria-current={view === 'competition' ? 'page' : undefined} onClick={() => setView('competition')} onMouseEnter={() => void CompetitionView.preload()} onTouchStart={() => void CompetitionView.preload()}><Trophy size={18} />Rywalizacja</button>
       </nav>
 
       {serviceConfirmations.error && !serviceConfirmations.pending?.masses.length && !adminSession && <div className="error-banner" role="alert"><AlertCircle size={18} /><div><strong>Nie udało się sprawdzić obecności</strong><p>{serviceConfirmations.error}</p></div><button className="button secondary" onClick={() => void serviceConfirmations.refresh()}><RefreshCw size={16} />Ponów sprawdzanie</button></div>}
@@ -463,19 +567,21 @@ export default function App() {
           <button className="button secondary" disabled={loading || !!loadError} onClick={() => setEditingServers(true)}><Users size={16} />Edytuj ministrantów</button>
         </div></div>}
 
-      {view === 'competition' && <CompetitionView key={activeId} data={competition.data} activeId={activeId} now={competition.now} loading={competition.loading} error={competition.error} offline={syncStatus === 'offline'} onRetry={() => void competition.refresh()} onOpenSchedule={() => { resetScrollOnDayOpen.current = true; setView('schedule'); }} />}
-      {view === 'services' && <>
-        {syncStatus === 'offline' && <div className="info-banner" role="status">Połączenie na żywo jest niedostępne. Służby odświeżają się co minutę oraz po powrocie do karty.</div>}
-        {actionError && !confirmation && <div className="error-banner" role="alert"><AlertCircle size={18} /><p>{actionError}</p><button className="icon-button" aria-label="Zamknij komunikat" onClick={() => setActionError('')}><X size={17} /></button></div>}
-        {!snapshot && loadError && <div className="error-banner" role="alert"><p>{loadError}</p><button className="button secondary" onClick={() => void refresh()}>Ponów pobieranie ministrantów</button></div>}
-        <MyServicesView server={activeServer} data={upcoming.data} loading={upcoming.loading} error={upcoming.error} now={upcoming.now} busy={busy}
-          onRetry={() => void upcoming.refresh()} onAction={handleAction}
-          onOpenDay={(day = dateKey()) => { resetScrollOnDayOpen.current = true; setWeek(weekStart(day)); setSelectedDay(day); setView('schedule'); }}
-          onEditRule={setEditingRule} onDeleteRule={rule => { setActionError(''); setConfirmation({ kind: 'rule', rule }); }} />
-      </>}
+      <Suspense fallback={null}>
+        {view === 'competition' && <CompetitionView key={activeId} data={competition.data} activeId={activeId} now={competition.now} loading={competition.loading} error={competition.error} offline={syncStatus === 'offline'} onRetry={() => void competition.refresh()} onOpenSchedule={() => { resetScrollOnDayOpen.current = true; setView('schedule'); }} onJoinCompetition={handleJoinCompetition} onLeaveCompetition={handleLeaveCompetition} />}
+        {view === 'services' && <>
+          {syncStatus === 'offline' && <div className="info-banner" role="status">Połączenie na żywo jest niedostępne. Służby odświeżają się co minutę oraz po powrocie do karty.</div>}
+          {actionError && !confirmation && <div className="error-banner" role="alert"><AlertCircle size={18} /><p>{actionError}</p><button className="icon-button" aria-label="Zamknij komunikat" onClick={() => setActionError('')}><X size={17} /></button></div>}
+          {!snapshot && loadError && <div className="error-banner" role="alert"><p>{loadError}</p><button className="button secondary" onClick={() => void refresh()}>Ponów pobieranie ministrantów</button></div>}
+          <MyServicesView server={activeServer} data={upcoming.data} loading={upcoming.loading} error={upcoming.error} now={upcoming.now} busy={busy}
+            onRetry={() => void upcoming.refresh()} onAction={handleAction}
+            onOpenDay={(day = dateKey()) => { resetScrollOnDayOpen.current = true; setWeek(weekStart(day)); setSelectedDay(day); setView('schedule'); }}
+            onEditRule={setEditingRule} onDeleteRule={rule => { setActionError(''); setConfirmation({ kind: 'rule', rule }); }} />
+        </>}
+      </Suspense>
       {view === 'schedule' && <div className="dashboard-layout">
         <section className="schedule-panel" aria-label="Grafik tygodniowy">
-          <WeekNavigator week={week} onChange={changeWeek} />
+          <WeekNavigator week={week} onChange={changeWeek} onPrefetch={prefetchWeek} />
           <DaySelector week={week} selected={selectedDay} onChange={setSelectedDay} counts={counts} dayAnnotations={data.dayAnnotations} />
 
           {syncStatus === 'offline' && <div className="info-banner" role="status">Połączenie na żywo jest niedostępne. Grafik odświeża się co minutę oraz po powrocie do karty.</div>}
@@ -550,32 +656,35 @@ export default function App() {
       </div>}
     </main>
 
-    {adminSession && pointsOpen && <AdminPointsModal data={competition.data} now={competition.now} loading={competition.loading} error={competition.error} session={adminSession} onRefresh={competition.refresh} onClose={() => setPointsOpen(false)} onSaved={setNotice} />}
-    {!adminSession && !adminLoginOpen && !editingRule && !confirmation && activeServer && serviceConfirmations.pending?.masses[0] && <ConfirmServicesModal
+    <Suspense fallback={null}>
+      {adminSession && pointsOpen && <AdminPointsModal data={competition.data} now={competition.now} loading={competition.loading} error={competition.error} session={adminSession} onRefresh={competition.refresh} onClose={() => setPointsOpen(false)} onSaved={setNotice} />}
+      {adminSession && editingDay && <DayAnnotationModal day={editingDay} label={data.dayAnnotations?.find(a=>a.day===editingDay)?.label ?? ''} onClose={()=>setEditingDay(null)} onSave={async label=>{await setDayAnnotation(editingDay,label,adminSession);setNotice('Zapisano oznaczenie dnia.');await latestRefresh.current();}}/>}
+      {adminLoginOpen && <AdminLoginModal onClose={() => setAdminLoginOpen(false)} onLogin={session => { preloadAdminModals(); setAdminSession(session); setAdminLoginOpen(false); setActionError(''); try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch { /* Środowisko bez przewijania. */ } }} />}
+      {adminSession && editingServers && (
+        <AdminServersModal
+          servers={servers}
+          rules={data.rules}
+          attendees={data.attendees}
+          recentAttendance={data.recentAttendance}
+          onClose={() => setEditingServers(false)}
+          onSave={handleServerEdit}
+          onAdd={handleAddServer}
+          onDelete={handleDeleteServer}
+        />
+      )}
+      {adminSession && editingMass && <EditMassModal mass={editingMass} onClose={() => setEditingMass(null)} onSave={handleMassEdit} />}
+      {adminSession && celebrantsOpen && <WeekCelebrantsModal initialWeek={week} onClose={() => setCelebrantsOpen(false)} onSave={handleWeekCelebrants} />}
+      {adminSession && annotationsOpen && <MonthAnnotationsModal initialMonth={week.slice(0, 7)} onClose={() => setAnnotationsOpen(false)} onSave={handleMonthAnnotations} />}
+      {adminSession && adding && <AddMassModal initialDate={selectedDay} onClose={() => setAdding(false)} onSubmit={handleAdd} onSubmitRecurring={handleAddRecurring} />}
+    </Suspense>
+    {!adminSession && !adminLoginOpen && !editingRule && !confirmation && !confirmDismissed && isParticipant && activeServer && serviceConfirmations.pending?.masses[0] && <ConfirmServicesModal
       mass={serviceConfirmations.pending.masses[0]} name={activeServer.name} remaining={serviceConfirmations.pending.total} completed={serviceConfirmations.completed}
       busy={serviceConfirmations.busy} error={serviceConfirmations.error} onRetry={() => void serviceConfirmations.refresh()} onChangePerson={() => { setSelectedId(''); setSelectionRequest(value => value + 1); try { localStorage.removeItem('liturgy.active-server'); } catch { /* The identity is cleared for this tab even without storage. */ } }}
+      onClose={() => setConfirmDismissed(true)}
       onAnswer={attended => { const mass = serviceConfirmations.pending?.masses[0]; if (mass) void serviceConfirmations.answer(mass.id, attended).then(saved => { if (saved) void latestRefresh.current(); }); }} />}
 
     {notice && <div className="toast" role="status"><span><Check size={17} /></span><p>{notice}</p><button className="icon-button" aria-label="Zamknij powiadomienie" onClick={() => setNotice('')}><X size={16} /></button></div>}
-    {adminSession && editingDay && <DayAnnotationModal day={editingDay} label={data.dayAnnotations?.find(a=>a.day===editingDay)?.label ?? ''} onClose={()=>setEditingDay(null)} onSave={async label=>{await setDayAnnotation(editingDay,label,adminSession);setNotice('Zapisano oznaczenie dnia.');await latestRefresh.current();}}/>}
     {editingRule && <EditRuleModal rule={editingRule} onClose={() => setEditingRule(null)} onSave={async rule => { await updateRule(rule); setNotice('Zapisano zmiany stałego dyżuru.'); await refresh(); }} />}
-    {adminLoginOpen && <AdminLoginModal onClose={() => setAdminLoginOpen(false)} onLogin={session => { setAdminSession(session); setAdminLoginOpen(false); setActionError(''); try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch { /* Środowisko bez przewijania. */ } }} />}
-    {adminSession && editingServers && (
-      <AdminServersModal
-        servers={servers}
-        rules={data.rules}
-        attendees={data.attendees}
-        recentAttendance={data.recentAttendance}
-        onClose={() => setEditingServers(false)}
-        onSave={handleServerEdit}
-        onAdd={handleAddServer}
-        onDelete={handleDeleteServer}
-      />
-    )}
-    {adminSession && editingMass && <EditMassModal mass={editingMass} onClose={() => setEditingMass(null)} onSave={handleMassEdit} />}
-    {adminSession && celebrantsOpen && <WeekCelebrantsModal initialWeek={week} onClose={() => setCelebrantsOpen(false)} onSave={handleWeekCelebrants} />}
-    {adminSession && annotationsOpen && <MonthAnnotationsModal initialMonth={week.slice(0, 7)} onClose={() => setAnnotationsOpen(false)} onSave={handleMonthAnnotations} />}
-    {adminSession && adding && <AddMassModal initialDate={selectedDay} onClose={() => setAdding(false)} onSubmit={handleAdd} onSubmitRecurring={handleAddRecurring} />}
 
     {confirmation && <Modal title={confirmation.kind === 'mass' ? (eventCategory(confirmation.mass) === 'other' ? 'Usunąć wydarzenie?' : confirmation.mass.is_extra ? 'Usunąć nabożeństwo?' : 'Usunąć Mszę Świętą?') : 'Usunąć stały dyżur?'} onClose={() => { setConfirmation(null); setActionError(''); }} busy={busy}>
       {confirmation.kind === 'mass' ? <>

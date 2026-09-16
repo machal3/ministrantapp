@@ -108,3 +108,21 @@ it('ignores a stale season request after leaving and reopening the panel', async
   expect(screen.getByText('Start przed Tobą')).toBeTruthy();
   expect(screen.queryByText('Zdobyta')).toBeNull();
 });
+
+it('hides opted-out servers from community ranking and shows opted-out status', async () => {
+  const optOutData: ScheduleData = {
+    ...fixture(),
+    competitionParticipants: ['piotr'],
+  };
+  repository.loadWeek.mockResolvedValue(optOutData);
+  repository.loadCompetition.mockResolvedValue(optOutData);
+  await openCompetition();
+  expect(await screen.findByText('Nie bierzesz udziału w rywalizacji')).toBeTruthy();
+  expect(screen.getByText('Wypisany z rywalizacji')).toBeTruthy();
+  expect(screen.queryByRole('heading', { name: 'Twoje odznaki' })).toBeNull();
+  expect(screen.queryByRole('heading', { name: 'Historia punktów' })).toBeNull();
+  const ranking = screen.getByRole('complementary', { name: /Ranking i zasady/ });
+  expect(within(ranking).queryByText(/Jan Kowalski/)).toBeNull();
+  expect(screen.getByRole('button', { name: 'Zapisz się do rywalizacji' })).toBeTruthy();
+});
+

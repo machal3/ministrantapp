@@ -55,7 +55,7 @@ export async function loadCompetition(from: string, to: string): Promise<Schedul
   const emptyState: CompetitionState = { season, reset_at: null, revision: 0, reset_revision: 0 };
   if (isDemo) {
     const state = readDemo();
-    return { ...demoWeek(from, to), confirmations: state.confirmations ?? [], pointAdjustments: state.pointAdjustments ?? [], competitionState: state.competitionSeasons?.find(item => item.season === season) ?? emptyState };
+    return { ...demoWeek(from, to), confirmations: state.confirmations ?? [], pointAdjustments: state.pointAdjustments ?? [], competitionState: state.competitionSeasons?.find(item => item.season === season) ?? emptyState, competitionParticipants: state.competitionParticipants ?? [] };
   }
   const db = client();
   for (let attempt = 0; attempt < 2; attempt++) {
@@ -77,6 +77,9 @@ export async function loadCompetition(from: string, to: string): Promise<Schedul
 export async function loadPendingConfirmations(serverId: string): Promise<PendingConfirmations> {
   if (isDemo) {
     const state = readDemo();
+    if (!(state.competitionParticipants ?? []).includes(serverId)) {
+      return { masses: [], total: 0 };
+    }
     const cutoff = Date.now() - 3600000;
     const declared = new Set(aggregateAttendees(state.masses, state.servers, state.rules, state.exceptions).filter(a => a.server_id === serverId).map(a => a.mass_id));
     const answered = new Set((state.confirmations ?? []).filter(a => a.server_id === serverId).map(a => a.mass_id));
@@ -110,6 +113,62 @@ export async function confirmService(massId: string, serverId: string, attended:
     for (const s of state.competitionSeasons ?? []) s.revision++;
   });
   checkCompetition((await client().rpc('confirm_service', { p_mass_id: massId, p_server_id: serverId, p_attended: attended })).error);
+}
+
+export async function joinCompetition(serverId: string): Promise<void> {
+  if (isDemo) return writeDemo(state => {
+    state.competitionParticipants ??= [];
+    if (!state.competitionParticipants.includes(serverId)) {
+      state.competitionParticipants.push(serverId);
+    }
+    const cutoff = Date.now() - 3600000;
+    const declared = new Set(
+      aggregateAttendees(state.masses, state.servers, state.rules, state.exceptions)
+        .filter(a => a.server_id === serverId)
+        .map(a => a.mass_id)
+    );
+    state.confirmations ??= [];
+    const answered = new Set(state.confirmations.filter(c => c.server_id === serverId).map(c => c.mass_id));
+    for (const mass of state.masses) {
+      if (Date.parse(mass.start_time) <= cutoff && declared.has(mass.id) && !answered.has(mass.id)) {
+        state.confirmations.push({
+          mass_id: mass.id,
+          server_id: serverId,
+          attended: true,
+          confirmed_at: new Date().toISOString(),
+        });
+        const existingException = state.exceptions.find(e => e.mass_id === mass.id && e.server_id === serverId);
+        if (existingException) existingException.type = 'single';
+        else state.exceptions.push({ id: crypto.randomUUID(), mass_id: mass.id, server_id: serverId, type: 'single' });
+      }
+    }
+    for (const s of state.competitionSeasons ?? []) s.revision++;
+  });
+  const { error } = await client().rpc('join_competition', { p_server_id: serverId });
+  if (error) {
+    if (['PGRST202', 'PGRST205', '42P01'].includes(error.code ?? '')) {
+      const db = client();
+      await db.from('competition_participants').insert({ server_id: serverId });
+      return;
+    }
+    check(error);
+  }
+}
+
+export async function leaveCompetition(serverId: string): Promise<void> {
+  if (isDemo) return writeDemo(state => {
+    state.competitionParticipants = (state.competitionParticipants ?? []).filter(id => id !== serverId);
+    for (const s of state.competitionSeasons ?? []) s.revision++;
+  });
+  const { error } = await client().rpc('leave_competition', { p_server_id: serverId });
+  if (error) {
+    if (['PGRST202', 'PGRST205', '42P01'].includes(error.code ?? '')) {
+      const db = client();
+      await db.from('competition_participants').delete().eq('server_id', serverId);
+      return;
+    }
+    check(error);
+  }
 }
 
 export type PointEdit = { serverId: string; mode: 'add' | 'subtract' | 'set'; value: number; reason: string };
@@ -172,7 +231,7 @@ async function loadScheduleRange(from: string, to: string): Promise<ScheduleData
   for (let index = 0; index < masses.length; index += 80) {
     massIdChunks.push(masses.slice(index, index + 80).map(m => m.id));
   }
-  const [attendeeChunks, confirmationChunks, annotations] = await Promise.all([
+  const [attendeeChunks, confirmationChunks, annotations, competitionParticipants] = await Promise.all([
     Promise.all(massIdChunks.map(chunk =>
       allRows((a, b) => db.from('effective_attendees').select('*')
         .in('mass_id', chunk)
@@ -180,6 +239,7 @@ async function loadScheduleRange(from: string, to: string): Promise<ScheduleData
     )),
     Promise.all(massIdChunks.map(chunk => loadConfirmationsBatch(chunk))),
     db.from('day_annotations').select('*').gte('day', dateKey(from)).lt('day', dateKey(to)),
+    loadCompetitionParticipants(),
   ]);
   const attendees: ScheduleData['attendees'] = attendeeChunks.flat();
   attendees.sort((a, b) => a.name.localeCompare(b.name, 'pl'));
@@ -203,7 +263,23 @@ async function loadScheduleRange(from: string, to: string): Promise<ScheduleData
   }
 
   check(annotations.error);
-  return { dayAnnotations: annotations.data ?? [], servers: serversResult.value, masses, rules: rulesResult.value, exceptions: exceptionsResult.value, attendees, recentAttendance, confirmations };
+  return { dayAnnotations: annotations.data ?? [], servers: serversResult.value, masses, rules: rulesResult.value, exceptions: exceptionsResult.value, attendees, recentAttendance, confirmations, competitionParticipants };
+}
+
+async function loadCompetitionParticipants(): Promise<string[]> {
+  const result: string[] = [];
+  const db = client();
+  for (let offset = 0; ; offset += 500) {
+    const { data, error } = await db.from('competition_participants').select('server_id')
+      .order('server_id').range(offset, offset + 499);
+    if (error) {
+      if (['PGRST202', 'PGRST205', '42P01'].includes(error.code ?? '')) return [];
+      throw new Error(error.message);
+    }
+    result.push(...(data ?? []).map(r => r.server_id));
+    if (!data || data.length < 500) break;
+  }
+  return result;
 }
 
 /** Single bounded batch of presence answers. Missing table means the
@@ -580,7 +656,7 @@ export function subscribe(onChange: () => void, onStatus: (status: SyncStatus) =
   } else if (supabase) {
     onStatus('connecting');
     const channel = supabase.channel(`schedule-${crypto.randomUUID()}`);
-    for (const table of ['altar_servers', 'masses', 'recurring_rules', 'mass_attendees', 'day_annotations', 'service_confirmations', 'competition_seasons', 'point_adjustments']) {
+    for (const table of ['altar_servers', 'masses', 'recurring_rules', 'mass_attendees', 'day_annotations', 'service_confirmations', 'competition_seasons', 'point_adjustments', 'competition_participants']) {
       channel.on('postgres_changes', { event: '*', schema: 'public', table }, onChange);
     }
     channel.subscribe(status => {

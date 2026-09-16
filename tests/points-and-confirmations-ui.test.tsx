@@ -4,7 +4,7 @@ import { competitionSeason } from '../src/lib/competition';
 import { dateKey, shiftDate, zonedIso } from '../src/lib/dates';
 import type { Mass, ScheduleData } from '../src/types/database';
 
-const api = vi.hoisted(() => ({ loadWeek: vi.fn(), loadCompetition: vi.fn(), loadUpcomingServices: vi.fn(), subscribe: vi.fn(), loadPendingConfirmations: vi.fn(), confirmService: vi.fn(), removeAttendance: vi.fn(), adjustPoints: vi.fn(), resetPoints: vi.fn(), loginAdmin: vi.fn() }));
+const api = vi.hoisted(() => ({ loadWeek: vi.fn(), loadCompetition: vi.fn(), loadUpcomingServices: vi.fn(), subscribe: vi.fn(), loadPendingConfirmations: vi.fn(), confirmService: vi.fn(), removeAttendance: vi.fn(), adjustPoints: vi.fn(), resetPoints: vi.fn(), loginAdmin: vi.fn(), joinCompetition: vi.fn(), leaveCompetition: vi.fn() }));
 vi.mock('../src/lib/repository', () => api);
 vi.mock('../src/lib/admin', () => ({ loginAdmin: api.loginAdmin }));
 vi.mock('../src/lib/supabase', () => ({ isDemo: false }));
@@ -18,6 +18,7 @@ beforeEach(() => {
   vi.resetAllMocks();
   // Freeze midday: the fixture masses stay in the past and a 07:00 mass lands on the selected day.
   vi.spyOn(Date, 'now').mockReturnValue(Date.parse(zonedIso(dateKey(), '12:00')));
+  session.expires_at = new Date(Date.now() + 1800000).toISOString();
   vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
   localStorage.setItem('liturgy.active-server', 'jan');
   HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', ''); };
@@ -27,6 +28,7 @@ beforeEach(() => {
     masses: ['Pierwsza Msza', 'Druga Msza'].map((title, index) => ({ id: `m${index}`, title, start_time: zonedIso(shiftDate(dateKey(), -2 + index), '07:00'), is_extra: false, suggested_spots: 4 })),
     rules: [], exceptions: [], attendees: [], confirmations: [],
     competitionState: { season: competitionSeason(new Date()).start, revision: 0, reset_revision: 0, reset_at: null },
+    competitionParticipants: ['jan'],
   };
   pending = [];
   api.loadWeek.mockResolvedValue(data);
@@ -39,21 +41,47 @@ beforeEach(() => {
 });
 afterEach(() => { cleanup(); localStorage.clear(); vi.restoreAllMocks(); });
 
-it('requires sequential answers, blocks dismissal and finishes only after saving each answer', async () => {
+it('allows closing the confirmation modal to postpone it, and finishes after saving each answer', async () => {
   pending = [...data.masses];
-  render(<App />);
-  const dialog = await screen.findByRole('dialog', { name: 'Potwierdź swoją obecność' });
+  const { unmount } = render(<App />);
+  let dialog = await screen.findByRole('dialog', { name: 'Potwierdź swoją obecność' });
   expect(within(dialog).getByText('Służba 1 z 2')).toBeTruthy();
-  expect(within(dialog).queryByRole('button', { name: 'Zamknij okno' })).toBeNull();
-  fireEvent(dialog, new Event('cancel', { bubbles: false, cancelable: true }));
-  fireEvent.click(dialog);
-  expect(screen.getByRole('dialog', { name: 'Potwierdź swoją obecność' })).toBeTruthy();
+  expect(within(dialog).getByRole('button', { name: 'Zamknij okno' })).toBeTruthy();
+  expect(within(dialog).getByRole('button', { name: 'Przypomnij później' })).toBeTruthy();
+
+  // Closing via "Przypomnij później" dismisses the modal for the current session without answering
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Przypomnij później' }));
+  await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Potwierdź swoją obecność' })).toBeNull());
+  expect(api.confirmService).not.toHaveBeenCalled();
+
+  // Next opening of the application: dialog pops up again with the pending confirmations
+  unmount();
+  render(<App />);
+  dialog = await screen.findByRole('dialog', { name: 'Potwierdź swoją obecność' });
+  expect(within(dialog).getByText('Służba 1 z 2')).toBeTruthy();
+
+  // Answering sequentially
   fireEvent.click(within(dialog).getByRole('button', { name: 'Tak, byłem' }));
   await waitFor(() => expect(within(dialog).getByRole('heading', { name: 'Druga Msza' })).toBeTruthy());
   expect(within(dialog).getByText('Służba 2 z 2')).toBeTruthy();
   fireEvent.click(within(dialog).getByRole('button', { name: 'Nie byłem' }));
   await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Potwierdź swoją obecność' })).toBeNull());
   expect(api.confirmService.mock.calls).toEqual([['m0', 'jan', true], ['m1', 'jan', false]]);
+});
+
+it('allows closing via the header X close button and via cancel event', async () => {
+  pending = [...data.masses];
+  const { unmount } = render(<App />);
+  let dialog = await screen.findByRole('dialog', { name: 'Potwierdź swoją obecność' });
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Zamknij okno' }));
+  await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Potwierdź swoją obecność' })).toBeNull());
+  expect(api.confirmService).not.toHaveBeenCalled();
+
+  unmount();
+  render(<App />);
+  dialog = await screen.findByRole('dialog', { name: 'Potwierdź swoją obecność' });
+  fireEvent(dialog, new Event('cancel', { bubbles: false, cancelable: true }));
+  await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Potwierdź swoją obecność' })).toBeNull());
 });
 
 it('keeps the current question on write failure and never submits it twice while busy', async () => {
@@ -158,3 +186,45 @@ it('blocks a negative result, handles save errors and requires typed confirmatio
   fireEvent.click(reset);
   await waitFor(() => expect(api.resetPoints).toHaveBeenCalledWith(data, session));
 });
+
+it('does not display the confirmation popup when opted out even if past masses are pending', async () => {
+  data.competitionParticipants = [];
+  pending = [...data.masses];
+  render(<App />);
+  await screen.findByRole('region', { name: 'Grafik tygodniowy' });
+  expect(screen.queryByRole('dialog', { name: 'Potwierdź swoją obecność' })).toBeNull();
+});
+
+it('allows joining the competition from the competition view and calls joinCompetition', async () => {
+  data.competitionParticipants = [];
+  render(<App />);
+  fireEvent.click(screen.getByRole('button', { name: /Rywalizacja/ }));
+  expect(await screen.findByText('Nie bierzesz udziału w rywalizacji')).toBeTruthy();
+  expect(screen.getByText('Wypisany z rywalizacji')).toBeTruthy();
+  const joinBtn = screen.getByRole('button', { name: 'Zapisz się do rywalizacji' });
+  fireEvent.click(joinBtn);
+  await waitFor(() => expect(api.joinCompetition).toHaveBeenCalledWith('jan'));
+});
+
+it('opens confirmation modal before leaving the competition and calls leaveCompetition on confirm', async () => {
+  data.competitionParticipants = ['jan'];
+  render(<App />);
+  fireEvent.click(screen.getByRole('button', { name: /Rywalizacja/ }));
+  const leaveBtn = await screen.findByRole('button', { name: 'Wypisz się z rywalizacji' });
+  fireEvent.click(leaveBtn);
+
+  expect(screen.getByRole('dialog', { name: 'Wypisanie z rywalizacji' })).toBeTruthy();
+  expect(screen.getByText(/Czy na pewno chcesz wypisać się z rywalizacji/)).toBeTruthy();
+
+  // Cancel action closes modal without calling api
+  fireEvent.click(screen.getByRole('button', { name: 'Anuluj' }));
+  expect(api.leaveCompetition).not.toHaveBeenCalled();
+  expect(screen.queryByRole('dialog', { name: 'Wypisanie z rywalizacji' })).toBeNull();
+
+  // Re-open and confirm
+  fireEvent.click(screen.getByRole('button', { name: 'Wypisz się z rywalizacji' }));
+  const confirmBtn = screen.getByRole('button', { name: 'Potwierdź wypisanie' });
+  fireEvent.click(confirmBtn);
+  await waitFor(() => expect(api.leaveCompetition).toHaveBeenCalledWith('jan'));
+});
+

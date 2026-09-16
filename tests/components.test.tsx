@@ -58,7 +58,8 @@ describe('MassCard', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Byłem' }));
     expect(onAction).toHaveBeenCalledWith(pastMass, 'attended');
     rerender(<MassCard {...props} presence={new Map([['jan', true]])} />);
-    expect(screen.getByText('Potwierdziłeś: byłeś na tej służbie.')).toBeTruthy();
+    expect(screen.queryByText('Potwierdziłeś: byłeś na tej służbie.')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Zmień na nie byłem' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Byłem' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Zmień na „Byłem”' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Zmień na nie byłem' }));

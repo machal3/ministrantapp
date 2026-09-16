@@ -3,7 +3,7 @@ import type { AltarServer, Mass, MassAttendee, RecurringRule, ScheduleData } fro
 import { aggregateAttendees } from './attendance';
 import { dateKey, monday, shiftDate, weekday, zonedIso } from './dates';
 
-export type DemoState = Pick<ScheduleData, 'servers' | 'masses' | 'rules' | 'exceptions' | 'dayAnnotations' | 'confirmations' | 'pointAdjustments'> & { competitionSeasons?: NonNullable<ScheduleData['competitionState']>[] };
+export type DemoState = Pick<ScheduleData, 'servers' | 'masses' | 'rules' | 'exceptions' | 'dayAnnotations' | 'confirmations' | 'pointAdjustments' | 'competitionParticipants'> & { competitionSeasons?: NonNullable<ScheduleData['competitionState']>[] };
 const KEY = 'liturgy.demo.v1';
 
 function initialDemo(): DemoState {
@@ -95,5 +95,5 @@ export function demoWeek(from: string, to: string): ScheduleData {
     recentAttendance[a.server_id] = (recentAttendance[a.server_id] ?? 0) + 1;
   }
 
-  return { ...data, masses, exceptions, attendees, recentAttendance };
+  return { ...data, masses, exceptions, attendees, recentAttendance, competitionParticipants: data.competitionParticipants ?? [] };
 }

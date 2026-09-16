@@ -1,0 +1,41 @@
+name: Supabase Keep-Alive Ping
+
+on:
+  schedule:
+    # Uruchamiaj co 3 dni o godzinie 05:00 UTC (07:00 czasu polskiego)
+    - cron: '0 5 */3 * *'
+  workflow_dispatch: # Pozwala na ręczne przetestowanie jednym kliknięciem w GitHub Actions
+
+jobs:
+  ping:
+    name: Ping Supabase REST API
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send keep-alive request
+        env:
+          SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || secrets.SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
+            echo "::error::Brak sekretów VITE_SUPABASE_URL/SUPABASE_URL lub VITE_SUPABASE_ANON_KEY/SUPABASE_ANON_KEY w GitHub Secrets!"
+            echo "Dodaj je w: Settings -> Secrets and variables -> Actions"
+            exit 1
+          fi
+
+          # Usunięcie ewentualnego ukośnika na końcu adresu URL
+          CLEAN_URL="${SUPABASE_URL%/}"
+
+          echo "Wysyłanie zapytania keep-alive do bazy danych..."
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "apikey: ${SUPABASE_ANON_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
+            "${CLEAN_URL}/rest/v1/altar_servers?select=id&limit=1")
+
+          echo "Kod odpowiedzi HTTP: ${HTTP_STATUS}"
+
+          if [ "${HTTP_STATUS}" -ge 200 ] && [ "${HTTP_STATUS}" -lt 400 ]; then
+            echo "Sukces: Supabase odebrał zapytanie SQL i zresetował licznik bezczynności (7 dni)."
+          else
+            echo "::error::Nieoczekiwany kod błędu HTTP: ${HTTP_STATUS}"
+            exit 1
+          fi

@@ -104,6 +104,7 @@ export type Database = {
     Tables: {
       service_confirmations: { Row: ServiceConfirmation; Insert: ServiceConfirmation; Update: Partial<ServiceConfirmation>; Relationships: [] };
       competition_seasons: { Row: CompetitionState; Insert: CompetitionState; Update: Partial<CompetitionState>; Relationships: [] };
+      competition_participants: { Row: { server_id: string; joined_at: string }; Insert: { server_id: string; joined_at?: string }; Update: Partial<{ server_id: string; joined_at: string }>; Relationships: [] };
       point_adjustments: { Row: PointAdjustment; Insert: PointAdjustment; Update: Partial<PointAdjustment>; Relationships: [] };
       day_annotations: { Row: { day: string; label: string }; Insert: {day:string;label:string}; Update: {label?:string}; Relationships: [] };
       altar_servers: {
@@ -143,6 +144,8 @@ export type Database = {
     Functions: {
       pending_service_confirmations: { Args: { p_server_id: string }; Returns: PendingConfirmations };
       confirm_service: { Args: { p_server_id: string; p_mass_id: string; p_attended: boolean }; Returns: undefined };
+      join_competition: { Args: { p_server_id: string }; Returns: undefined };
+      leave_competition: { Args: { p_server_id: string }; Returns: undefined };
       admin_adjust_points: { Args: { p_token: string; p_server_id: string; p_season: string; p_mode: string; p_value: number; p_current_points: number; p_revision: number; p_reason: string }; Returns: undefined };
       admin_reset_points: { Args: { p_token: string; p_season: string; p_revision: number }; Returns: undefined };
       admin_set_day_annotation: { Args: {p_token:string;p_day:string;p_label:string}; Returns: undefined };
@@ -198,6 +201,7 @@ export interface ScheduleData {
   pointAdjustments?: PointAdjustment[];
   competitionState?: CompetitionState;
   dayAnnotations?: {day:string;label:string}[];
+  competitionParticipants?: string[];
   servers: AltarServer[];
   masses: Mass[];
   rules: RecurringRule[];

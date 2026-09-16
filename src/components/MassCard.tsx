@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { peopleWord } from '../lib/people';
 import { eventCategory } from '../lib/eventCategory';
-import { Check, CirclePlus, Repeat2, Trash2, UserMinus, Users, Undo2, LoaderCircle, Clock3, UserRound, X } from 'lucide-react';
+import { Calendar, Check, CirclePlus, Clock, Clock3, LoaderCircle, Repeat2, Trash2, Undo2, UserMinus, UserRound, Users, X } from 'lucide-react';
 import type { AltarServer, EffectiveAttendee, Mass, MassAttendee, RecurringRule } from '../types/database';
 import { dateKey, DAY_NAMES, timeSlot, weekday } from '../lib/dates';
 import { attendanceState, isPastEvent } from '../lib/attendance';
@@ -80,24 +80,23 @@ export default memo(function MassCard({ mass, attendees, rules, exceptions, acti
         {attendees.map(person => <li key={person.server_id}>
           <span className={`avatar ${person.server_id === activeId ? 'own-avatar' : ''}`} aria-hidden="true">{person.name.split(' ').map(n => n[0]).slice(0, 2).join('')}</span>
           <div className="attendee-person"><span>{person.name}{person.server_id === activeId && <small> Ty</small>}</span><span>{person.rank}</span></div>
-          <span className={`type-badge ${person.attendance_type === 'recurring' ? 'recurring' : ''}`}>
-            {person.attendance_type === 'recurring' && <Repeat2 size={11} />}
+          <span className={`type-badge ${person.attendance_type === 'recurring' ? 'recurring' : 'single'}`}>
+            {person.attendance_type === 'recurring' ? <Repeat2 size={11} strokeWidth={2.2} /> : <Calendar size={11} strokeWidth={2.2} />}
             {person.attendance_type === 'recurring' ? 'Stały' : 'Jednorazowy'}
           </span>
-          {past && presence?.get(person.server_id) === true && <span className="presence-badge is-present"><Check size={11} />Był</span>}
-          {past && presence?.get(person.server_id) === false && <span className="presence-badge is-absent"><X size={11} />Nie był</span>}
-          {past && presence && !presence.has(person.server_id) && <span className="presence-badge is-pending">Niepotwierdzona</span>}
+          {past && presence?.get(person.server_id) === true && <span className="presence-badge is-present"><Check size={11} strokeWidth={2.4} />Był</span>}
+          {past && presence?.get(person.server_id) === false && <span className="presence-badge is-absent"><X size={11} strokeWidth={2.4} />Nie był</span>}
+          {past && presence && !presence.has(person.server_id) && <span className="presence-badge is-pending"><Clock size={11} strokeWidth={2.2} />Niepotwierdzona</span>}
         </li>)}
         {extraConfirmed.map(person => <li key={`confirmed-${person.id}`}>
           <span className={`avatar ${person.id === activeId ? 'own-avatar' : ''}`} aria-hidden="true">{person.name.split(' ').map(n => n[0]).slice(0, 2).join('')}</span>
           <div className="attendee-person"><span>{person.name}{person.id === activeId && <small> Ty</small>}</span><span>{person.rank}</span></div>
-          <span className="presence-badge is-present"><Check size={11} />Był</span>
+          <span className="presence-badge is-present"><Check size={11} strokeWidth={2.4} />Był</span>
         </li>)}
       </ul> : <div className="no-attendees"><Users size={22} strokeWidth={1.3} /><p>Jeszcze nikt się nie zapisał.<br /><span>Możesz być pierwszy.</span></p></div>}
     </div>
     <div className="mass-actions">
       {!activeId ? <p className="select-prompt">Wybierz ministranta w nagłówku, aby się zapisać.</p> : past ? <>
-        {confirmed === true && <p className="confirmed-note"><Check size={13} />Potwierdziłeś: byłeś na tej służbie.</p>}
         {confirmed === undefined && excused && <p className="excused-note">Zgłoszono Twoją nieobecność w tym terminie.</p>}
         {confirmed === undefined && attendance && !excused && <p className="past-confirm-hint">Ta służba już się odbyła. Potwierdź swoją obecność:</p>}
         {confirmed === undefined && !attendance && !excused && <p className="past-confirm-hint">Ta służba już się odbyła. Nie byłeś zapisany? Możesz dopisać swoją obecność wstecz.</p>}

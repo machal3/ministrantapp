@@ -50,7 +50,7 @@ it('edits name and rank with the verified session and updates the identity selec
   await unlock();
   expect(api.loginAdmin).toHaveBeenCalledWith('0403');
   fireEvent.click(screen.getByRole('button', { name: 'Edytuj ministrantów' }));
-  fireEvent.click(screen.getByTitle('Edytuj ministranta'));
+  fireEvent.click(await screen.findByTitle('Edytuj ministranta'));
   fireEvent.change(screen.getByLabelText('Imię i nazwisko'), { target: { value: 'Jan Nowy' } });
   fireEvent.change(screen.getByLabelText('Stopień'), { target: { value: 'Ceremoniarz' } });
   fireEvent.click(screen.getByRole('button', { name: 'Zapisz' }));

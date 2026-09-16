@@ -146,4 +146,29 @@ describe.sequential('persistent confirmations and protected point management', (
     await db.query("select admin_adjust_points($1,$2,$3,'add',20,0,$4,'Nowy start')", [token, server, season, await revision()]);
     expect((await score()).points).toBe(20);
   });
+  it('allows joining and leaving competition, auto-confirming past declared masses upon joining', async () => {
+    const testServer = '40000000-0000-4000-8000-000000000001';
+    const pastMass = '40000000-0000-4000-8000-000000000002';
+    await db.exec('reset role');
+    await db.query("insert into altar_servers(id,name,rank) values($1,'Michał Testowy','Ministrant')", [testServer]);
+    await db.query("insert into masses(id,start_time,title,category) values($1,now()-interval '3 hours','Przeszła deklaracja','mass')", [pastMass]);
+    await db.query("insert into mass_attendees(mass_id,server_id,type) values($1,$2,'single')", [pastMass, testServer]);
+    await db.exec('set role anon');
+
+    // Default: not in competition_participants
+    expect((await db.query('select * from competition_participants where server_id=$1', [testServer])).rows).toHaveLength(0);
+    expect((await db.query('select * from service_confirmations where server_id=$1', [testServer])).rows).toHaveLength(0);
+
+    // Joining competition inserts participant and auto-confirms the past mass as attended
+    await db.query('select join_competition($1)', [testServer]);
+    expect((await db.query('select * from competition_participants where server_id=$1', [testServer])).rows).toHaveLength(1);
+    const confirms = (await db.query<{ attended: boolean }>('select attended from service_confirmations where mass_id=$1 and server_id=$2', [pastMass, testServer])).rows;
+    expect(confirms).toHaveLength(1);
+    expect(confirms[0].attended).toBe(true);
+
+    // Leaving competition removes from participants
+    await db.query('select leave_competition($1)', [testServer]);
+    expect((await db.query('select * from competition_participants where server_id=$1', [testServer])).rows).toHaveLength(0);
+  });
 });
+
