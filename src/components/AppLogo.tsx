@@ -1,0 +1,44 @@
+import type { SVGProps } from 'react';
+
+interface AppLogoProps extends SVGProps<SVGSVGElement> {
+  size?: number | string;
+}
+
+export default function AppLogo({ size, width, height, className = 'app-logo', style, ...props }: AppLogoProps) {
+  const finalWidth = size ?? width ?? 34;
+  const finalHeight = size ?? height ?? 34;
+
+  return (
+    <svg
+      viewBox="0 0 1000 1000"
+      version="1.1"
+      xmlns="http://www.w3.org/2000/svg"
+      xmlSpace="preserve"
+      className={className}
+      width={finalWidth}
+      height={finalHeight}
+      aria-hidden="true"
+      style={{
+        fillRule: 'evenodd',
+        clipRule: 'evenodd',
+        strokeLinejoin: 'round',
+        strokeMiterlimit: 2,
+        ...style,
+      }}
+      {...props}
+    >
+      <g transform="matrix(1.556379,0,0,1.556379,-258.734682,-286.738862)">
+        <path
+          d="M391.398,762.5L214.43,762.5L214.43,248.486L310.808,248.486L487.5,418.408L664.192,248.486L760.57,248.486L760.57,762.5L583.554,762.5L555.469,588.33C555.469,588.33 657.422,482.682 657.422,414.16C657.422,414.16 556.581,541.602 487.5,541.602C418.419,541.602 317.578,414.16 317.578,414.16C317.578,483.54 415.283,588.33 415.283,588.33L391.398,762.5ZM487.5,447.265C465.831,447.265 448.238,464.858 448.238,486.527C448.238,508.196 465.831,525.788 487.5,525.788C509.169,525.788 526.762,508.196 526.762,486.527C526.762,464.858 509.169,447.265 487.5,447.265Z"
+          fill="currentColor"
+        />
+      </g>
+      <g transform="matrix(1.458333,0,0,1.458333,-229.166667,-48.958333)">
+        <path
+          d="M485.179,134.286L485.179,100L514.821,100L514.821,134.286L549.286,134.286L548.571,161.071L514.821,161.071L514.821,250L485.179,250L485.179,161.071L449.286,161.071L449.286,134.286L485.179,134.286Z"
+          fill="currentColor"
+        />
+      </g>
+    </svg>
+  );
+}

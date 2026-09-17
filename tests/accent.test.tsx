@@ -11,7 +11,8 @@ it('changes and remembers the accent from the appearance panel without changing 
   let selected = 'jan';
   const props = { servers: [{ id: 'jan', name: 'Jan Testowy', rank: 'Lektor' as const }], selectedId: 'jan', onChange: (id: string) => { selected = id; }, adminSession: null, onAdminToggle: () => {} };
   const view = render(<UserSelector {...props} />);
-  fireEvent.click(screen.getByRole('button', { name: /Wygląd:/ }));
+  fireEvent.click(screen.getByRole('button', { name: /Ustawienia/ }));
+  fireEvent.click(screen.getByRole('button', { name: /Wygląd aplikacji/ }));
   fireEvent.click(screen.getByRole('button', { name: 'Lawenda' }));
   expect(document.documentElement.dataset.accent).toBe('purple');
   expect(document.documentElement.dataset.theme).toBe('dark');

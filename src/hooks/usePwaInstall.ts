@@ -82,6 +82,8 @@ export function usePwaInstall() {
   const closeIosGuide = () => setShowIosGuide(false);
 
   return {
+    installed,
+    ios,
     canInstall,
     promptInstall,
     showIosGuide,

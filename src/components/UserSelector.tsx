@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { Check, Search, ChevronDown, Download, LogOut, ShieldCheck, UserRound } from 'lucide-react';
+import { Check, Search, ChevronDown, LogOut, ShieldCheck, UserRound } from 'lucide-react';
 import type { AltarServer, AdminSession } from '../types/database';
-import { usePwaInstall } from '../hooks/usePwaInstall';
 
 import Modal from './Modal';
-import ThemeSelector from './ThemeSelector';
+import SettingsModal from './SettingsModal';
 
 const STORAGE_KEY = 'liturgy.active-server';
 
@@ -23,7 +22,6 @@ interface Props {
 }
 
 export default function UserSelector({ servers, selectedId, onChange, adminSession, onAdminToggle, ready = true, selectionRequest = 0 }: Props) {
-  const { canInstall, promptInstall, showIosGuide, closeIosGuide } = usePwaInstall();
   const [storageError, setStorageError] = useState(false);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -94,18 +92,7 @@ export default function UserSelector({ servers, selectedId, onChange, adminSessi
         </button>
 
       </div>
-      <ThemeSelector />
-      {canInstall && (
-        <button
-          type="button"
-          className="pwa-install-btn"
-          onClick={() => void promptInstall()}
-          aria-label="Zainstaluj aplikację na telefonie"
-          title="Zainstaluj aplikację na telefonie"
-        >
-          <Download size={15} />
-        </button>
-      )}
+      <SettingsModal />
     </div>
 
     {open && <Modal title="Wybierz ministranta" onClose={closePanel} className="person-modal">
@@ -135,21 +122,6 @@ export default function UserSelector({ servers, selectedId, onChange, adminSessi
         <p>Osobę możesz zmienić w każdej chwili w nagłówku.</p>
       </div>
     </Modal>}
-    {showIosGuide && (
-      <Modal title="Zainstaluj na telefonie" onClose={closeIosGuide} className="person-modal">
-        <div className="ios-install-guide">
-          <p>Aby dodać aplikację do ekranu głównego na iPhone lub iPad:</p>
-          <ol className="ios-steps">
-            <li>Dotknij ikony <strong>Udostępnij</strong> (kwadrat ze strzałką w górę) na dolnym pasku Safari.</li>
-            <li>Przewiń listę opcji w dół i wybierz <strong>Do ekranu początkowego</strong>.</li>
-            <li>Kliknij <strong>Dodaj</strong> w prawym górnym rogu ekranu.</li>
-          </ol>
-          <div className="modal-actions mt-4">
-            <button type="button" className="button primary" onClick={closeIosGuide}>Rozumiem</button>
-          </div>
-        </div>
-      </Modal>
-    )}
     {storageError && <p className="text-xs text-amber-800" role="status">Wybór działa, ale przeglądarka nie pozwala go zapamiętać.</p>}
   </div>;
 }

@@ -1,6 +1,7 @@
 /* Theme controls share the header's touch targets and the app's native dialog. */
-.theme-toggle { display: grid; place-items: center; flex: 0 0 44px; width: 44px; height: 44px; padding: 0; border: 1px solid var(--border); border-radius: var(--control-radius); background: var(--surface); color: var(--green); }
-.theme-toggle:hover { background: var(--surface-soft); }
+.theme-toggle, .settings-toggle { display: grid; place-items: center; flex: 0 0 44px; width: 44px; height: 44px; padding: 0; border: 1px solid var(--border); border-radius: var(--control-radius); background: var(--surface); color: var(--green); cursor: pointer; transition: background .16s, border-color .16s, color .16s, transform .12s; }
+.theme-toggle:hover, .settings-toggle:hover { background: var(--surface-soft); }
+.settings-toggle:active { transform: scale(0.95); }
 .theme-modal { width: min(460px, calc(100vw - 32px)); }
 .theme-modal .modal-heading { margin-bottom: 16px; }
 .theme-options { display: grid; gap: 10px; }
@@ -41,8 +42,8 @@
 [data-theme="dark"] :is(.primary, .day-tab.selected, .weekday-pill.active, .rank-pill.active, .admin-toggle-btn.active) { background: #93d5b3; color: #112c20; border-color: #93d5b3; }
 [data-theme="dark"] .primary:hover:not(:disabled) { background: #afe7c9; border-color: #afe7c9; }
 [data-theme="dark"] .day-tab.selected > :is(span, strong) { color: #112c20; }
-[data-theme="dark"] :is(.secondary:hover:not(:disabled), .registered:hover:not(:disabled), .icon-button:hover:not(:disabled), .today-button:hover, .week-controls .icon-button:hover:not(:disabled), .pwa-install-btn:hover, .user-select-trigger:hover, .preset-chips button:hover, .day-tab:not(.selected):hover) { background: #2c4236; color: var(--ink); border-color: #587361; }
-[data-theme="dark"] .pwa-install-btn { background: var(--surface); }
+[data-theme="dark"] :is(.secondary:hover:not(:disabled), .registered:hover:not(:disabled), .icon-button:hover:not(:disabled), .today-button:hover, .week-controls .icon-button:hover:not(:disabled), .pwa-install-btn:hover, .settings-toggle:hover, .theme-toggle:hover, .user-select-trigger:hover, .preset-chips button:hover, .day-tab:not(.selected):hover) { background: #2c4236; color: var(--ink); border-color: #587361; }
+[data-theme="dark"] :is(.pwa-install-btn, .settings-toggle, .theme-toggle) { background: var(--surface); }
 [data-theme="dark"] .personal-panel { background: linear-gradient(145deg, #254e3d, #1b362b); border: 1px solid #3c6650; }
 [data-theme="dark"] .personal-panel.competition-opted-out .competition-opted-out-header h3 { color: white; }
 [data-theme="dark"] .personal-panel.competition-opted-out :is(p, .competition-opted-out-header p, .competition-opted-out-body p) { color: #e5eaf0; }
@@ -77,11 +78,11 @@
 [data-theme="dark"] .type-badge.single { background: #293a31; color: #bdcfc3; border-color: var(--border); }
 [data-theme="dark"] .page-heading .admin-toggle-btn.active { color: #112c20; }
 @media (max-width: 900px) {
-  .theme-toggle { width: 46px; height: 46px; flex-basis: 46px; }
+  .theme-toggle, .settings-toggle { width: 46px; height: 46px; flex-basis: 46px; }
 }
 @media (max-width: 640px) {
   [data-theme="dark"] .page-heading .user-selector { background: transparent; }
 }
 @media (max-width: 380px) {
-  .theme-toggle { width: 44px; height: 44px; flex-basis: 44px; }
+  .theme-toggle, .settings-toggle { width: 44px; height: 44px; flex-basis: 44px; }
 }

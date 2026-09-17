@@ -22,7 +22,7 @@ button svg { flex-shrink: 0; }
 a { color: inherit; text-decoration: none; }
 .page-heading-titles { min-width: 0; display: flex; align-items: center; gap: 12px; }
 .page-heading-titles h1 { margin: 0; }
-.app-logo { width: 34px; height: 34px; object-fit: contain; border-radius: 8px; flex-shrink: 0; }
+.app-logo { width: 34px; height: 34px; color: var(--green); flex-shrink: 0; display: block; transition: color .2s ease; }
 .page-heading-controls { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
 .user-selector { display: flex; align-items: center; gap: 10px; min-width: 254px; max-width: 365px; }
 .user-icon { display: grid; place-items: center; width: 37px; height: 37px; border-radius: 50%; background: #f2f4ed; color: #6b7859; flex-shrink: 0; }
@@ -459,7 +459,7 @@ h1 { font-family: var(--font-sans); font-size: clamp(31px, 3vw, 42px); font-weig
 
 
 /* Shared identity and administrator panel. */
-.user-selector-wrap { min-width: 0; width: 260px; max-width: 100%; position: relative; }
+.user-selector-wrap { min-width: 0; width: 300px; max-width: 100%; position: relative; }
 .user-selector { min-width: 0; max-width: none; width: 100%; gap: 10px; padding: 6px; border: 1px solid var(--border); border-radius: 14px; background: #f8faf5; }
 .user-selector .user-icon { width: 34px; height: 34px; margin-left: 4px; }
 .user-select-field { position: relative; flex: 1; min-width: 0; }
@@ -472,9 +472,9 @@ h1 { font-family: var(--font-sans); font-size: clamp(31px, 3vw, 42px); font-weig
 .user-select-trigger:hover, .user-select-trigger[aria-expanded="true"] { background: #eef3ea; }
 .user-trigger-avatar { width: 34px; height: 34px; border-radius: 50%; background: #f2f4ed; color: #6b7859; display: grid; place-items: center; font-size: 14px; font-weight: 700; letter-spacing: .3px; flex-shrink: 0; }
 .user-trigger-avatar.has-selection { background: #e6efdf; color: #4b6a3d; }
-.user-trigger-text { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; text-align: left; gap: 1px; }
-.user-trigger-text strong { font-size: 14px; font-weight: 600; color: #243528; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.3; }
-.user-trigger-text small { font-size: 12px; color: var(--muted); line-height: 1.3; }
+.user-trigger-text { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; text-align: left; gap: 1px; overflow: hidden; }
+.user-trigger-text strong { font-size: 14px; font-weight: 600; color: #243528; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.3; max-width: 100%; }
+.user-trigger-text small { font-size: 12px; color: var(--muted); line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
 .user-select-trigger > svg { flex-shrink: 0; color: var(--muted); transition: transform .15s; }
 .user-select-trigger > svg.chevron-open { transform: rotate(180deg); }
 /* Kompaktowy selektor mobilny — awatar z inicjałami + ikona admina, spójny z .avatar. */
@@ -590,7 +590,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .page-heading p { margin-top: 5px; font-size: 12px; }
 .page-heading-controls { flex: 0 1 auto; gap: 12px; }
 .page-heading .user-selector { border-radius: var(--radius); padding: 6px; gap: 8px; box-shadow: var(--shadow); }
-.user-selector-wrap { width: 260px; }
+.user-selector-wrap { width: 300px; }
 .user-trigger-text strong { font-size: 13px; }
 .user-trigger-text small { font-size: 11px; }
 .user-trigger-avatar, .avatar, .server-avatar { background: #eaf0ec; color: #456353; font-weight: 700; }
@@ -740,7 +740,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .page-heading .user-selector-wrap { width: auto; }
   .page-heading .user-selector { display: flex; align-items: center; flex-shrink: 0; padding: 0; gap: 8px; border: 0; background: transparent; box-shadow: none; }
   .user-trigger-text, .user-select-trigger > svg, .admin-toggle-btn > span { display: none; }
-  .page-heading .user-select-trigger, .page-heading .admin-toggle-btn, .page-heading .pwa-install-btn { width: 46px; height: 46px; padding: 0; border: 1px solid var(--border); border-radius: var(--control-radius); justify-content: center; background: var(--surface); }
+  .page-heading .user-select-trigger, .page-heading .admin-toggle-btn, .page-heading .pwa-install-btn, .page-heading .settings-toggle, .page-heading .theme-toggle { width: 46px; height: 46px; padding: 0; border: 1px solid var(--border); border-radius: var(--control-radius); justify-content: center; background: var(--surface); }
   .page-heading .admin-toggle-btn.active { background: var(--green); color: white; }
   .user-trigger-avatar { margin: 0; }
   .page-heading .add-mass-button { grid-column: 1 / -1; width: 100%; }
@@ -791,7 +791,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 }
 @media (max-width: 380px) {
   .page-heading h1 { font-size: 20px; }
-  .page-heading .user-select-trigger, .page-heading .admin-toggle-btn, .page-heading .pwa-install-btn { width: 44px; height: 44px; }
+  .page-heading .user-select-trigger, .page-heading .admin-toggle-btn, .page-heading .pwa-install-btn, .page-heading .settings-toggle, .page-heading .theme-toggle { width: 44px; height: 44px; }
   .page-heading .user-selector { gap: 4px; }
   .current-week-label { font-size: 9px; }
   .mass-heading { gap: 10px; padding-inline: 14px; }
@@ -882,3 +882,34 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .ios-install-guide { font-size: 14px; line-height: 1.6; color: var(--text); }
 .ios-steps { margin: 16px 0 20px; padding-left: 20px; display: flex; flex-direction: column; gap: 10px; }
 .ios-steps li { line-height: 1.5; }
+
+.settings-modal { width: min(480px, calc(100vw - 32px)); }
+.settings-menu-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+.settings-menu-item { width: 100%; display: flex; align-items: center; gap: 14px; padding: 14px 16px; text-align: left; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); color: var(--ink); cursor: pointer; transition: background .16s, border-color .16s, transform .12s; }
+.settings-menu-item:hover { background: var(--surface-soft); border-color: var(--green); }
+.settings-menu-item:active { transform: scale(0.99); }
+.settings-item-icon { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 11px; flex-shrink: 0; }
+.settings-icon-palette { background: #edf4ee; color: #315e48; }
+[data-theme="dark"] .settings-icon-palette { background: #1e3529; color: #93d5b3; }
+.settings-icon-download { background: #eaf1f8; color: #2b5580; }
+[data-theme="dark"] .settings-icon-download { background: #1b2c3d; color: #9bc2e8; }
+.settings-item-text { flex: 1; min-width: 0; }
+.settings-item-text strong { display: block; font-size: 15px; color: var(--ink); }
+.settings-item-text small { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
+.settings-item-arrow { color: var(--muted); flex-shrink: 0; }
+.settings-back-bar { margin-bottom: 16px; }
+.settings-back-link { display: inline-flex; align-items: center; gap: 6px; background: transparent; border: 0; padding: 4px 8px; margin-left: -8px; color: var(--green); font-size: 13px; font-weight: 600; cursor: pointer; border-radius: 6px; }
+.settings-back-link:hover { background: var(--surface-soft); }
+.install-view-content { display: flex; flex-direction: column; gap: 16px; margin-bottom: 20px; }
+.install-app-preview { display: flex; align-items: center; gap: 14px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-soft); }
+.install-app-preview strong { display: block; font-size: 16px; }
+.install-app-preview p { margin: 2px 0 0; font-size: 12px; color: var(--muted); }
+.install-status-box { display: flex; align-items: flex-start; gap: 12px; padding: 14px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); }
+.install-status-box.success { border-color: #a4d2b5; background: #edf6f0; }
+[data-theme="dark"] .install-status-box.success { border-color: #2e553e; background: #1b2f23; }
+.install-success-icon { color: #2b7a4b; flex-shrink: 0; margin-top: 2px; }
+[data-theme="dark"] .install-success-icon { color: #72cf97; }
+.install-prompt-card { display: flex; flex-direction: column; gap: 14px; }
+.install-action-btn { width: 100%; justify-content: center; }
+.generic-install-guide { font-size: 14px; line-height: 1.6; color: var(--text); }
+
