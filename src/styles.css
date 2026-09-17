@@ -129,9 +129,8 @@ h1 { font-family: var(--font-sans); font-size: clamp(31px, 3vw, 42px); font-weig
 .mass-meta, .mass-heading > .min-w-0 { display: flex; flex-direction: column; justify-content: center; gap: 6px; min-width: 0; flex: 1; }
 .mass-title-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .mass-heading h4, .mass-meta h4 { margin: 0; font-size: 14px; font-weight: 600; line-height: 1.25; color: #243528; overflow-wrap: anywhere; }
-.liturgy-rank-badge { display: inline-flex; align-items: center; font-size: 12px; font-weight: 600; padding: 2px 7px; border-radius: 5px; background: #fbf6eb; color: #876122; border: 1px solid #e8dbbe; line-height: 1.3; }
-.mass-celebrant { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 500; color: #394f3e; background: #edf4ea; padding: 2px 8px; border-radius: 5px; width: fit-content; border: 1px solid #d4e2d0; }
-.celebrant-icon { color: #506f57; flex-shrink: 0; }
+.liturgy-rank-badge { display: inline-flex; align-items: center; font-size: 12px; font-weight: 600; padding: 2px 7px; border-radius: 5px; line-height: 1.3; }
+.mass-celebrant { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; color: var(--muted); }
 .capacity { display: inline-flex; align-items: center; gap: 5px; border-radius: 5px; font-size: 12px; font-weight: 600; padding: 3px 8px; line-height: 1.4; width: fit-content; }
 .capacity.empty { color: #b83a28; background: #fdf0ed; }
 .capacity.partial { color: #b45309; background: #fef4e6; }

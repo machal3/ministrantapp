@@ -1,0 +1,87 @@
+/* Theme controls share the header's touch targets and the app's native dialog. */
+.theme-toggle { display: grid; place-items: center; flex: 0 0 44px; width: 44px; height: 44px; padding: 0; border: 1px solid var(--border); border-radius: var(--control-radius); background: var(--surface); color: var(--green); }
+.theme-toggle:hover { background: var(--surface-soft); }
+.theme-modal { width: min(460px, calc(100vw - 32px)); }
+.theme-modal .modal-heading { margin-bottom: 16px; }
+.theme-options { display: grid; gap: 10px; }
+.theme-option { width: 100%; display: flex; align-items: center; gap: 14px; padding: 14px; text-align: left; border: 1px solid var(--border); border-radius: 13px; background: var(--surface); color: var(--ink); }
+.theme-option:hover { background: var(--surface-soft); }
+.theme-option[aria-pressed="true"] { border-color: var(--green); background: var(--surface-soft); box-shadow: inset 0 0 0 1px var(--green); }
+.theme-option > span:nth-child(2) { flex: 1; }
+.theme-option strong, .theme-option small { display: block; }
+.theme-option strong { font-size: 13px; }
+.theme-option small { color: var(--muted); font-size: 11px; margin-top: 3px; }
+.theme-option > svg { flex-shrink: 0; color: var(--green); }
+.theme-preview { display: grid; place-items: center; width: 44px; height: 48px; flex-shrink: 0; border-radius: 10px; border: 1px solid #81988c55; }
+.theme-preview-light { background: #edf4ee; color: #315e48; }
+.theme-preview-dark { background: #172820; color: #a0dbbc; }
+.theme-preview-system { background: var(--surface-soft); border-color: var(--border); color: var(--green); }
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --canvas: #101a17;
+  --surface: #192620;
+  --surface-soft: #21332b;
+  --ink: #e2eee6;
+  --text: var(--ink);
+  --muted: #a3b7aa;
+  --green: #93d5b3;
+  --border: #34483d;
+  --shadow: 0 6px 24px #00000020;
+  color: var(--ink);
+  background: var(--canvas);
+}
+[data-theme="dark"] ::selection { background: #365e48; color: #f0fff5; }
+[data-theme="dark"] :is(.mass-card, .service-card, .sidebar-panel, .week-navigator, .day-selector, .modal, .toast, .celebrant-row, .celebrants-presets, .server-admin-card, .person-option, .weekday-pill, .recurrence-tab.active) { background: var(--surface); border-color: var(--border); color: var(--ink); }
+[data-theme="dark"] .page-heading .user-selector { background: var(--surface); }
+[data-theme="dark"] :is(.user-select-trigger, .user-trigger-text strong, .week-navigator h2, .day-tab > strong, .day-heading h3, .attendee-person > span:first-child, .week-summary strong, .empty-state h3, .radio-label strong, .scope-extra-toggle-head, .competition-rule-details strong, .checkbox-field, .recurrence-summary-box, .person-option-text strong) { color: var(--ink); }
+[data-theme="dark"] :is(.user-trigger-avatar, .avatar, .server-avatar, .user-icon, .sidebar-panel h2 > span, .attendance-label > span:nth-child(3), .toast > span) { background: var(--surface-soft); color: var(--green); }
+[data-theme="dark"] :is(.user-trigger-avatar.has-selection, .avatar.own-avatar, .person-option.selected, .person-option:hover, .radio-label:has(input:checked), .scope-extra-toggle, .scope-extra-toggle:has(input:checked), .admin-toolbar, .celebrant-row.changed) { background: #244234; border-color: #486d57; color: var(--ink); }
+[data-theme="dark"] :is(.primary, .day-tab.selected, .weekday-pill.active, .rank-pill.active, .admin-toggle-btn.active) { background: #93d5b3; color: #112c20; border-color: #93d5b3; }
+[data-theme="dark"] .primary:hover:not(:disabled) { background: #afe7c9; border-color: #afe7c9; }
+[data-theme="dark"] .day-tab.selected > :is(span, strong) { color: #112c20; }
+[data-theme="dark"] :is(.secondary:hover:not(:disabled), .registered:hover:not(:disabled), .icon-button:hover:not(:disabled), .today-button:hover, .week-controls .icon-button:hover:not(:disabled), .pwa-install-btn:hover, .user-select-trigger:hover, .preset-chips button:hover, .day-tab:not(.selected):hover) { background: #2c4236; color: var(--ink); border-color: #587361; }
+[data-theme="dark"] .pwa-install-btn { background: var(--surface); }
+[data-theme="dark"] .personal-panel { background: linear-gradient(145deg, #254e3d, #1b362b); border: 1px solid #3c6650; }
+[data-theme="dark"] .eucharist-card { --liturgy-accent: #a0cfaf; --liturgy-tint: #20392c; --liturgy-edge: #3b5b47; }
+[data-theme="dark"] .devotion-card { --liturgy-accent: #e2c184; --liturgy-tint: #352e20; --liturgy-edge: #685536; }
+[data-theme="dark"] .other-card { --liturgy-accent: #abc9e7; --liturgy-tint: #223343; --liturgy-edge: #435c71; }
+[data-theme="dark"] .is-sunday { --day-tint: #352e20; --day-edge: #685536; --day-ink: #e2c184; }
+[data-theme="dark"] .is-feast { --day-tint: #302738; --day-edge: #5d456d; --day-ink: #d3b4e6; }
+[data-theme="dark"] .day-tab:is(.is-sunday, .is-feast):not(.selected) > :is(span, strong) { color: var(--day-ink); }
+[data-theme="dark"] .day-tab.is-today:not(.selected) { background: #244234; border-color: #486d57; box-shadow: inset 0 0 0 1px #486d57; }
+[data-theme="dark"] .day-tab.is-today:not(.selected):hover { background: #2c4e3e; border-color: #5b876d; box-shadow: inset 0 0 0 1px #5b876d; }
+[data-theme="dark"] .day-tab.is-today:not(.selected) > span { color: var(--green); font-weight: 800; }
+[data-theme="dark"] .day-tab.is-today:not(.selected) > strong { color: var(--ink); }
+[data-theme="dark"] :is(.capacity, .type-badge, .today-badge, .liturgy-rank-badge, .confirmed-note, .presence-badge.is-present, .you-attend) { background: #243f30; color: #b2dbbf; border-color: #48654e; }
+[data-theme="dark"] :is(.type-badge.single, .capacity.partial, .presence-badge.is-unconfirmed, .demo-banner, .info-banner, .error-banner) { background: #352e20; color: #e7c990; border-color: #685536; }
+[data-theme="dark"] :is(.presence-badge.is-absent, .form-error, .points-reset-confirmation, .competition-leave-btn:hover) { background: #3c2827; color: #f0b5ac; border-color: #764b44; }
+[data-theme="dark"] :is(.excused-note, .service-status strong) { color: #e7c990; }
+[data-theme="dark"] :is(.field input, .field select, .field textarea, .search-field input, .celebrant-row-field input) { border-color: #496052; }
+[data-theme="dark"] :is(.mass-details, .mass-time, .rules-tip, .modal-actions, .person-footer, .person-search, .server-stats-pills, .scope-extra-toggle) { border-color: var(--border); }
+[data-theme="dark"] .modal::backdrop { background: #030b08b8; backdrop-filter: blur(5px); }
+[data-theme="dark"] .competition-view progress, [data-theme="dark"] .competition-view progress::-webkit-progress-bar { background: #31483a; }
+[data-theme="dark"] :is(.competition-badge.is-earned, .competition-ranking li.is-own) { background: #22392b; border-color: #48654e; }
+[data-theme="dark"] .is-earned :is(.competition-badge-icon, .competition-badge-reward) { background: #2c4835; color: #b2dbbf; border-color: #48654e; }
+[data-theme="dark"] :is(.competition-history-icon.is-bonus, .competition-history-icon.is-badge, .is-earned .badge-sunrise, .is-earned .badge-star, .is-earned .badge-flame) { background: #3a3220; color: #e7c990; border-color: #685536; }
+[data-theme="dark"] :is(.competition-streak-total strong, .competition-streak h3 svg, .competition-place.place-1) { color: #e7c990; }
+[data-theme="dark"] .competition-place.place-2 { color: #b8cedd; }
+[data-theme="dark"] .competition-place.place-3 { color: #d9ac8c; }
+[data-theme="dark"] .mass-time { color: var(--ink); }
+[data-theme="dark"] .capacity.empty { background: #3c2827; color: #f0b5ac; }
+[data-theme="dark"] .capacity.open:not(.empty):not(.partial) { background: #352e20; color: #e7c990; }
+[data-theme="dark"] .capacity.filled { background: #243f30; color: #b2dbbf; }
+[data-theme="dark"] .type-badge.single { background: #293a31; color: #bdcfc3; border-color: var(--border); }
+[data-theme="dark"] .page-heading .admin-toggle-btn.active { color: #112c20; }
+@media (max-width: 900px) {
+  .theme-toggle { width: 46px; height: 46px; flex-basis: 46px; }
+}
+@media (max-width: 640px) {
+  .page-heading { grid-template-columns: 1fr; }
+  .page-heading .user-selector-wrap { justify-self: end; }
+  .page-heading-controls { max-width: 100%; }
+  [data-theme="dark"] .page-heading .user-selector { background: transparent; }
+}
+@media (max-width: 380px) {
+  .theme-toggle { width: 44px; height: 44px; flex-basis: 44px; }
+}

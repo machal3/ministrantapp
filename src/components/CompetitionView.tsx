@@ -119,26 +119,26 @@ export default function CompetitionView({ data, activeId, now, loading, error, o
         </section>}
       </div>
       <aside className="competition-sidebar" aria-label="Ranking i zasady rywalizacji">
-        <section className="sidebar-panel competition-ranking" aria-labelledby="ranking-heading"><h3 id="ranking-heading"><Trophy size={18} />Ranking wspólnoty</h3><p className="competition-panel-caption">Kibicujemy sobie nawzajem.</p>
+        <section className="sidebar-panel competition-ranking" aria-labelledby="ranking-heading"><h3 id="ranking-heading"><Trophy size={18} />Ranking wspólnoty</h3>
           {profile && <div className="competition-own-place"><span>Twoje miejsce</span><strong>{!isParticipant ? 'Wypisany z rywalizacji' : profile.points ? `#${profile.place}` : 'Start przed Tobą'}</strong></div>}
           {result.profiles.some(person => person.isParticipant && person.points > 0) ? <><ol>{result.profiles.filter(person => person.isParticipant && person.points > 0).slice(0, rankingLimit).map(person => <li key={person.server.id} className={person.server.id === activeId ? 'is-own' : ''} aria-current={person.server.id === activeId ? 'true' : undefined}><span className={`competition-place place-${person.place}`} aria-label={`Miejsce ${person.place}`}>{person.place <= 3 ? <Medal size={18} /> : null}{person.place}</span><div><strong>{person.server.name}{person.server.id === activeId && <small> Ty</small>}</strong><span>Poziom {person.level.level} · {person.serviceCount} służb</span></div><strong className="competition-ranking-points">{person.points}<small>pkt</small></strong></li>)}</ol>{rankingLimit < result.profiles.filter(person => person.isParticipant && person.points > 0).length && <button className="button secondary competition-more" onClick={() => setRankingLimit(value => value + 20)}>Pokaż kolejne osoby</button>}</> : <p className="sidebar-empty">Nowy sezon, czysta karta. Ranking otworzą pierwsze służby.</p>}
           <p className="competition-ranking-note">Tyle samo punktów oznacza wspólne miejsce.</p>
         </section>
-        <section className="sidebar-panel competition-rules" aria-labelledby="competition-rules-heading"><h3 id="competition-rules-heading"><Info size={18} />Jak zdobywasz punkty?</h3>
+        <section className="sidebar-panel competition-rules" aria-labelledby="competition-rules-heading"><h3 id="competition-rules-heading"><Info size={18} />Jak zdobywać punkty?</h3>
           <dl>
-            <div><dt>Poniedziałek – sobota</dt><dd>+{POINTS.weekday} pkt</dd></div>
+            <div><dt>Dzień powszedni (pn. – sob.)</dt><dd>+{POINTS.weekday} pkt</dd></div>
             <div><dt>Niedziela</dt><dd>+{POINTS.sunday} pkt</dd></div>
-            <div><dt>Co najmniej 2 służby w tygodniu</dt><dd>+{POINTS.weekly} pkt</dd></div>
-            <div><dt>Każdy kolejny tydzień serii</dt><dd>+{POINTS.streakStep} do bonusu</dd></div>
-            <div><dt>Zdobyte odznaki</dt><dd>+10 do +120 pkt</dd></div>
+            <div><dt>Cel tygodniowy (min. 2 służby)</dt><dd>+{POINTS.weekly} pkt</dd></div>
+            <div><dt>Kolejny tydzień w serii</dt><dd>+{POINTS.streakStep} do bonusu</dd></div>
+            <div><dt>Odznaki i osiągnięcia</dt><dd>+10 do +120 pkt</dd></div>
           </dl>
-          <p>Bonus tygodniowy rośnie: 10, 15, 20, 25, maksymalnie 30 pkt. Przyznajemy go raz w tygodniu, po drugiej służbie. Tydzień trwa od poniedziałku do niedzieli; trwający tydzień nie przerywa serii.</p>
-          <details><summary>Pełne zasady i poziomy</summary><div className="competition-rule-details">
-            <p>Liczymy Msze i nabożeństwa z odpowiedzią „Tak, byłem”. Pytanie o obecność pojawia się godzinę po rozpoczęciu służby. Zaległe terminy potwierdzasz po kolei. Nieobecności, brak odpowiedzi i „inne wydarzenia” nie dają punktów ani postępu odznak. Dwie różne służby tego samego dnia też realizują cel tygodniowy.</p>
-            <p>Poziomy rozpoczynają się od 0, 100, 300, 600, 1000, 1500 punktów. Każdy kolejny wymaga o 100 punktów więcej niż poprzedni. Odznaki nagradzają wyjątkowe osiągnięcia i dodają od 10 do 120 punktów w zależności od trudności (np. Pierwszy krok +10 pkt, Pasterka i Pascha po +50 pkt, Filar wspólnoty +120 pkt).</p>
-            <p>Wyniki, serie, poziomy i odznaki dotyczą bieżącego sezonu. Reset następuje o północy w pierwszą niedzielę Adwentu, według czasu polskiego. W pierwszym, niepełnym tygodniu liczą się tylko służby nowego sezonu. Dane grafiku pozostają zachowane.</p>
-            <p>Odznaka niedzielna wymaga wszystkich niedziel pełnego miesiąca w sezonie. Pasterkę i Wigilię Paschalną rozpoznajemy po nazwie wydarzenia lub okazji liturgicznej oraz odpowiedniej dacie i godzinie.</p>
-            <p>Administrator może dodać lub odjąć punkty, ustawić konkretny wynik albo zresetować punktację wspólnoty. Korekty zapisujemy w historii. Reset punktów nie usuwa obecności, serii ani odznak; wcześniejsze służby nie przywracają punktów po resecie. Edycja lub usunięcie historycznego wydarzenia może zmienić wynik. Potwierdzenia obecności pozostają niezależne od późniejszych zmian stałych dyżurów.</p>
+          <p>Bonus tygodniowy rośnie wraz z Twoją regularnością: 10, 15, 20, 25, aż do 30 pkt. Przyznajemy go po drugiej służbie w danym tygodniu (od poniedziałku do niedzieli).</p>
+          <details><summary>Szczegółowe zasady i poziomy</summary><div className="competition-rule-details">
+            <p><strong>Potwierdzanie obecności</strong>Punkty otrzymujesz za każdą potwierdzoną służbę na Mszy Świętej lub nabożeństwie (wystarczy zaznaczyć „Byłem”). Dwie służby tego samego dnia również wliczają się do celu tygodniowego.</p>
+            <p><strong>Serie i regularność</strong>Służąc co najmniej 2 razy w tygodniu, budujesz serię tygodniową. Każdy kolejny tydzień podnosi Twój bonus o 5 punktów, co ułatwia zdobywanie kolejnych stopni.</p>
+            <p><strong>Poziomy formacji</strong>Wraz ze wzrostem liczby punktów awansujesz na wyższe poziomy (progi to m.in. 100, 300, 600, 1000, 1500 pkt). To widoczny znak Twojej wierności posłudze przy ołtarzu.</p>
+            <p><strong>Odznaki i uroczystości</strong>Odznaki nagradzają wyjątkowe momenty w roku – m.in. pierwszą służbę, udział w Pasterce i Triduum Paschalnym, roraty czy nienaganną obecność w niedziele całego miesiąca.</p>
+            <p><strong>Sezon liturgiczny</strong>Rywalizacja trwa przez cały rok liturgiczny – od I Niedzieli Adwentu do kolejnego Adwentu, kiedy to wspólnie podsumowujemy osiągnięcia.</p>
           </div></details>
         </section>
         {profile && isParticipant && onLeaveCompetition && (

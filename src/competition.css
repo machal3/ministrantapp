@@ -49,7 +49,7 @@
 .competition-view progress::-webkit-progress-bar { background: #e5ece6; border-radius: 999px; }
 .competition-view progress::-webkit-progress-value { background: var(--green); border-radius: 999px; }
 .competition-view progress::-moz-progress-bar { background: var(--green); border-radius: 999px; }
-.competition-level { display: flex; flex-direction: column; padding: 24px; }
+.competition-level { display: flex; flex-direction: column; padding: 24px; min-height: 350px; }
 .competition-level-top { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
 .competition-level-top > span:first-child { display: inline-flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 700; line-height: 1.4; letter-spacing: -.3px; color: white; }
 .competition-level-top > span:first-child svg { color: #d3e6a5; flex-shrink: 0; }
@@ -67,7 +67,7 @@
 .competition-level-caption strong { color: white; }
 .competition-point-breakdown { display: flex; flex-wrap: wrap; gap: 12px 24px; padding-top: 16px; margin-top: 18px; border-top: 1px solid #ffffff25; font-size: 11px; color: #dce9e1; }
 .competition-point-breakdown strong { display: block; color: white; font-size: 13px; }
-.competition-streak { display: flex; flex-direction: column; padding: 24px; }
+.competition-streak { display: flex; flex-direction: column; padding: 24px; min-height: 350px; }
 .competition-streak-header { display: flex; flex-direction: column; }
 .competition-streak-total { display: flex; align-items: baseline; flex-wrap: wrap; gap: 9px; margin: 18px 0; }
 .competition-streak-total strong { font-size: clamp(36px, 4vw, 48px); font-weight: 700; line-height: 1.15; letter-spacing: -1.5px; color: #94692e; }
@@ -109,7 +109,19 @@
 .competition-earned-points { color: var(--green); font-size: 14px; white-space: nowrap; flex-shrink: 0; }
 .competition-earned-points small { font-size: 10px; font-weight: 500; }
 .competition-more { width: 100%; margin-top: 12px; }
-.competition-panel-caption { margin: 5px 0 18px; color: var(--muted); font-size: 12px; }
+.competition-ranking { display: flex; flex-direction: column; padding: 24px; }
+@media (min-width: 901px) {
+  .competition-ranking { min-height: 350px; }
+}
+.competition-ranking h3 { margin-bottom: 16px; }
+.competition-ranking .sidebar-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  margin: auto 0;
+  padding: 24px 8px;
+}
 .competition-own-place { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px; padding: 10px 12px; border-radius: 10px; background: var(--surface-soft); margin-bottom: 12px; font-size: 12px; color: var(--green); }
 .competition-ranking li { display: flex; align-items: center; gap: 10px; padding: 12px 6px; border-bottom: 1px solid var(--border); }
 .competition-ranking li.is-own { background: #edf5ed; border-radius: 10px; }
@@ -123,13 +135,15 @@
 .competition-place.place-3 { color: #976746; }
 .competition-ranking-points { font-size: 14px; color: var(--green); flex-shrink: 0; text-align: right; }
 .competition-ranking-points small { display: block; font-size: 10px; font-weight: 400; color: var(--muted); }
-.competition-ranking-note { font-size: 10px; color: var(--muted); margin: 14px 0 0; }
+.competition-ranking-note { font-size: 10px; color: var(--muted); margin-top: auto; padding-top: 14px; }
 .competition-rules dl { margin: 16px 0; }
 .competition-rules dl > div { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
 .competition-rules dd { margin: 0; color: var(--green); font-weight: 700; text-align: right; min-width: 75px; }
 .competition-rules p { font-size: 12px; color: var(--muted); line-height: 1.8; }
 .competition-rules summary { cursor: pointer; min-height: 44px; padding: 12px 0; font-size: 12px; font-weight: 600; color: var(--green); }
 .competition-rules summary:focus-visible { outline: 3px solid #358768; outline-offset: 3px; border-radius: 6px; }
+.competition-rule-details p { margin: 12px 0; }
+.competition-rule-details strong { display: block; color: #27352f; font-weight: 600; margin-bottom: 2px; }
 .competition-selection { margin-top: 0; }
 @media (max-width: 1199px) {
   .competition-layout { grid-template-columns: minmax(0, 1fr) 300px; gap: 24px; }

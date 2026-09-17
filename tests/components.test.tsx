@@ -70,6 +70,15 @@ describe('MassCard', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Byłem' }));
     expect(onAction).toHaveBeenCalledWith(pastMass, 'attended');
   });
+  it('shows retroactive presence separately without a single declaration or capacity increase', () => {
+    const { container } = render(<MassCard mass={pastMass} attendees={[]} rules={[]} exceptions={[]} activeId="jan" busy={false} onAction={vi.fn()} onDelete={vi.fn()} presence={new Map([['jan', true]])} servers={[{ id: 'jan', name: 'Jan Kowalski', rank: 'Lektor' }]} />);
+    expect(screen.getByText('Obecni bez deklaracji')).toBeTruthy();
+    expect(screen.getByText('Był')).toBeTruthy();
+    expect(screen.queryByText('Jednorazowy')).toBeNull();
+    expect(screen.queryByText('Służysz')).toBeNull();
+    expect(screen.getByText('Zadeklarowani').closest('.attendance-section')?.querySelector('.attendee-list')).toBeNull();
+    expect(container.querySelector('.capacity')?.textContent).toMatch(/^0\//);
+  });
   it('offers past declaration removal without touching presence', () => {
     const onAction = vi.fn();
     const declared = [{ ...attendees[0], server_id: 'jan', name: 'Jan Kowalski' }];
@@ -108,13 +117,18 @@ describe('MassCard', () => {
       ],
       rules: [], exceptions: [], activeId: 'jan', busy: false, onAction: vi.fn(), onDelete: vi.fn(),
     };
-    const { rerender, container } = render(<MassCard {...props} presence={new Map()} />);
-    expect(container.querySelectorAll('.presence-badge.is-pending')).toHaveLength(2);
+    const { rerender } = render(<MassCard {...props} presence={new Map()} />);
+    expect(screen.queryByText('Niepotwierdzona')).toBeNull();
     expect(screen.queryByText('Był')).toBeNull();
+    expect(screen.queryByText('Nie był')).toBeNull();
     rerender(<MassCard {...props} presence={new Map([['jan', true]])} />);
     expect(screen.getByText('Był')).toBeTruthy();
-    expect(screen.getByText('Niepotwierdzona')).toBeTruthy();
-    expect(container.querySelectorAll('.presence-badge.is-pending')).toHaveLength(1);
+    expect(screen.queryByText('Nie był')).toBeNull();
+    expect(screen.queryByText('Niepotwierdzona')).toBeNull();
+    rerender(<MassCard {...props} presence={new Map([['jan', true], ['piotr', false]])} />);
+    expect(screen.getByText('Był')).toBeTruthy();
+    expect(screen.getByText('Nie był')).toBeTruthy();
+    expect(screen.queryByText('Niepotwierdzona')).toBeNull();
   });
   it('shows no presence badges before the term passes', () => {
     render(<MassCard mass={mass} attendees={[{ mass_id: 'm', server_id: 'jan', name: 'Jan Kowalski', rank: 'Lektor', attendance_type: 'single' }]} rules={[]} exceptions={[]} activeId="jan" busy={false} onAction={vi.fn()} onDelete={vi.fn()} presence={new Map([['jan', true]])} />);

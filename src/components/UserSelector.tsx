@@ -4,6 +4,7 @@ import type { AltarServer, AdminSession } from '../types/database';
 import { usePwaInstall } from '../hooks/usePwaInstall';
 
 import Modal from './Modal';
+import ThemeSelector from './ThemeSelector';
 
 const STORAGE_KEY = 'liturgy.active-server';
 
@@ -72,6 +73,7 @@ export default function UserSelector({ servers, selectedId, onChange, adminSessi
 
   return <div className="user-selector-wrap">
     <div className="user-selector user-selector--full">
+      <ThemeSelector />
       <div className="user-select-custom">
         <button
           type="button"
