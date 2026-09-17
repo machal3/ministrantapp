@@ -23,6 +23,9 @@ beforeEach(() => {
 afterEach(() => { cleanup(); localStorage.clear(); });
 
 async function unlock() {
+  if (!screen.queryByRole('dialog', { name: 'Wybierz ministranta' })) {
+    fireEvent.click(screen.getByRole('button', { name: /Wybierz ministranta|Zmień ministranta/ }));
+  }
   fireEvent.click(screen.getByRole('button', { name: 'Administrator' }));
   fireEvent.change(screen.getByLabelText('PIN administratora'), { target: { value: '0403' } });
   fireEvent.click(screen.getByRole('button', { name: 'Odblokuj' }));
@@ -35,6 +38,9 @@ it('hides management before PIN verification and shows errors without unlocking'
   await screen.findByRole('heading', { name: 'Msza Święta' });
   expect(screen.queryByRole('button', { name: 'Edytuj godzinę Mszy' })).toBeNull();
   expect(screen.queryByRole('button', { name: 'Dodaj Mszę / wydarzenie' })).toBeNull();
+  if (!screen.queryByRole('dialog', { name: 'Wybierz ministranta' })) {
+    fireEvent.click(screen.getByRole('button', { name: /Wybierz ministranta|Zmień ministranta/ }));
+  }
   fireEvent.click(screen.getByRole('button', { name: 'Administrator' }));
   fireEvent.change(screen.getByLabelText('PIN administratora'), { target: { value: '0000' } });
   fireEvent.click(screen.getByRole('button', { name: 'Odblokuj' }));

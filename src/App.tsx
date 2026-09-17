@@ -9,7 +9,7 @@ import MyRecurringRules from './components/MyRecurringRules';
 import { useUpcomingServices } from './hooks/useUpcomingServices';
 import { Pencil } from 'lucide-react';
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { AlertCircle, ArrowRight, CalendarDays, CalendarPlus, Check, Church, HeartHandshake, LoaderCircle, Plus, RefreshCw, Trash2, Trophy, UserRound, Users, X, ShieldCheck } from 'lucide-react';
+import { AlertCircle, ArrowRight, CalendarDays, CalendarPlus, Check, Church, HeartHandshake, LoaderCircle, LogOut, Plus, RefreshCw, Trash2, Trophy, UserRound, Users, X, ShieldCheck } from 'lucide-react';
 import UserSelector, { readSelectedServer } from './components/UserSelector';
 import WeekNavigator from './components/WeekNavigator';
 import DaySelector from './components/DaySelector';
@@ -565,6 +565,7 @@ export default function App() {
           <button className="button secondary" onClick={() => setCelebrantsOpen(true)} disabled={loading || !!loadError}><UserRound size={16} />Księża na tydzień</button>
           <button className="button secondary" onClick={() => setAnnotationsOpen(true)} disabled={loading || !!loadError}><CalendarDays size={16} />Oznaczanie dni</button>
           <button className="button secondary" disabled={loading || !!loadError} onClick={() => setEditingServers(true)}><Users size={16} />Edytuj ministrantów</button>
+          <button className="button secondary" onClick={() => void leaveAdmin()}><LogOut size={16} />Wyłącz tryb admina</button>
         </div></div>}
 
       <Suspense fallback={null}>

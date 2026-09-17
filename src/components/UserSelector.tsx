@@ -73,7 +73,6 @@ export default function UserSelector({ servers, selectedId, onChange, adminSessi
 
   return <div className="user-selector-wrap">
     <div className="user-selector user-selector--full">
-      <ThemeSelector />
       <div className="user-select-custom">
         <button
           type="button"
@@ -95,10 +94,7 @@ export default function UserSelector({ servers, selectedId, onChange, adminSessi
         </button>
 
       </div>
-      <button type="button" className={`admin-toggle-btn ${adminSession ? 'active' : ''}`} onClick={onAdminToggle} aria-label={adminSession ? 'Wyłącz tryb admina' : 'Administrator'} title={adminSession ? 'Wyłącz tryb administratora' : 'Włącz tryb administratora'}>
-        {adminSession ? <LogOut size={15} /> : <ShieldCheck size={15} />}
-        <span>{adminSession ? 'Wyłącz tryb admina' : 'Administrator'}</span>
-      </button>
+      <ThemeSelector />
       {canInstall && (
         <button
           type="button"
@@ -128,7 +124,16 @@ export default function UserSelector({ servers, selectedId, onChange, adminSessi
           </button>;
         })}
       </div>
-      <div className="person-footer"><button type="button" className="button secondary" onClick={() => select('')}>Kontynuuj bez wyboru osoby</button><p>Osobę możesz zmienić w każdej chwili w nagłówku.</p></div>
+      <div className="person-footer">
+        <div className="person-footer-actions">
+          <button type="button" className="button secondary" onClick={() => select('')}>Kontynuuj bez wyboru osoby</button>
+          <button type="button" className={`button secondary admin-toggle-btn ${adminSession ? 'active' : ''}`} onClick={() => { closePanel(); onAdminToggle(); }} aria-label={adminSession ? 'Wyłącz tryb admina' : 'Administrator'} title={adminSession ? 'Wyłącz tryb administratora' : 'Włącz tryb administratora'}>
+            {adminSession ? <LogOut size={16} /> : <ShieldCheck size={16} />}
+            <span>{adminSession ? 'Wyłącz tryb admina' : 'Administrator'}</span>
+          </button>
+        </div>
+        <p>Osobę możesz zmienić w każdej chwili w nagłówku.</p>
+      </div>
     </Modal>}
     {showIosGuide && (
       <Modal title="Zainstaluj na telefonie" onClose={closeIosGuide} className="person-modal">
