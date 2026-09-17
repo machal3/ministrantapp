@@ -232,3 +232,27 @@ it('uses the same panel from both header buttons and filters Polish names withou
     expect(screen.queryByRole('dialog')).toBeNull();
   }
 });
+
+it('provides administrator toggle inside settings modal and removes it from user selector modal', () => {
+  const onAdminToggle = vi.fn();
+  const { rerender } = render(<UserSelector {...selectorProps} onAdminToggle={onAdminToggle} adminSession={null} />);
+
+  // UserSelector modal should not contain the admin button
+  fireEvent.click(screen.getByRole('button', { name: 'Wybierz ministranta' }));
+  expect(screen.getByRole('button', { name: 'Kontynuuj bez wyboru osoby' })).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'Administrator' })).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Zamknij okno' }));
+
+  // Settings modal contains Administrator button
+  fireEvent.click(screen.getByRole('button', { name: 'Ustawienia i opcje' }));
+  expect(screen.getByRole('button', { name: 'Administrator' })).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Administrator' }));
+  expect(onAdminToggle).toHaveBeenCalledTimes(1);
+
+  // When adminSession is active, it shows logout label
+  rerender(<UserSelector {...selectorProps} onAdminToggle={onAdminToggle} adminSession={{ token: 'tok', expires_at: '2027-01-01' }} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Ustawienia i opcje' }));
+  expect(screen.getByRole('button', { name: 'Wyłącz tryb administratora' })).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Wyłącz tryb administratora' }));
+  expect(onAdminToggle).toHaveBeenCalledTimes(2);
+});

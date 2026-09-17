@@ -8,7 +8,8 @@
 * { box-sizing: border-box; }
 html { overflow-x: hidden; max-width: 100vw; }
 body { margin: 0; min-width: 320px; max-width: 100vw; overflow-x: hidden; overscroll-behavior-x: none; }
-button, input, select, textarea { font: inherit; }
+button, input, select, textarea { font: inherit; touch-action: manipulation; }
+html, body, .modal, .modal-content { touch-action: manipulation; }
 fieldset { min-width: 0; min-inline-size: 0; margin: 0; padding: 0; border: 0; }
 form { min-width: 0; max-width: 100%; }
 input, select, textarea { max-width: 100%; box-sizing: border-box; }
@@ -803,6 +804,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .modal h2 { font-size: 21px; }
   .modal-heading { gap: 10px; margin-bottom: 20px; }
   .modal-actions .button { flex: 1 1 120px; }
+  input, select, textarea, .field input, .field select, .field textarea, .search-field input { font-size: 16px !important; }
   .rule-form-grid { grid-template-columns: 1fr; }
   .month-week-options > div { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .person-modal .modal-content { max-height: calc(100dvh - 22px); }
@@ -914,6 +916,10 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 [data-theme="dark"] .settings-icon-palette { background: #1e3529; color: #93d5b3; }
 .settings-icon-download { background: #eaf1f8; color: #2b5580; }
 [data-theme="dark"] .settings-icon-download { background: #1b2c3d; color: #9bc2e8; }
+.settings-icon-admin { background: #fdf5e6; color: #8a6114; }
+[data-theme="dark"] .settings-icon-admin { background: #332814; color: #e6be6a; }
+.settings-icon-admin-active { background: #edf6f0; color: #2b7a4b; }
+[data-theme="dark"] .settings-icon-admin-active { background: #1b2f23; color: #72cf97; }
 .settings-item-text { flex: 1; min-width: 0; }
 .settings-item-text strong { display: block; font-size: 15px; color: var(--ink); }
 .settings-item-text small { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }

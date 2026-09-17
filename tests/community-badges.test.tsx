@@ -19,19 +19,25 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
-it('keeps the larger collection compact and filters earned and pending badges', () => {
+it('lists basic badges and filters earned and pending badges', () => {
   render(<CompetitionView {...props} activeId="jan" data={fixture()} />);
   const collection = within(screen.getByRole('region', { name: 'Twoje odznaki' }));
-  expect(collection.getAllByRole('listitem')).toHaveLength(6);
-  fireEvent.click(collection.getByRole('button', { name: 'Pokaż wszystkie odznaki (25)' }));
-  expect(collection.getAllByRole('listitem')).toHaveLength(25);
-  expect(collection.getByRole('heading', { name: 'Chwila przed Panem' })).toBeTruthy();
+  expect(collection.getAllByRole('listitem')).toHaveLength(3);
+  expect(collection.queryByRole('button', { name: /Pokaż wszystkie odznaki/ })).toBeNull();
+  expect(collection.getByRole('heading', { name: 'Filar wspólnoty' })).toBeTruthy();
   fireEvent.click(collection.getByRole('button', { name: 'Zdobyte' }));
   expect(collection.getAllByRole('listitem')).toHaveLength(1);
   expect(collection.getByRole('heading', { name: 'Pierwszy krok' })).toBeTruthy();
   fireEvent.click(collection.getByRole('button', { name: 'W drodze' }));
   expect(collection.queryByRole('heading', { name: 'Pierwszy krok' })).toBeNull();
-  expect(collection.getAllByRole('listitem')).toHaveLength(6);
+  expect(collection.getAllByRole('listitem')).toHaveLength(2);
+});
+
+it('shows an empty state when the administrator removes all badges', () => {
+  render(<CompetitionView {...props} activeId="jan" data={{ ...fixture(), badgeDefinitions: [] }} />);
+  const collection = within(screen.getByRole('region', { name: 'Twoje odznaki' }));
+  expect(collection.getByText(/nie ma jeszcze odznak/)).toBeTruthy();
+  expect(collection.queryByRole('listitem')).toBeNull();
 });
 
 it('requires closing the panel and clicking another ranking icon to inspect another person', () => {

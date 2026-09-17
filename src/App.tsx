@@ -9,7 +9,7 @@ import MyRecurringRules from './components/MyRecurringRules';
 import { useUpcomingServices } from './hooks/useUpcomingServices';
 import { Pencil } from 'lucide-react';
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { AlertCircle, ArrowRight, CalendarDays, CalendarPlus, Check, Church, HeartHandshake, LoaderCircle, LogOut, Plus, RefreshCw, Trash2, Trophy, UserRound, Users, X, ShieldCheck } from 'lucide-react';
+import { AlertCircle, ArrowRight, Award, CalendarDays, CalendarPlus, Check, Church, HeartHandshake, LoaderCircle, LogOut, Plus, RefreshCw, Trash2, Trophy, UserRound, Users, X, ShieldCheck } from 'lucide-react';
 import AppLogo from './components/AppLogo';
 import BackgroundSyncNotice from './components/BackgroundSyncNotice';
 import UserSelector, { readSelectedServer } from './components/UserSelector';
@@ -52,6 +52,7 @@ function lazyWithPreload<T extends React.ComponentType<any>>(factory: () => Prom
 
 const AdminPointsModal = lazyWithPreload(() => import('./components/AdminPointsModal'));
 const AdminServersModal = lazyWithPreload(() => import('./components/AdminServersModal'));
+const AdminBadgesModal = lazyWithPreload(() => import('./components/AdminBadgesModal'));
 const EditMassModal = lazyWithPreload(() => import('./components/EditMassModal'));
 const AddMassModal = lazyWithPreload(() => import('./components/AddMassModal'));
 const WeekCelebrantsModal = lazyWithPreload(() => import('./components/WeekCelebrantsModal'));
@@ -63,6 +64,7 @@ const CompetitionView = lazyWithPreload(() => import('./components/CompetitionVi
 function preloadAdminModals() {
   void AdminPointsModal.preload();
   void AdminServersModal.preload();
+  void AdminBadgesModal.preload();
   void EditMassModal.preload();
   void AddMassModal.preload();
   void WeekCelebrantsModal.preload();
@@ -137,6 +139,7 @@ export default function App() {
   const [celebrantsOpen, setCelebrantsOpen] = useState(false);
   const [annotationsOpen, setAnnotationsOpen] = useState(false);
   const [pointsOpen, setPointsOpen] = useState(false);
+  const [badgesOpen, setBadgesOpen] = useState(false);
   const [confirmDismissed, setConfirmDismissed] = useState(false);
   const mutationLock = useRef(false);
   const requestId = useRef(0);
@@ -155,7 +158,7 @@ export default function App() {
   const activeServer = servers.find(server => server.id === selectedId);
   const activeId = activeServer?.id ?? '';
   const upcoming = useUpcomingServices(view === 'services', view === 'services' ? activeId : '');
-  const competition = useCompetition(view === 'competition' || pointsOpen);
+  const competition = useCompetition(view === 'competition' || pointsOpen || badgesOpen);
   const isParticipant = Boolean((data.competitionParticipants ?? competition.data?.competitionParticipants)?.includes(activeId));
   const serviceConfirmations = useServiceConfirmations(adminSession || !isParticipant ? '' : activeId);
   const pendingRefresh = useRef(serviceConfirmations.refresh);
@@ -176,7 +179,7 @@ export default function App() {
     const expire = () => {
       if (Date.parse(adminSession.expires_at) <= Date.now()) {
         setAdminSession(null);
-        setEditingServers(false); setEditingMass(null); setAdding(false); setCelebrantsOpen(false); setAnnotationsOpen(false); setPointsOpen(false);
+        setEditingServers(false); setEditingMass(null); setAdding(false); setCelebrantsOpen(false); setAnnotationsOpen(false); setPointsOpen(false); setBadgesOpen(false);
         setConfirmation(current => current?.kind === 'mass' ? null : current);
         setNotice('Sesja administratora wygasła. Aby edytować, wpisz PIN ponownie.');
       }
@@ -189,7 +192,7 @@ export default function App() {
   async function leaveAdmin() {
     const session = adminSession;
     setAdminSession(null);
-    setEditingServers(false); setEditingMass(null); setAdding(false); setCelebrantsOpen(false); setAnnotationsOpen(false); setPointsOpen(false);
+    setEditingServers(false); setEditingMass(null); setAdding(false); setCelebrantsOpen(false); setAnnotationsOpen(false); setPointsOpen(false); setBadgesOpen(false);
     setConfirmation(current => current?.kind === 'mass' ? null : current);
     if (session) {
       try { await logoutAdmin(session); }
@@ -567,6 +570,7 @@ export default function App() {
         <div className="admin-toolbar-actions">
           <button className="button secondary" onClick={() => setAdding(true)} disabled={loading || !!loadError}><Plus size={16} />Dodaj Mszę / wydarzenie</button>
           <button className="button secondary" onClick={() => setPointsOpen(true)}><Trophy size={16} />Zarządzaj punktacją</button>
+          <button className="button secondary" onClick={() => setBadgesOpen(true)}><Award size={16} />Edytuj odznaki</button>
           <button className="button secondary" onClick={() => setCelebrantsOpen(true)} disabled={loading || !!loadError}><UserRound size={16} />Księża na tydzień</button>
           <button className="button secondary" onClick={() => setAnnotationsOpen(true)} disabled={loading || !!loadError}><CalendarDays size={16} />Oznaczanie dni</button>
           <button className="button secondary" disabled={loading || !!loadError} onClick={() => setEditingServers(true)}><Users size={16} />Edytuj ministrantów</button>
@@ -663,6 +667,7 @@ export default function App() {
 
     <Suspense fallback={null}>
       {adminSession && pointsOpen && <AdminPointsModal data={competition.data} now={competition.now} loading={competition.loading} error={competition.error} session={adminSession} onRefresh={competition.refresh} onClose={() => setPointsOpen(false)} onSaved={setNotice} />}
+      {adminSession && badgesOpen && <AdminBadgesModal data={competition.data} session={adminSession} onRefresh={competition.refresh} onClose={() => setBadgesOpen(false)} onSaved={setNotice} />}
       {adminSession && editingDay && <DayAnnotationModal day={editingDay} label={data.dayAnnotations?.find(a=>a.day===editingDay)?.label ?? ''} onClose={()=>setEditingDay(null)} onSave={async label=>{await setDayAnnotation(editingDay,label,adminSession);setNotice('Zapisano oznaczenie dnia.');await latestRefresh.current();}}/>}
       {adminLoginOpen && <AdminLoginModal onClose={() => setAdminLoginOpen(false)} onLogin={session => { preloadAdminModals(); setAdminSession(session); setAdminLoginOpen(false); setActionError(''); try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch { /* Środowisko bez przewijania. */ } }} />}
       {adminSession && editingServers && (

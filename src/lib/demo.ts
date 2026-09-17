@@ -1,9 +1,9 @@
 import { RANKS } from '../types/database';
-import type { AltarServer, Mass, MassAttendee, RecurringRule, ScheduleData } from '../types/database';
+import type { AltarServer, BadgeDefinition, Mass, MassAttendee, RecurringRule, ScheduleData } from '../types/database';
 import { aggregateAttendees } from './attendance';
 import { dateKey, monday, shiftDate, weekday, zonedIso } from './dates';
 
-export type DemoState = Pick<ScheduleData, 'servers' | 'masses' | 'rules' | 'exceptions' | 'dayAnnotations' | 'confirmations' | 'pointAdjustments' | 'competitionParticipants'> & { competitionSeasons?: NonNullable<ScheduleData['competitionState']>[] };
+export type DemoState = Pick<ScheduleData, 'servers' | 'masses' | 'rules' | 'exceptions' | 'dayAnnotations' | 'confirmations' | 'pointAdjustments' | 'competitionParticipants' | 'badgeDefinitions'> & { competitionSeasons?: NonNullable<ScheduleData['competitionState']>[] };
 const KEY = 'liturgy.demo.v1';
 
 function initialDemo(): DemoState {
@@ -59,6 +59,14 @@ export function readDemo(): DemoState {
       const state = data as DemoState;
       for (const s of state.servers) {
         if (!RANKS.includes(s.rank)) s.rank = 'Ministrant';
+      }
+      if (state.badgeDefinitions !== undefined && !Array.isArray(state.badgeDefinitions)) {
+        delete state.badgeDefinitions;
+      }
+      if (Array.isArray(state.badgeDefinitions)) {
+        state.badgeDefinitions = (state.badgeDefinitions as unknown[]).filter(
+          (row): row is BadgeDefinition => !!row && typeof row === 'object' && typeof (row as { id?: unknown }).id === 'string' && typeof (row as { name?: unknown }).name === 'string',
+        );
       }
       return state;
     }

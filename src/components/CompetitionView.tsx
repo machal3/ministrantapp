@@ -1,6 +1,11 @@
 import { useMemo, useState } from 'react';
-import { AlertCircle, Award, CalendarDays, Check, ChevronDown, Flame, HeartHandshake, Info, LoaderCircle, Medal, RefreshCw, Sparkles, Star, Sunrise, Trophy, UserMinus, UserRound } from 'lucide-react';
-import { buildCompetition, competitionSeason, POINTS, type Badge, type CompetitionProfile } from '../lib/competition';
+import {
+  AlertCircle, Award, Bell, BookOpen, CalendarDays, Check, ChevronDown,
+  Church, Clock, Cross, Crown, Flame, HeartHandshake, Info, LoaderCircle,
+  Medal, RefreshCw, Shield, Sparkles, Star, Sunrise, Target, Trophy,
+  UserMinus, UserRound, Zap,
+} from 'lucide-react';
+import { buildCompetition, competitionSeason, POINTS, type Badge, type BadgeIcon, type CompetitionProfile } from '../lib/competition';
 import { polishDate, shiftDate } from '../lib/dates';
 import type { ScheduleData } from '../types/database';
 import Modal from './Modal';
@@ -18,11 +23,30 @@ interface Props {
   onLeaveCompetition?: (serverId: string) => Promise<void> | void;
 }
 
-const badgeIcons = { sunrise: Sunrise, star: Star, flame: Flame, calendar: CalendarDays, medal: Medal, heart: HeartHandshake };
+const badgeIcons: Record<BadgeIcon, typeof Sunrise> = {
+  sunrise: Sunrise,
+  star: Star,
+  flame: Flame,
+  calendar: CalendarDays,
+  medal: Medal,
+  heart: HeartHandshake,
+  trophy: Trophy,
+  crown: Crown,
+  sparkles: Sparkles,
+  bell: Bell,
+  church: Church,
+  book: BookOpen,
+  cross: Cross,
+  shield: Shield,
+  zap: Zap,
+  target: Target,
+  award: Award,
+  clock: Clock,
+};
 const displayDate = (day: string) => polishDate(day, { day: 'numeric', month: 'long', year: 'numeric' });
 
 function BadgeCard({ badge, showProgress = true }: { badge: Badge; showProgress?: boolean }) {
-  const Icon = badgeIcons[badge.icon];
+  const Icon = badgeIcons[badge.icon] ?? Award;
   return <li className={`competition-badge ${badge.earned ? 'is-earned' : ''}`}>
     <div className="competition-badge-header">
       <span className={`competition-badge-icon badge-${badge.icon}`}><Icon size={24} strokeWidth={1.6} aria-hidden="true" /></span>
@@ -99,6 +123,12 @@ export default function CompetitionView({ data, activeId, now, loading, error, o
   const [leaveBusy, setLeaveBusy] = useState(false);
   const [leaveError, setLeaveError] = useState('');
   const earned = profile?.badges.filter(badge => badge.earned).length ?? 0;
+  const ruleBadges = profile?.badges ?? result?.profiles.find(person => person.badges.length)?.badges ?? [];
+  const badgeReward = ruleBadges.length
+    ? (Math.min(...ruleBadges.map(b => b.points)) === Math.max(...ruleBadges.map(b => b.points))
+      ? `+${ruleBadges[0].points} pkt`
+      : `+${Math.min(...ruleBadges.map(b => b.points))} do +${Math.max(...ruleBadges.map(b => b.points))} pkt`)
+    : '—';
   return <section className="competition-view" aria-label="Rywalizacja">
     <header className="competition-heading">
       <span className="competition-season"><CalendarDays size={15} />Sezon {season.label}</span>
@@ -118,13 +148,14 @@ export default function CompetitionView({ data, activeId, now, loading, error, o
           )
         ) : <div className="empty-state competition-selection"><UserRound size={32} /><h3>Odkryj swój postęp</h3><p>Wybierz swoje imię w nagłówku, aby zobaczyć poziom, serię i odznaki. Ranking wspólnoty znajdziesz obok.</p></div>}
         {profile && isParticipant && <section className="competition-badges" aria-labelledby="badges-heading"><div className="competition-section-heading"><div><h3 id="badges-heading"><Award size={19} />Twoje odznaki</h3><p>Każda opowiada inną historię Twojej służby.</p></div><span>{earned} / {profile.badges.length} zdobytych</span></div>
+          {profile.badges.length === 0 ? <p className="sidebar-empty">W tym sezonie nie ma jeszcze odznak. Administrator może dodać je w panelu „Edytuj odznaki”.</p> : <>
           <div className="competition-badge-filters" role="group" aria-label="Filtr odznak">{([
             ['all', 'Wszystkie'], ['earned', 'Zdobyte'], ['pending', 'W drodze'],
           ] as const).map(([value, label]) => <button key={value} type="button" aria-pressed={badgeFilter === value} onClick={() => { setBadgeFilter(value); setShowAllBadges(false); }}>{label}</button>)}</div>
           <ul>{(showAllBadges ? filteredBadges : filteredBadges.slice(0, 6)).map(badge => <BadgeCard key={badge.id} badge={badge} />)}</ul>
           {!filteredBadges.length && <p className="sidebar-empty">{badgeFilter === 'earned' ? 'Pierwsza odznaka jeszcze przed Tobą. Zobacz cele w zakładce „W drodze”.' : 'Wszystkie odznaki w tym sezonie są już Twoje!'}</p>}
           {filteredBadges.length > 6 && <button type="button" className="button secondary competition-more" onClick={() => setShowAllBadges(value => !value)}>{showAllBadges ? 'Pokaż mniej' : `Pokaż wszystkie odznaki (${filteredBadges.length})`}</button>}
-          <p className="competition-month-note"><CalendarDays size={15} />Niedziele w tym miesiącu: <strong>{profile.monthProgress} / {profile.monthTarget}</strong>. Liczy się każda niedziela, niezależnie od liczby służb tego dnia.</p>
+          </>}
         </section>}
         {profile && isParticipant && <section className="sidebar-panel competition-history" aria-labelledby="points-heading"><div className="competition-section-heading"><h3 id="points-heading">Historia punktów</h3><span>{profile.serviceCount} służb w sezonie</span></div>
           {profile.entries.length ? <><ul>{profile.entries.slice(0, historyLimit).map(entry => <li key={entry.id}><span className={`competition-history-icon ${entry.id.startsWith('badge-') ? 'is-badge' : entry.id.startsWith('week-') ? 'is-bonus' : ''}`}>{entry.id.startsWith('badge-') ? <Award size={17} /> : entry.id.startsWith('week-') ? <Flame size={17} /> : <HeartHandshake size={17} />}</span><div><strong>{entry.title}</strong><span>{polishDate(entry.day, { day: 'numeric', month: 'short' })} · {entry.detail}</span></div><strong className="competition-earned-points">{entry.points >= 0 ? '+' : ''}{entry.points}<small> pkt</small></strong></li>)}</ul>{historyLimit < profile.entries.length && <button className="button secondary competition-more" onClick={() => setHistoryLimit(value => value + 12)}><ChevronDown size={16} />Pokaż więcej</button>}</> : <p className="sidebar-empty">Punkty pojawią się po potwierdzeniu obecności na odbytej służbie. Przyszłe i niepotwierdzone terminy jeszcze nie dają punktów.</p>}
@@ -147,16 +178,14 @@ export default function CompetitionView({ data, activeId, now, loading, error, o
             <div><dt>Niedziela</dt><dd>+{POINTS.sunday} pkt</dd></div>
             <div><dt>Cel tygodniowy (min. 2 służby)</dt><dd>+{POINTS.weekly} pkt</dd></div>
             <div><dt>Kolejny tydzień w serii</dt><dd>+{POINTS.streakStep} do bonusu</dd></div>
-            <div><dt>Odznaki i osiągnięcia</dt><dd>+10 do +120 pkt</dd></div>
+            <div><dt>Odznaki i osiągnięcia</dt><dd>{badgeReward}</dd></div>
           </dl>
           <p>Bonus tygodniowy rośnie wraz z Twoją regularnością: 10, 15, 20, 25, aż do 30 pkt. Przyznajemy go po drugiej służbie w danym tygodniu (od poniedziałku do niedzieli).</p>
           <details><summary>Szczegółowe zasady i poziomy</summary><div className="competition-rule-details">
             <p><strong>Potwierdzanie obecności</strong>Punkty otrzymujesz za każdą potwierdzoną służbę na Mszy Świętej lub nabożeństwie (wystarczy zaznaczyć „Byłem”). Dwie służby tego samego dnia również wliczają się do celu tygodniowego.</p>
             <p><strong>Serie i regularność</strong>Służąc co najmniej 2 razy w tygodniu, budujesz serię tygodniową. Każdy kolejny tydzień podnosi Twój bonus o 5 punktów, co ułatwia zdobywanie kolejnych stopni.</p>
             <p><strong>Poziomy formacji</strong>Wraz ze wzrostem liczby punktów awansujesz na wyższe poziomy (progi to m.in. 100, 300, 600, 1000, 1500 pkt). To widoczny znak Twojej wierności posłudze przy ołtarzu.</p>
-            <p><strong>Odznaki i uroczystości</strong>25 odznak za regularną służbę, pierwsze piątki i soboty, adorację, różaniec, Koronkę, roraty, nabożeństwa majowe i czerwcowe, Drogę Krzyżową, Gorzkie Żale i wybrane uroczystości. Każda odznaka podaje swój cel i nagrodę.</p>
-            <p><strong>Co zalicza się do odznaki?</strong>Potwierdzona obecność w bieżącym sezonie. Przy odznakach nabożeństw liczymy różne dni, a przy pierwszych piątkach i sobotach — różne miesiące. Nazwa lub okazja wydarzenia powinna wskazywać nabożeństwo, np. „Adoracja”, „Różaniec” czy „Boże Ciało”. Liczy się też właściwa kategoria i data wydarzenia.</p>
-            <p><strong>Pierwsze piątki i soboty</strong>Odznaki opisują udział w wydarzeniach. Nie potwierdzają spowiedzi, Komunii, intencji ani wypełnienia warunków praktyk religijnych. Seria dziewięciu piątków dotyczy dziewięciu kolejnych miesięcy w jednym sezonie aplikacji.</p>
+            <p><strong>Odznaki</strong>{ruleBadges.length ? `${ruleBadges.length} ${ruleBadges.length === 1 ? 'odznaka' : 'odznak'} za liczbę służb w sezonie. Każda odznaka podaje swój cel i nagrodę.` : 'W tym sezonie nie ma jeszcze odznak — administrator może je dodać.'}</p>
             <p><strong>Sezon liturgiczny</strong>Rywalizacja trwa przez cały rok liturgiczny – od I Niedzieli Adwentu do kolejnego Adwentu, kiedy to wspólnie podsumowujemy osiągnięcia.</p>
           </div></details>
         </section>

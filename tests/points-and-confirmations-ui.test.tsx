@@ -123,7 +123,7 @@ async function openPoints() {
   render(<App />);
   await screen.findByRole('button', { name: /Wybrano: Jan/ });
   expect(screen.queryByRole('button', { name: 'Zarządzaj punktacją' })).toBeNull();
-  fireEvent.click(screen.getByRole('button', { name: /Wybrano: Jan/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'Ustawienia i opcje' }));
   fireEvent.click(screen.getByRole('button', { name: 'Administrator' }));
   fireEvent.change(screen.getByLabelText('PIN administratora'), { target: { value: '0403' } });
   fireEvent.click(screen.getByRole('button', { name: 'Odblokuj' }));

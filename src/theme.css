@@ -67,7 +67,7 @@
 [data-theme="dark"] .competition-view progress, [data-theme="dark"] .competition-view progress::-webkit-progress-bar { background: #31483a; }
 [data-theme="dark"] :is(.competition-badge.is-earned, .competition-ranking li.is-own) { background: #22392b; border-color: #48654e; }
 [data-theme="dark"] .is-earned :is(.competition-badge-icon, .competition-badge-reward) { background: #2c4835; color: #b2dbbf; border-color: #48654e; }
-[data-theme="dark"] :is(.competition-history-icon.is-bonus, .competition-history-icon.is-badge, .is-earned .badge-sunrise, .is-earned .badge-star, .is-earned .badge-flame) { background: #3a3220; color: #e7c990; border-color: #685536; }
+[data-theme="dark"] :is(.competition-history-icon.is-bonus, .competition-history-icon.is-badge, .is-earned .badge-sunrise, .is-earned .badge-star, .is-earned .badge-flame, .is-earned .badge-trophy, .is-earned .badge-crown, .is-earned .badge-sparkles, .is-earned .badge-bell) { background: #3a3220; color: #e7c990; border-color: #685536; }
 [data-theme="dark"] :is(.competition-streak-total strong, .competition-streak h3 svg, .competition-place.place-1) { color: #e7c990; }
 [data-theme="dark"] .competition-place.place-2 { color: #b8cedd; }
 [data-theme="dark"] .competition-place.place-3 { color: #d9ac8c; }

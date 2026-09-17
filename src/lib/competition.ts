@@ -1,4 +1,4 @@
-import { dateKey, polishDate, shiftDate, shiftMonth, timeSlot, weekday, zonedIso } from './dates';
+import { dateKey, DAY_SHORT, polishDate, shiftDate, timeSlot, weekday, zonedIso } from './dates';
 import { eventCategory } from './eventCategory';
 import type { Mass, ScheduleData } from '../types/database';
 
@@ -8,33 +8,6 @@ export const POINTS = {
   weekly: 10,
   streakStep: 5,
   maxWeekly: 30,
-  badges: {
-    first: 10,
-    ten: 25,
-    morning: 30,
-    four: 40,
-    christmas: 50,
-    vigil: 50,
-    sundays: 60,
-    twelve: 100,
-    fifty: 120,
-    firstFridays: 35,
-    nineFridays: 100,
-    firstSaturdays: 35,
-    adoration: 15,
-    adorationFive: 40,
-    rosary: 35,
-    may: 25,
-    june: 25,
-    stations: 35,
-    lamentations: 25,
-    rorate: 35,
-    corpusChristi: 30,
-    mercySunday: 25,
-    palmSunday: 25,
-    ashWednesday: 25,
-    chaplet: 25,
-  },
 } as const;
 
 /** The season changes at 00:00 Europe/Warsaw on the first Sunday of Advent. */
@@ -50,8 +23,8 @@ export function competitionSeason(now: Date) {
   return { start: advent(startYear), end: advent(startYear + 1), label: `${startYear}/${startYear + 1}` };
 }
 
-// Gregorian Easter (Meeus/Jones/Butcher); used to distinguish the Easter Vigil
-// from other events with similar names, without treating every Saturday as a vigil.
+// Gregorian Easter (Meeus/Jones/Butcher). Zachowane na potrzeby przyszłych
+// warunków odznak (np. Wigilia Paschalna, Boże Ciało) — v1 liczy tylko służby.
 export function easter(year: number): string {
   const a = year % 19, b = Math.floor(year / 100), c = year % 100;
   const d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25);
@@ -68,6 +41,11 @@ export function competitionWeek(day: string): string {
   return shiftDate(day, -((weekday(day) + 6) % 7));
 }
 
+/** Tydzień od niedzieli do soboty (dla odznak w jednym tygodniu nd–sob). */
+export function sundayWeek(day: string): string {
+  return shiftDate(day, -weekday(day));
+}
+
 export function levelFor(points: number) {
   const level = Math.floor((1 + Math.sqrt(1 + Math.max(0, points) * .08)) / 2);
   const floor = 50 * level * (level - 1);
@@ -77,63 +55,508 @@ export function levelFor(points: number) {
 }
 
 export type PointEntry = { id: string; day: string; title: string; detail: string; points: number; occurred_at: string };
-export type Badge = { id: string; name: string; description: string; icon: 'sunrise' | 'star' | 'flame' | 'calendar' | 'medal' | 'heart'; value: number; target: number; earned: boolean; points: number };
 
-function badge(id: string, name: string, description: string, icon: Badge['icon'], value: number, target: number, points: number): Badge {
-  return { id, name, description, icon, value: Math.min(value, target), target, earned: value >= target, points };
+export type BadgeIcon =
+  | 'sunrise'
+  | 'star'
+  | 'flame'
+  | 'calendar'
+  | 'medal'
+  | 'heart'
+  | 'trophy'
+  | 'crown'
+  | 'sparkles'
+  | 'bell'
+  | 'church'
+  | 'book'
+  | 'cross'
+  | 'shield'
+  | 'zap'
+  | 'target'
+  | 'award'
+  | 'clock';
+
+export const BADGE_ICONS: BadgeIcon[] = [
+  'sunrise',
+  'star',
+  'flame',
+  'calendar',
+  'medal',
+  'heart',
+  'trophy',
+  'crown',
+  'sparkles',
+  'bell',
+  'church',
+  'book',
+  'cross',
+  'shield',
+  'zap',
+  'target',
+  'award',
+  'clock',
+];
+
+export const LEGACY_BADGE_ICONS: readonly BadgeIcon[] = [
+  'sunrise',
+  'star',
+  'flame',
+  'calendar',
+  'medal',
+  'heart',
+];
+
+export function isLegacyBadgeIcon(value: unknown): value is BadgeIcon {
+  return typeof value === 'string' && (LEGACY_BADGE_ICONS as readonly string[]).includes(value);
 }
 
-function normalize(value: string) {
-  return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pl').replace(/ł/g, 'l').replace(/\s+/g, ' ');
-}
-
-/** Input contains only eligible, attended events in the current season, in time order. */
-function devotionalBadges(services: Mass[]) {
-  const events = services.map(mass => {
-    const day = dateKey(mass.start_time);
-    return { mass, day, month: day.slice(0, 7), title: normalize(`${mass.title} ${mass.liturgy_type ?? ''}`), category: eventCategory(mass), easterDay: easter(Number(day.slice(0, 4))) };
-  });
-  type Event = typeof events[number];
-  // Separate times on one date count as one day of a devotional practice.
-  const distinctDays = (predicate: (event: Event) => boolean) => {
-    const days = new Map<string, Event>();
-    for (const event of events) if (predicate(event) && !days.has(event.day)) days.set(event.day, event);
-    return [...days.values()];
-  };
-  const counted = (id: keyof typeof POINTS.badges, name: string, description: string, icon: Badge['icon'], target: number, matches: Event[]) => ({
-    badge: badge(id, name, description, icon, matches.length, target, POINTS.badges[id]), earnedAt: matches[target - 1]?.mass.start_time,
-  });
-  const firstFridays = distinctDays(event => weekday(event.day) === 5 && Number(event.day.slice(-2)) <= 7);
-  let run = 0, best = 0, previous = '', nineEarnedAt: string | undefined;
-  for (const event of firstFridays) {
-    run = previous && shiftMonth(previous, 1) === event.month ? run + 1 : 1;
-    best = Math.max(best, run);
-    previous = event.month;
-    if (run === 9 && !nineEarnedAt) nineEarnedAt = event.mass.start_time;
+export function legacyFallbackIcon(icon: BadgeIcon): BadgeIcon {
+  switch (icon) {
+    case 'trophy':
+    case 'award':
+    case 'target':
+    case 'shield':
+      return 'medal';
+    case 'crown':
+    case 'sparkles':
+    case 'zap':
+      return 'star';
+    case 'church':
+    case 'bell':
+    case 'book':
+    case 'cross':
+      return 'heart';
+    case 'clock':
+      return 'calendar';
+    default:
+      return 'medal';
   }
-  const adoration = distinctDays(event => event.category === 'devotion' && /\badoracj\w*/.test(event.title) && !/\bkrzyz\w*/.test(event.title));
-  const inLent = (event: Event) => event.day >= shiftDate(event.easterDay, -46) && event.day <= shiftDate(event.easterDay, -2);
-  return [
-    counted('firstFridays', 'Rytm pierwszych piątków', 'Służ na Mszy lub nabożeństwie w pierwsze piątki 3 różnych miesięcy w sezonie.', 'calendar', 3, firstFridays),
-    { badge: badge('nineFridays', 'Dziewięć spotkań przy ołtarzu', 'Służ na Mszy lub nabożeństwie w 9 kolejnych pierwszych piątkach w jednym sezonie. Odznaka dotyczy służby, nie potwierdza spełnienia warunków praktyki religijnej.', 'heart', best, 9, POINTS.badges.nineFridays), earnedAt: nineEarnedAt },
-    counted('firstSaturdays', 'Soboty z Maryją', 'Weź udział w nabożeństwie pierwszosobotnim w 3 różnych miesiącach sezonu.', 'heart', 3, distinctDays(event => event.category === 'devotion' && weekday(event.day) === 6 && Number(event.day.slice(-2)) <= 7 && /\b(pierwsz\w* sobot\w*|pierwszosobot\w*)/.test(event.title))),
-    counted('adoration', 'Chwila przed Panem', 'Weź udział w pierwszej adoracji eucharystycznej w sezonie.', 'star', 1, adoration),
-    counted('adorationFive', 'Wierność w ciszy', 'Weź udział w adoracji eucharystycznej w 5 różnych dniach sezonu.', 'star', 5, adoration),
-    counted('rosary', 'Z Maryją przez tajemnice', 'Weź udział w nabożeństwie różańcowym w 5 różnych dniach sezonu.', 'heart', 5, distinctDays(event => event.category === 'devotion' && /\brozan\w*/.test(event.title))),
-    counted('may', 'Maj z Maryją', 'Weź udział w nabożeństwie majowym w 3 różnych dniach maja.', 'heart', 3, distinctDays(event => event.category === 'devotion' && event.day.slice(5, 7) === '05' && /\b(majow\w*|litani\w* loretansk\w*)/.test(event.title))),
-    counted('june', 'Blisko Serca Jezusa', 'Weź udział w nabożeństwie czerwcowym w 3 różnych dniach czerwca.', 'heart', 3, distinctDays(event => event.category === 'devotion' && event.day.slice(5, 7) === '06' && /\b(czerwcow\w*|litani\w* do (najswietszego )?serca (pana )?jezusa)/.test(event.title))),
-    counted('stations', 'Śladami Krzyża', 'Weź udział w Drodze Krzyżowej w 3 różnych dniach od Środy Popielcowej do Wielkiego Piątku.', 'heart', 3, distinctDays(event => event.category === 'devotion' && inLent(event) && /\bdrog\w* krzyzow\w*/.test(event.title))),
-    counted('lamentations', 'Przy Tobie w Męce', 'Weź udział w Gorzkich Żalach w 2 różnych dniach od Środy Popielcowej do Wielkiego Piątku.', 'heart', 2, distinctDays(event => event.category === 'devotion' && inLent(event) && /\bgorzki\w* zal\w*/.test(event.title))),
-    counted('rorate', 'Światło oczekiwania', 'Służ na roratach w 3 różnych dniach Adwentu, najpóźniej 24 grudnia.', 'sunrise', 3, distinctDays(event => event.category === 'mass' && /\brorat\w*/.test(event.title) && event.day >= advent(Number(event.day.slice(0, 4))) && event.day <= `${event.day.slice(0, 4)}-12-24`)),
-    counted('corpusChristi', 'Przy eucharystycznym stole', 'Służ na Mszy oznaczonej jako Boże Ciało, w czwartek 60 dni po Wielkanocy.', 'star', 1, distinctDays(event => event.category === 'mass' && event.day === shiftDate(event.easterDay, 60) && /\bboz\w* cial\w*/.test(event.title))),
-    counted('mercySunday', 'Niedziela nadziei', 'Służ na Mszy oznaczonej jako Niedziela Miłosierdzia, tydzień po Wielkanocy.', 'heart', 1, distinctDays(event => event.category === 'mass' && event.day === shiftDate(event.easterDay, 7) && /\bmilosierdz\w*/.test(event.title))),
-    counted('palmSunday', 'Hosanna', 'Służ na Mszy oznaczonej jako Niedziela Palmowa, tydzień przed Wielkanocą.', 'star', 1, distinctDays(event => event.category === 'mass' && event.day === shiftDate(event.easterDay, -7) && /\bpalmow\w*/.test(event.title))),
-    counted('ashWednesday', 'Początek drogi', 'Służ na Mszy oznaczonej jako Środa Popielcowa, 46 dni przed Wielkanocą.', 'flame', 1, distinctDays(event => event.category === 'mass' && event.day === shiftDate(event.easterDay, -46) && /\bpopiel\w*/.test(event.title))),
-    counted('chaplet', 'Jezu, ufam Tobie', 'Weź udział w Koronce do Miłosierdzia Bożego w 3 różnych dniach sezonu.', 'heart', 3, distinctDays(event => event.category === 'devotion' && /\bkoronk\w*/.test(event.title) && /\bmilosierdz\w*/.test(event.title))),
-  ];
 }
 
-export function buildCompetition(data: Pick<ScheduleData, 'servers' | 'masses' | 'attendees' | 'confirmations' | 'pointAdjustments' | 'competitionState' | 'competitionParticipants'>, now: Date) {
+export type Badge = { id: string; name: string; description: string; icon: BadgeIcon; value: number; target: number; earned: boolean; points: number; summary: string };
+
+/** Rodzaj oznaczenia dnia (etykieta z „Oznacz dzień”, np. „Uroczystość …”). */
+export type DayMarkKind = 'sunday' | 'solemnity' | 'feast' | 'memorial' | 'annotated';
+export const DAY_MARK_KINDS: DayMarkKind[] = ['sunday', 'solemnity', 'feast', 'memorial', 'annotated'];
+export const DAY_MARK_LABELS: Record<DayMarkKind, string> = {
+  sunday: 'Niedziele',
+  solemnity: 'Uroczystości',
+  feast: 'Święta',
+  memorial: 'Wspomnienia',
+  annotated: 'Dni z dowolnym oznaczeniem',
+};
+
+export type BadgeKind = 'total' | 'single_week' | 'single_month' | 'custom_period' | 'streak';
+
+/**
+ * Warunek odznaki: które służby wliczają się do celu. Wszystkie pola są
+ * opcjonalne i łączą się logicznym AND; puste filtry oznaczają dowolne służby.
+ */
+export type BadgeFilter = {
+  /** Typ celu odznaki: 'total' (w sezonie, domyślny), 'single_week' (w jednym tygodniu), 'single_month' (w jednym miesiącu), 'custom_period' (w wybranym okresie), 'streak' (seria w Twój rytm). */
+  kind?: BadgeKind;
+  /** Dni tygodnia służby (0 = niedziela … 6 = sobota). */
+  weekdays?: number[];
+  /** Przedział godzin (HH:MM); od > do oznacza przedział przez północ. */
+  timeFrom?: string;
+  timeTo?: string;
+  /** Konkretne daty służby (YYYY-MM-DD). */
+  dates?: string[];
+  /** Zakres dat od - do (YYYY-MM-DD). */
+  dateFrom?: string;
+  dateTo?: string;
+  /** Nazwa wydarzenia zawiera tekst. */
+  title?: string;
+  /** Celebrans zawiera tekst. */
+  celebrant?: string;
+  /** Okazja / opis wydarzenia (liturgy_type) zawiera tekst. */
+  occasion?: string;
+  /** Rodzaj wydarzenia. Brak = Msze i nabożeństwa. */
+  category?: 'mass' | 'devotion';
+  /** Oznaczenie dnia służby. */
+  dayMark?: DayMarkKind;
+  /** Oznaczenie dnia zawiera tekst. */
+  dayMarkText?: string;
+  /** Gdy true, wiele służb jednego dnia liczy się jako jedna. */
+  perDay?: boolean;
+};
+
+/**
+ * Definicja odznaki edytowalna przez administratora.
+ * Cel (target) to liczba pasujących służb; filtry wybierają, które służby się liczą.
+ */
+export type BadgeDefinition = {
+  id: string;
+  name: string;
+  description: string;
+  icon: BadgeIcon;
+  points: number;
+  target: number;
+  filters: BadgeFilter;
+};
+
+/** Podstawowy zestaw startowy — administrator może go edytować, usunąć lub rozbudować. */
+export const DEFAULT_BADGE_DEFINITIONS: BadgeDefinition[] = [
+  { id: 'first', name: 'Pierwszy krok', description: 'Zdobądź punkty za pierwszą służbę w sezonie.', icon: 'heart', points: 10, target: 1, filters: {} },
+  { id: 'ten', name: 'Pomocna dłoń', description: 'Podejmij 10 służb w jednym sezonie.', icon: 'medal', points: 25, target: 10, filters: {} },
+  { id: 'fifty', name: 'Filar wspólnoty', description: 'Podejmij 50 służb w jednym sezonie.', icon: 'medal', points: 120, target: 50, filters: {} },
+];
+
+export function isBadgeIcon(value: unknown): value is BadgeIcon {
+  return typeof value === 'string' && (BADGE_ICONS as string[]).includes(value);
+}
+
+function isDayMarkKind(value: unknown): value is DayMarkKind {
+  return typeof value === 'string' && (DAY_MARK_KINDS as string[]).includes(value);
+}
+
+const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+const DATE_RE = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
+
+/** Porównanie tekstów bez polskich znaków i bez względu na wielkość liter. */
+export function foldText(value: string): string {
+  return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/ł/g, 'l').replace(/Ł/g, 'L').toLocaleLowerCase('pl');
+}
+
+/**
+ * Koduje kind i opcjonalnie nową ikonę w polu dayMarkText jako zabezpieczenie
+ * na wypadek, gdyby funkcja RPC w Supabase nie miała jeszcze zaktualizowanej białej listy kluczy.
+ */
+export function encodeBadgeFilterFallback(filters: BadgeFilter, icon?: BadgeIcon): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...filters };
+  const parts: string[] = [];
+  if (filters.kind && filters.kind !== 'total') {
+    parts.push(`k=${filters.kind}`);
+  }
+  if (filters.dateFrom) {
+    parts.push(`df=${filters.dateFrom}`);
+  }
+  if (filters.dateTo) {
+    parts.push(`dt=${filters.dateTo}`);
+  }
+  if (icon && !isLegacyBadgeIcon(icon)) {
+    parts.push(`i=${icon}`);
+  }
+  if (parts.length > 0) {
+    const metaStr = `__meta:${parts.join(';')}`;
+    const userText = filters.dayMarkText?.trim() ?? '';
+    out.dayMarkText = userText ? `${metaStr}|${userText}` : metaStr;
+  }
+  return out;
+}
+
+/** Czyści filtry z bazy/formularza; uszkodzone pola są pomijane. Nigdy nie rzuca. */
+export function normalizeBadgeFilter(raw: unknown): BadgeFilter & { _encodedIcon?: BadgeIcon } {
+  if (!raw || typeof raw !== 'object') return {};
+  const row = raw as Record<string, unknown>;
+  const out: BadgeFilter & { _encodedIcon?: BadgeIcon } = {};
+  if (row.kind === 'single_week' || row.kind === 'single_month' || row.kind === 'custom_period' || row.kind === 'streak') {
+    out.kind = row.kind;
+  }
+  if (typeof row.dateFrom === 'string' && DATE_RE.test(row.dateFrom.trim())) {
+    out.dateFrom = row.dateFrom.trim();
+  }
+  if (typeof row.dateTo === 'string' && DATE_RE.test(row.dateTo.trim())) {
+    out.dateTo = row.dateTo.trim();
+  }
+  let encodedKind: BadgeKind | undefined;
+  let decodedDayMarkText: string | undefined;
+  if (typeof row.dayMarkText === 'string' && row.dayMarkText.trim()) {
+    const trimmed = row.dayMarkText.trim();
+    if (trimmed.startsWith('__meta:')) {
+      const barIdx = trimmed.indexOf('|');
+      const metaPart = barIdx >= 0 ? trimmed.slice(7, barIdx) : trimmed.slice(7);
+      const userPart = barIdx >= 0 ? trimmed.slice(barIdx + 1).trim() : '';
+      for (const item of metaPart.split(';')) {
+        const [k, v] = item.split('=');
+        if (k === 'k' && (v === 'streak' || v === 'single_week' || v === 'single_month' || v === 'custom_period')) {
+          encodedKind = v;
+        }
+        if (k === 'df' && DATE_RE.test(v)) {
+          out.dateFrom = v;
+        }
+        if (k === 'dt' && DATE_RE.test(v)) {
+          out.dateTo = v;
+        }
+        if (k === 'i' && isBadgeIcon(v)) {
+          out._encodedIcon = v;
+        }
+      }
+      if (userPart) {
+        decodedDayMarkText = userPart.slice(0, 120);
+      }
+    } else if (trimmed.startsWith('__kind:')) {
+      const match = /^__kind:(streak|single_week|single_month|custom_period)(?:\|(.*))?$/.exec(trimmed);
+      if (match) {
+        encodedKind = match[1] as BadgeKind;
+        if (match[2]?.trim()) decodedDayMarkText = match[2].trim().slice(0, 120);
+      } else {
+        decodedDayMarkText = trimmed.slice(0, 120);
+      }
+    } else {
+      decodedDayMarkText = trimmed.slice(0, 120);
+    }
+  }
+  if (!out.kind && encodedKind) {
+    out.kind = encodedKind;
+  }
+  if (decodedDayMarkText) {
+    out.dayMarkText = decodedDayMarkText;
+  }
+  if (Array.isArray(row.weekdays)) {
+    const days = [...new Set(row.weekdays.filter((d): d is number =>
+      typeof d === 'number' && Number.isInteger(d) && d >= 0 && d <= 6))].sort();
+    if (days.length && days.length < 7) out.weekdays = days;
+  }
+  if (typeof row.timeFrom === 'string' && TIME_RE.test(row.timeFrom.trim())) out.timeFrom = row.timeFrom.trim();
+  if (typeof row.timeTo === 'string' && TIME_RE.test(row.timeTo.trim())) out.timeTo = row.timeTo.trim();
+  if (Array.isArray(row.dates)) {
+    const dates = [...new Set(
+      (row.dates as unknown[]).filter((d): d is string => typeof d === 'string' && DATE_RE.test(d.trim())).map(d => d.trim()),
+    )].sort().slice(0, 366);
+    if (dates.length) out.dates = dates;
+  }
+  for (const key of ['title', 'celebrant', 'occasion'] as const) {
+    if (typeof row[key] === 'string' && row[key].trim()) out[key] = row[key].trim().slice(0, 60);
+  }
+  if (row.category === 'mass' || row.category === 'devotion') out.category = row.category;
+  if (isDayMarkKind(row.dayMark)) out.dayMark = row.dayMark;
+  if (row.perDay === true) out.perDay = true;
+  return out;
+}
+
+/** Krótki, czytelny opis warunku do list i kart ('' = dowolne służby). */
+export function describeBadgeFilter(filters: BadgeFilter): string {
+  const parts: string[] = [];
+  if (filters.kind === 'single_week') parts.push('w jednym tygodniu (nd–sob)');
+  if (filters.kind === 'single_month') parts.push('w jednym miesiącu');
+  if (filters.kind === 'custom_period' || filters.dateFrom || filters.dateTo) {
+    if (filters.dateFrom && filters.dateTo) {
+      parts.push(`w okresie ${polishDate(filters.dateFrom, { day: 'numeric', month: 'short' })}–${polishDate(filters.dateTo, { day: 'numeric', month: 'short' })}`.replace(/\s*r\.?$/g, ''));
+    } else if (filters.dateFrom) {
+      parts.push(`od ${polishDate(filters.dateFrom, { day: 'numeric', month: 'short' })}`.replace(/\s*r\.?$/g, ''));
+    } else if (filters.dateTo) {
+      parts.push(`do ${polishDate(filters.dateTo, { day: 'numeric', month: 'short' })}`.replace(/\s*r\.?$/g, ''));
+    }
+  }
+  if (filters.kind === 'streak') parts.push('seria „Twój rytm” (min. 2/tydz.)');
+  if (filters.weekdays?.length) parts.push(filters.weekdays.map(d => DAY_SHORT[d]).join(', '));
+  if (filters.timeFrom || filters.timeTo) parts.push(`godz. ${filters.timeFrom ?? '00:00'}–${filters.timeTo ?? '23:59'}`);
+  if (filters.dates?.length) {
+    const show = filters.dates.slice(0, 3).map(d => polishDate(d, { day: 'numeric', month: 'short' }).replace(/\s*r\.?$/, ''));
+    parts.push(filters.dates.length > 3 ? `${show.join(', ')} (+${filters.dates.length - 3})` : show.join(', '));
+  }
+  if (filters.category === 'mass') parts.push('Msze Święte');
+  if (filters.category === 'devotion') parts.push('nabożeństwa');
+  if (filters.title) parts.push(`„${filters.title}”`);
+  if (filters.occasion) parts.push(`okazja: ${filters.occasion}`);
+  if (filters.celebrant) parts.push(`celebrans: ${filters.celebrant}`);
+  if (filters.dayMark) parts.push(DAY_MARK_LABELS[filters.dayMark].toLocaleLowerCase('pl'));
+  if (filters.dayMarkText) parts.push(`oznaczenie: „${filters.dayMarkText}”`);
+  if (filters.perDay) parts.push('max 1 dziennie');
+  return parts.join(' · ');
+}
+
+/** Zwraca definicję lub null, gdy wiersz z bazy jest uszkodzony. Przycina teksty i ogranicza liczby. */
+export function normalizeBadgeDefinition(raw: unknown): BadgeDefinition | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const row = raw as Record<string, unknown>;
+  const id = typeof row.id === 'string' ? row.id.trim().slice(0, 64) : '';
+  const name = typeof row.name === 'string' ? row.name.trim().slice(0, 80) : '';
+  const description = typeof row.description === 'string' ? row.description.trim().slice(0, 240) : '';
+  const points = typeof row.points === 'number' ? Math.trunc(row.points) : NaN;
+  const target = typeof row.target === 'number' ? Math.trunc(row.target) : NaN;
+  if (!id || !name || !Number.isSafeInteger(points) || points < 0 || points > 1000) return null;
+  if (!Number.isSafeInteger(target) || target < 1 || target > 1000) return null;
+  const rawFilters = normalizeBadgeFilter(row.filters);
+  const icon = (rawFilters._encodedIcon && isBadgeIcon(rawFilters._encodedIcon))
+    ? rawFilters._encodedIcon
+    : (isBadgeIcon(row.icon) ? row.icon : 'medal');
+  const { _encodedIcon, ...filters } = rawFilters;
+  return { id, name, description, icon, points, target, filters };
+}
+
+export type BadgeInput = { name: string; description: string; icon: BadgeIcon; points: number; target: number; filters?: unknown };
+
+/** Walidacja formularza administratora. Rzuca błąd z polskim komunikatem. */
+export function validateBadgeInput(input: BadgeInput): BadgeInput & { filters: BadgeFilter } {
+  const name = input.name.trim().slice(0, 80);
+  const description = input.description.trim().slice(0, 240);
+  if (!name) throw new Error('Wpisz nazwę odznaki.');
+  if (!isBadgeIcon(input.icon)) throw new Error('Wybierz ikonę odznaki.');
+  if (!Number.isSafeInteger(input.points) || input.points < 0 || input.points > 1000) {
+    throw new Error('Nagroda musi wynosić od 0 do 1000 punktów.');
+  }
+  if (!Number.isSafeInteger(input.target) || input.target < 1 || input.target > 1000) {
+    throw new Error('Cel musi wynosić od 1 do 1000 służb.');
+  }
+  const rawFilters = normalizeBadgeFilter(input.filters ?? {});
+  const { _encodedIcon, ...filters } = rawFilters;
+  // Daty z przeszłości i przyszłości są dozwolone, ale muszą być prawdziwe.
+  for (const day of filters.dates ?? []) {
+    const [y, m, d] = day.split('-').map(Number);
+    const check = new Date(Date.UTC(y, m - 1, d));
+    if (check.getUTCFullYear() !== y || check.getUTCMonth() !== m - 1 || check.getUTCDate() !== d) {
+      throw new Error(`Nieprawidłowa data: ${day}.`);
+    }
+  }
+  if (filters.timeFrom && filters.timeTo && filters.timeFrom === filters.timeTo) {
+    throw new Error('Godzina „od” i „do” nie mogą być takie same.');
+  }
+  if (filters.dateFrom && filters.dateTo && filters.dateFrom > filters.dateTo) {
+    throw new Error('Data „od” nie może być późniejsza niż data „do”.');
+  }
+  return { name, description, icon: input.icon, points: input.points, target: input.target, filters };
+}
+
+function badge(id: string, name: string, description: string, icon: BadgeIcon, value: number, target: number, points: number, summary: string): Badge {
+  return { id, name, description, icon, value: Math.min(value, target), target, earned: value >= target, points, summary };
+}
+
+function dayMarkMatches(kind: DayMarkKind, day: string, label: string): boolean {
+  const normalized = label.trim().toLocaleLowerCase('pl');
+  switch (kind) {
+    case 'sunday': return weekday(day) === 0;
+    case 'solemnity': return /^uroczystość(?:$|[\s:–—-])/u.test(normalized);
+    case 'feast': return /^święto(?:$|[\s:–—-])/u.test(normalized);
+    case 'memorial': return /^wspomnienie(?:$|[\s:–—-])/u.test(normalized);
+    case 'annotated': return normalized !== '';
+  }
+}
+
+/** Służby spełniające warunek odznaki (w kolejności czasu). */
+export function matchingBadgeServices(def: Pick<BadgeDefinition, 'filters'>, services: Mass[], annotations: Map<string, string>): Mass[] {
+  const f = def.filters;
+  const titleNeedle = f.title ? foldText(f.title) : '';
+  const celebrantNeedle = f.celebrant ? foldText(f.celebrant) : '';
+  const occasionNeedle = f.occasion ? foldText(f.occasion) : '';
+  const markNeedle = f.dayMarkText ? foldText(f.dayMarkText) : '';
+  const matched = services.filter(mass => {
+    const day = dateKey(mass.start_time);
+    if (f.weekdays && !f.weekdays.includes(weekday(day))) return false;
+    if (f.timeFrom || f.timeTo) {
+      const slot = timeSlot(mass.start_time).slice(0, 5);
+      const from = f.timeFrom ?? '00:00';
+      const to = f.timeTo ?? '23:59';
+      if (from <= to ? (slot < from || slot > to) : (slot < from && slot > to)) return false;
+    }
+    if (f.dates && !f.dates.includes(day)) return false;
+    if (f.dateFrom && day < f.dateFrom) return false;
+    if (f.dateTo && day > f.dateTo) return false;
+    if (f.category && eventCategory(mass) !== f.category) return false;
+    if (titleNeedle && !foldText(mass.title).includes(titleNeedle)) return false;
+    if (celebrantNeedle && !(mass.celebrant && foldText(mass.celebrant).includes(celebrantNeedle))) return false;
+    if (occasionNeedle && !(mass.liturgy_type && foldText(mass.liturgy_type).includes(occasionNeedle))) return false;
+    if (f.dayMark && !dayMarkMatches(f.dayMark, day, annotations.get(day) ?? '')) return false;
+    if (markNeedle && !foldText(annotations.get(day) ?? '').includes(markNeedle)) return false;
+    return true;
+  });
+  if (!f.perDay) return matched;
+  const seen = new Set<string>();
+  return matched.filter(mass => {
+    const day = dateKey(mass.start_time);
+    if (seen.has(day)) return false;
+    seen.add(day);
+    return true;
+  });
+}
+
+function customBadge(def: BadgeDefinition, services: Mass[], annotations: Map<string, string>): { badge: Badge; earnedAt: string | undefined } {
+  const kind: BadgeKind = def.filters.kind ?? 'total';
+  const matched = matchingBadgeServices(def, services, annotations);
+  const summary = describeBadgeFilter(def.filters);
+
+  if (kind === 'single_week') {
+    const weekMap = new Map<string, Mass[]>();
+    for (const mass of matched) {
+      const w = sundayWeek(dateKey(mass.start_time));
+      const list = weekMap.get(w) ?? [];
+      list.push(mass);
+      weekMap.set(w, list);
+    }
+    let maxInWeek = 0;
+    let earnedAt: string | undefined;
+    const sortedWeeks = [...weekMap.entries()].sort(([a], [b]) => a.localeCompare(b));
+    for (const [, events] of sortedWeeks) {
+      if (events.length > maxInWeek) {
+        maxInWeek = events.length;
+      }
+      if (!earnedAt && events.length >= def.target) {
+        earnedAt = events[def.target - 1]?.start_time;
+      }
+    }
+    return {
+      badge: badge(def.id, def.name, def.description, def.icon, maxInWeek, def.target, def.points, summary),
+      earnedAt,
+    };
+  }
+
+  if (kind === 'single_month') {
+    const monthMap = new Map<string, Mass[]>();
+    for (const mass of matched) {
+      const m = dateKey(mass.start_time).slice(0, 7);
+      const list = monthMap.get(m) ?? [];
+      list.push(mass);
+      monthMap.set(m, list);
+    }
+    let maxInMonth = 0;
+    let earnedAt: string | undefined;
+    const sortedMonths = [...monthMap.entries()].sort(([a], [b]) => a.localeCompare(b));
+    for (const [, events] of sortedMonths) {
+      if (events.length > maxInMonth) {
+        maxInMonth = events.length;
+      }
+      if (!earnedAt && events.length >= def.target) {
+        earnedAt = events[def.target - 1]?.start_time;
+      }
+    }
+    return {
+      badge: badge(def.id, def.name, def.description, def.icon, maxInMonth, def.target, def.points, summary),
+      earnedAt,
+    };
+  }
+
+  if (kind === 'streak') {
+    const weekMap = new Map<string, Mass[]>();
+    for (const mass of matched) {
+      const w = competitionWeek(dateKey(mass.start_time));
+      const list = weekMap.get(w) ?? [];
+      list.push(mass);
+      weekMap.set(w, list);
+    }
+    let run = 0;
+    let bestStreak = 0;
+    let previous = '';
+    let earnedAt: string | undefined;
+    const sortedWeeks = [...weekMap.entries()].sort(([a], [b]) => a.localeCompare(b));
+    for (const [week, events] of sortedWeeks) {
+      if (events.length < 2) {
+        run = 0;
+        previous = '';
+        continue;
+      }
+      run = previous && shiftDate(previous, 7) === week ? run + 1 : 1;
+      previous = week;
+      if (run > bestStreak) {
+        bestStreak = run;
+      }
+      if (!earnedAt && run >= def.target) {
+        earnedAt = events[1]?.start_time;
+      }
+    }
+    return {
+      badge: badge(def.id, def.name, def.description, def.icon, bestStreak, def.target, def.points, summary),
+      earnedAt,
+    };
+  }
+
+  return {
+    badge: badge(def.id, def.name, def.description, def.icon, matched.length, def.target, def.points, summary),
+    earnedAt: matched[def.target - 1]?.start_time,
+  };
+}
+
+export function buildCompetition(data: Pick<ScheduleData, 'servers' | 'masses' | 'attendees' | 'confirmations' | 'pointAdjustments' | 'competitionState' | 'competitionParticipants' | 'badgeDefinitions' | 'dayAnnotations'>, now: Date) {
   const season = competitionSeason(now);
   const from = Date.parse(zonedIso(season.start, '00:00'));
   const until = Math.min(now.getTime(), Date.parse(zonedIso(season.end, '00:00')));
@@ -172,42 +595,31 @@ export function buildCompetition(data: Pick<ScheduleData, 'servers' | 'masses' |
   const currentWeek = competitionWeek(dateKey(now));
   const state = data.competitionState?.season === season.start ? data.competitionState : undefined;
   const pointsFrom = state?.reset_at ? Date.parse(state.reset_at) : from;
+  // Pusta lista od administratora oznacza brak odznak; brak listy — zestaw podstawowy.
+  // Uszkodzone wiersze są pomijane, aby jedna zła definicja nie psuła całej rywalizacji.
+  const definitions = (data.badgeDefinitions ?? DEFAULT_BADGE_DEFINITIONS)
+    .map(normalizeBadgeDefinition)
+    .filter((def): def is BadgeDefinition => def !== null);
+  const annotations = new Map((data.dayAnnotations ?? []).map(a => [a.day, a.label] as const));
   const profiles = data.servers.map(server => {
     const services = [...(byServer.get(server.id)?.values() ?? [])].sort((a, b) => a.start_time.localeCompare(b.start_time));
     const weeks = new Map<string, Mass[]>();
     const entries: PointEntry[] = [];
-    const sundayDays = new Set<string>();
-    const morningMasses: Mass[] = [];
-    const christmasMasses: Mass[] = [];
-    const vigilMasses: Mass[] = [];
     for (const mass of services) {
       const day = dateKey(mass.start_time);
       const sunday = weekday(day) === 0;
       const week = competitionWeek(day);
       weeks.set(week, [...(weeks.get(week) ?? []), mass]);
       if (Date.parse(mass.start_time) >= pointsFrom) entries.push({ id: mass.id, day, occurred_at: mass.start_time, title: mass.title, detail: `${timeSlot(mass.start_time).slice(0, 5)} · ${sunday ? 'Niedziela' : 'Służba w tygodniu'}`, points: sunday ? POINTS.sunday : POINTS.weekday });
-      if (sunday) sundayDays.add(day);
-      if (eventCategory(mass) === 'mass') {
-        const time = timeSlot(mass.start_time);
-        if (time >= '04:00:00' && time < '09:00:00') morningMasses.push(mass);
-        const title = normalize(`${mass.title} ${mass.liturgy_type ?? ''}`);
-        if (/pasterk/.test(title) && ((day.endsWith('-12-24') && time >= '18:00:00') || (day.endsWith('-12-25') && time < '04:00:00'))) christmasMasses.push(mass);
-        const easterDay = easter(Number(day.slice(0, 4)));
-        if (/wigili\w* paschal/.test(title) && ((day === shiftDate(easterDay, -1) && time >= '18:00:00') || (day === easterDay && time < '04:00:00'))) vigilMasses.push(mass);
-      }
     }
     let run = 0, bestStreak = 0, previous = '', bonusPoints = 0;
     const runs = new Map<string, number>();
-    let fourStreakEarnedAt: string | undefined;
-    let twelveStreakEarnedAt: string | undefined;
     for (const [week, events] of [...weeks].sort(([a], [b]) => a.localeCompare(b))) {
       if (events.length < 2) { run = 0; previous = week; continue; }
       run = previous && shiftDate(previous, 7) === week ? run + 1 : 1;
       previous = week;
       bestStreak = Math.max(bestStreak, run);
       runs.set(week, run);
-      if (run >= 4 && !fourStreakEarnedAt) fourStreakEarnedAt = events[1].start_time;
-      if (run >= 12 && !twelveStreakEarnedAt) twelveStreakEarnedAt = events[1].start_time;
       const points = Math.min(POINTS.maxWeekly, POINTS.weekly + (run - 1) * POINTS.streakStep);
       if (Date.parse(events[1].start_time) >= pointsFrom) {
         bonusPoints += points;
@@ -216,37 +628,7 @@ export function buildCompetition(data: Pick<ScheduleData, 'servers' | 'masses' |
     }
     // An unfinished current week does not break last week's streak.
     const streak = runs.get(currentWeek) ?? runs.get(shiftDate(currentWeek, -7)) ?? 0;
-    let fullMonths = 0, monthProgress = 0, monthTarget = 0;
-    let sundaysBadgeEarnedAt: string | undefined;
-    for (let month = season.start.slice(0, 7); month <= dateKey(now).slice(0, 7); month = shiftMonth(month, 1)) {
-      const sundays: string[] = [];
-      for (let day = `${month}-01`; day.slice(0, 7) === month; day = shiftDate(day, 1)) {
-        if (weekday(day) === 0) sundays.push(day);
-      }
-      const eligible = sundays.every(day => day >= season.start && day < season.end);
-      const count = sundays.filter(day => sundayDays.has(day)).length;
-      if (eligible && count === sundays.length) {
-        fullMonths++;
-        if (!sundaysBadgeEarnedAt) {
-          const lastSunday = sundays[sundays.length - 1];
-          const massOnLastSunday = services.find(m => dateKey(m.start_time) === lastSunday);
-          sundaysBadgeEarnedAt = massOnLastSunday?.start_time ?? zonedIso(lastSunday, '12:00');
-        }
-      }
-      if (month === dateKey(now).slice(0, 7)) { monthProgress = eligible ? count : 0; monthTarget = sundays.length; }
-    }
-    const badgeDefinitions = [
-      { badge: badge('first', 'Pierwszy krok', 'Zdobądź punkty za pierwszą służbę w sezonie.', 'heart', services.length, 1, POINTS.badges.first), earnedAt: services[0]?.start_time },
-      { badge: badge('ten', 'Pomocna dłoń', 'Podejmij 10 służb w jednym sezonie.', 'medal', services.length, 10, POINTS.badges.ten), earnedAt: services[9]?.start_time },
-      { badge: badge('morning', 'Jutrzenka', 'Służ na 5 Mszach rozpoczynających się od 4:00 do 8:59.', 'sunrise', morningMasses.length, 5, POINTS.badges.morning), earnedAt: morningMasses[4]?.start_time },
-      { badge: badge('four', 'Dobry rytm', 'Utrzymaj serię 4 tygodni, w każdym co najmniej 2 służby.', 'flame', bestStreak, 4, POINTS.badges.four), earnedAt: fourStreakEarnedAt },
-      { badge: badge('christmas', 'Blask Betlejem', 'Służ na Pasterce: 24 grudnia od 18:00 lub 25 grudnia przed 4:00.', 'star', christmasMasses.length, 1, POINTS.badges.christmas), earnedAt: christmasMasses[0]?.start_time },
-      { badge: badge('vigil', 'Światło Paschy', 'Służ na Wigilii Paschalnej: od 18:00 w Wielką Sobotę do 4:00 w Niedzielę Wielkanocną.', 'flame', vigilMasses.length, 1, POINTS.badges.vigil), earnedAt: vigilMasses[0]?.start_time },
-      { badge: badge('sundays', 'Wierny niedzielom', 'Służ w każdą niedzielę jednego miesiąca kalendarzowego w sezonie.', 'calendar', fullMonths, 1, POINTS.badges.sundays), earnedAt: sundaysBadgeEarnedAt },
-      { badge: badge('twelve', 'Niezłomny', 'Utrzymaj serię 12 tygodni, w każdym co najmniej 2 służby.', 'medal', bestStreak, 12, POINTS.badges.twelve), earnedAt: twelveStreakEarnedAt },
-      { badge: badge('fifty', 'Filar wspólnoty', 'Podejmij 50 służb w jednym sezonie.', 'medal', services.length, 50, POINTS.badges.fifty), earnedAt: services[49]?.start_time },
-      ...devotionalBadges(services),
-    ];
+    const badgeDefinitions = definitions.map(def => customBadge(def, services, annotations));
     const badges = badgeDefinitions.map(def => def.badge);
     let badgePoints = 0;
     for (const { badge: b, earnedAt } of badgeDefinitions) {
@@ -269,7 +651,7 @@ export function buildCompetition(data: Pick<ScheduleData, 'servers' | 'masses' |
     const rawPoints = earnedPoints + adjustmentPoints;
     const points = Math.max(0, rawPoints);
     const isParticipant = participants.has(server.id);
-    return { server, isParticipant, points, rawPoints, adjustmentPoints, bonusPoints, badgePoints, servicePoints: earnedPoints - bonusPoints - badgePoints, serviceCount: services.length, streak, bestStreak, weekCount: weeks.get(currentWeek)?.length ?? 0, monthProgress, monthTarget, badges, level: levelFor(points), entries: entries.reverse().sort((a, b) => b.occurred_at.localeCompare(a.occurred_at)), place: 0 };
+    return { server, isParticipant, points, rawPoints, adjustmentPoints, bonusPoints, badgePoints, servicePoints: earnedPoints - bonusPoints - badgePoints, serviceCount: services.length, streak, bestStreak, weekCount: weeks.get(currentWeek)?.length ?? 0, badges, level: levelFor(points), entries: entries.reverse().sort((a, b) => b.occurred_at.localeCompare(a.occurred_at)), place: 0 };
   }).sort((a, b) => b.points - a.points || a.server.name.localeCompare(b.server.name, 'pl'));
   let place = 0;
   const participantProfiles = profiles.filter(p => p.isParticipant);

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Check, Search, ChevronDown, LogOut, ShieldCheck, UserRound } from 'lucide-react';
+import { Check, Search, ChevronDown, UserRound } from 'lucide-react';
 import type { AltarServer, AdminSession } from '../types/database';
 
 import Modal from './Modal';
@@ -92,7 +92,7 @@ export default function UserSelector({ servers, selectedId, onChange, adminSessi
         </button>
 
       </div>
-      <SettingsModal />
+      <SettingsModal adminSession={adminSession} onAdminToggle={onAdminToggle} />
     </div>
 
     {open && <Modal title="Wybierz ministranta" onClose={closePanel} className="person-modal">
@@ -114,10 +114,6 @@ export default function UserSelector({ servers, selectedId, onChange, adminSessi
       <div className="person-footer">
         <div className="person-footer-actions">
           <button type="button" className="button secondary" onClick={() => select('')}>Kontynuuj bez wyboru osoby</button>
-          <button type="button" className={`button secondary admin-toggle-btn ${adminSession ? 'active' : ''}`} onClick={() => { closePanel(); onAdminToggle(); }} aria-label={adminSession ? 'Wyłącz tryb admina' : 'Administrator'} title={adminSession ? 'Wyłącz tryb administratora' : 'Włącz tryb administratora'}>
-            {adminSession ? <LogOut size={16} /> : <ShieldCheck size={16} />}
-            <span>{adminSession ? 'Wyłącz tryb admina' : 'Administrator'}</span>
-          </button>
         </div>
         <p>Osobę możesz zmienić w każdej chwili w nagłówku.</p>
       </div>

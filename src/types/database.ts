@@ -72,6 +72,54 @@ export type CompetitionState = { season: string; reset_at: string | null; reset_
 export type PointAdjustment = { id: string; season: string; server_id: string; delta: number; mode: 'add' | 'subtract' | 'set'; reason: string; created_at: string; revision: number };
 export type PendingConfirmations = { masses: Mass[]; total: number };
 
+/** Odznaka edytowalna przez administratora (cel + filtry wybierające służby). */
+export type BadgeIcon =
+  | 'sunrise'
+  | 'star'
+  | 'flame'
+  | 'calendar'
+  | 'medal'
+  | 'heart'
+  | 'trophy'
+  | 'crown'
+  | 'sparkles'
+  | 'bell'
+  | 'church'
+  | 'book'
+  | 'cross'
+  | 'shield'
+  | 'zap'
+  | 'target'
+  | 'award'
+  | 'clock';
+export type DayMarkKind = 'sunday' | 'solemnity' | 'feast' | 'memorial' | 'annotated';
+export type BadgeKind = 'total' | 'single_week' | 'single_month' | 'custom_period' | 'streak';
+export type BadgeFilter = {
+  kind?: BadgeKind;
+  weekdays?: number[];
+  timeFrom?: string;
+  timeTo?: string;
+  dates?: string[];
+  dateFrom?: string;
+  dateTo?: string;
+  title?: string;
+  celebrant?: string;
+  occasion?: string;
+  category?: 'mass' | 'devotion';
+  dayMark?: DayMarkKind;
+  dayMarkText?: string;
+  perDay?: boolean;
+};
+export type BadgeDefinition = {
+  id: string;
+  name: string;
+  description: string;
+  icon: BadgeIcon;
+  points: number;
+  target: number;
+  filters: BadgeFilter;
+};
+
 export type NewMass = Omit<Mass, 'id'>;
 
 export type RecurringMassesInput = {
@@ -106,6 +154,12 @@ export type Database = {
       competition_seasons: { Row: CompetitionState; Insert: CompetitionState; Update: Partial<CompetitionState>; Relationships: [] };
       competition_participants: { Row: { server_id: string; joined_at: string }; Insert: { server_id: string; joined_at?: string }; Update: Partial<{ server_id: string; joined_at: string }>; Relationships: [] };
       point_adjustments: { Row: PointAdjustment; Insert: PointAdjustment; Update: Partial<PointAdjustment>; Relationships: [] };
+      badge_definitions: {
+        Row: BadgeDefinition;
+        Insert: BadgeDefinition;
+        Update: Partial<Omit<BadgeDefinition, 'id'>>;
+        Relationships: [];
+      };
       day_annotations: { Row: { day: string; label: string }; Insert: {day:string;label:string}; Update: {label?:string}; Relationships: [] };
       altar_servers: {
         Row: AltarServer;
@@ -148,6 +202,9 @@ export type Database = {
       leave_competition: { Args: { p_server_id: string }; Returns: undefined };
       admin_adjust_points: { Args: { p_token: string; p_server_id: string; p_season: string; p_mode: string; p_value: number; p_current_points: number; p_revision: number; p_reason: string }; Returns: undefined };
       admin_reset_points: { Args: { p_token: string; p_season: string; p_revision: number }; Returns: undefined };
+      admin_upsert_badge: { Args: { p_token: string; p_id: string | null; p_name: string; p_description: string; p_icon: string; p_points: number; p_target: number; p_filters: BadgeFilter }; Returns: string };
+      admin_delete_badge: { Args: { p_token: string; p_id: string }; Returns: undefined };
+      admin_clear_badges: { Args: { p_token: string }; Returns: undefined };
       admin_set_day_annotation: { Args: {p_token:string;p_day:string;p_label:string}; Returns: undefined };
       admin_login: { Args: { p_pin: string }; Returns: AdminSession[] };
       admin_logout: { Args: { p_token: string }; Returns: undefined };
@@ -202,6 +259,7 @@ export interface ScheduleData {
   competitionState?: CompetitionState;
   dayAnnotations?: {day:string;label:string}[];
   competitionParticipants?: string[];
+  badgeDefinitions?: BadgeDefinition[];
   servers: AltarServer[];
   masses: Mass[];
   rules: RecurringRule[];

@@ -1,18 +1,24 @@
 import { useState } from 'react';
-import { ArrowLeft, Check, CheckCircle2, ChevronRight, Download, Palette, Settings } from 'lucide-react';
+import { ArrowLeft, Check, CheckCircle2, ChevronRight, Download, LogOut, Palette, Settings, ShieldCheck } from 'lucide-react';
 import Modal from './Modal';
 import AccentSelector, { useAccent } from './AccentSelector';
 import { useTheme, themeOptions } from './ThemeSelector';
 import { usePwaInstall } from '../hooks/usePwaInstall';
 import AppLogo from './AppLogo';
+import type { AdminSession } from '../types/database';
 
 type SettingsView = 'menu' | 'appearance' | 'install';
 
-export default function SettingsModal() {
+interface SettingsModalProps {
+  adminSession?: AdminSession | null;
+  onAdminToggle?: () => void;
+}
+
+export default function SettingsModal({ adminSession, onAdminToggle }: SettingsModalProps) {
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<SettingsView>('menu');
 
-  const { theme, selected: themeSelected, changeTheme, storageError } = useTheme();
+  const { theme, changeTheme, storageError } = useTheme();
   const accentSettings = useAccent();
   const { installed, ios, canInstall, promptInstall } = usePwaInstall();
 
@@ -60,7 +66,6 @@ export default function SettingsModal() {
                   </span>
                   <span className="settings-item-text">
                     <strong>Wygląd aplikacji</strong>
-                    <small>Motyw: {themeSelected.label.toLowerCase()} · kolor akcentu</small>
                   </span>
                   <ChevronRight size={18} className="settings-item-arrow" aria-hidden="true" />
                 </button>
@@ -75,11 +80,24 @@ export default function SettingsModal() {
                   </span>
                   <span className="settings-item-text">
                     <strong>Pobierz aplikację</strong>
-                    <small>
-                      {installed
-                        ? 'Aplikacja jest już zainstalowana'
-                        : 'Dodaj skrót do ekranu głównego telefonu'}
-                    </small>
+                  </span>
+                  <ChevronRight size={18} className="settings-item-arrow" aria-hidden="true" />
+                </button>
+
+                <button
+                  type="button"
+                  className="settings-menu-item"
+                  onClick={() => {
+                    handleClose();
+                    onAdminToggle?.();
+                  }}
+                  aria-label={adminSession ? 'Wyłącz tryb administratora' : 'Administrator'}
+                >
+                  <span className={`settings-item-icon ${adminSession ? 'settings-icon-admin-active' : 'settings-icon-admin'}`} aria-hidden="true">
+                    {adminSession ? <LogOut size={22} /> : <ShieldCheck size={22} />}
+                  </span>
+                  <span className="settings-item-text">
+                    <strong>{adminSession ? 'Wyłącz tryb administratora' : 'Administrator'}</strong>
                   </span>
                   <ChevronRight size={18} className="settings-item-arrow" aria-hidden="true" />
                 </button>

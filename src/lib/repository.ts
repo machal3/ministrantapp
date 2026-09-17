@@ -1,13 +1,13 @@
 import { eventCategory } from './eventCategory';
 import { aggregateAttendees, ruleHistoryToPreserve } from './attendance';
-import { buildCompetition, competitionSeason } from './competition';
+import { buildCompetition, competitionSeason, normalizeBadgeDefinition, validateBadgeInput, DEFAULT_BADGE_DEFINITIONS, encodeBadgeFilterFallback, legacyFallbackIcon, type BadgeIcon } from './competition';
 import { massOccurrenceDates } from './massRecurrence';
 import { configurationError, isDemo, supabase } from './supabase';
 import { demoWeek, readDemo, writeDemo } from './demo';
 import { dateKey, shiftDate, shiftMonth, timeSlot, weekday, weekBounds, zonedIso } from './dates';
 import { requireAdminSession } from './admin';
 import { RANKS } from '../types/database';
-import type { AdminSession, AltarServer, AttendanceType, CompetitionState, MassEditInput, NewMass, PendingConfirmations, RecurringMassesInput, RecurringRule, ScheduleData } from '../types/database';
+import type { AdminSession, AltarServer, AttendanceType, BadgeDefinition, CompetitionState, MassEditInput, NewMass, PendingConfirmations, RecurringMassesInput, RecurringRule, ScheduleData } from '../types/database';
 
 function client() {
   if (!supabase) throw new Error(configurationError || 'Brak połączenia z Supabase.');
@@ -55,23 +55,141 @@ export async function loadCompetition(from: string, to: string): Promise<Schedul
   const emptyState: CompetitionState = { season, reset_at: null, revision: 0, reset_revision: 0 };
   if (isDemo) {
     const state = readDemo();
-    return { ...demoWeek(from, to), confirmations: state.confirmations ?? [], pointAdjustments: state.pointAdjustments ?? [], competitionState: state.competitionSeasons?.find(item => item.season === season) ?? emptyState, competitionParticipants: state.competitionParticipants ?? [] };
+    return { ...demoWeek(from, to), confirmations: state.confirmations ?? [], pointAdjustments: state.pointAdjustments ?? [], competitionState: state.competitionSeasons?.find(item => item.season === season) ?? emptyState, competitionParticipants: state.competitionParticipants ?? [], badgeDefinitions: state.badgeDefinitions };
   }
   const db = client();
   for (let attempt = 0; attempt < 2; attempt++) {
     const before = await db.from('competition_seasons').select('*').eq('season', season).maybeSingle();
     checkCompetition(before.error);
     const state = before.data ?? emptyState;
-    const [schedule, adjustments] = await Promise.all([
+    const [schedule, adjustments, badgeDefinitions] = await Promise.all([
       loadScheduleRange(from, to),
       allRows((a, b) => db.from('point_adjustments').select('*').eq('season', season).order('revision').order('id').range(a, b)),
+      loadBadgeDefinitions(),
     ]);
     const confirmations = schedule.confirmations ?? [];
     const after = await db.from('competition_seasons').select('*').eq('season', season).maybeSingle();
     checkCompetition(after.error);
-    if (state.revision === (after.data?.revision ?? 0)) return { ...schedule, confirmations, pointAdjustments: adjustments, competitionState: state };
+    if (state.revision === (after.data?.revision ?? 0)) return { ...schedule, confirmations, pointAdjustments: adjustments, competitionState: state, badgeDefinitions };
   }
   throw new Error('Wyniki są właśnie aktualizowane. Spróbuj ponownie.');
+}
+
+/** Definicje odznak: brak tabeli (stara baza bez migracji) oznacza zestaw podstawowy z kodu. */
+export async function loadBadgeDefinitions(): Promise<BadgeDefinition[] | undefined> {
+  // Tryb demo przechowuje surowe wiersze (też sprzed dodania filtrów) — normalizuj jak z Supabase.
+  if (isDemo) {
+    const stored = readDemo().badgeDefinitions;
+    if (stored === undefined) return undefined;
+    return stored
+      .map(row => normalizeBadgeDefinition(row))
+      .filter((def): def is BadgeDefinition => def !== null);
+  }
+  const db = client();
+  const rows: BadgeDefinition[] = [];
+  for (let offset = 0; ; offset += 500) {
+    const { data, error } = await db.from('badge_definitions').select('*').order('target').order('name').range(offset, offset + 499);
+    if (error) {
+      if (['PGRST202', 'PGRST205', '42P01'].includes(error.code ?? '')) return undefined;
+      throw new Error(error.message);
+    }
+    for (const row of data ?? []) {
+      const normalized = normalizeBadgeDefinition(row);
+      if (normalized) rows.push(normalized);
+    }
+    if (!data || data.length < 500) break;
+  }
+  return rows;
+}
+
+export type BadgeEdit = { id?: string; name: string; description: string; icon: BadgeIcon; points: number; target: number; filters?: unknown };
+
+export async function saveBadge(edit: BadgeEdit, session: AdminSession | null): Promise<string> {
+  const admin = await requireAdminSession(session);
+  const clean = validateBadgeInput({ name: edit.name, description: edit.description, icon: edit.icon, points: edit.points, target: edit.target, filters: edit.filters });
+  if (edit.id !== undefined && typeof edit.id !== 'string') throw new Error('Nieprawidłowa odznaka.');
+  if (isDemo) {
+    const id = edit.id ?? `demo-badge-${crypto.randomUUID()}`;
+    writeDemo(state => {
+      // Pierwszy zapis zamienia zestaw podstawowy z kodu na listę edytowalną.
+      const list = (state.badgeDefinitions ??= DEFAULT_BADGE_DEFINITIONS.map(b => ({ ...b, filters: { ...b.filters } })));
+      const found = list.find(b => b.id === id);
+      if (edit.id && !found) throw new Error('Ta odznaka już nie istnieje.');
+      if (found) Object.assign(found, clean);
+      else list.push({ id, ...clean });
+      list.sort((a, b) => a.target - b.target || a.name.localeCompare(b.name, 'pl'));
+    });
+    return id;
+  }
+  const db = client();
+  const filtersPayload = encodeBadgeFilterFallback(clean.filters, clean.icon);
+  let rpc = await db.rpc('admin_upsert_badge', {
+    p_token: admin.token,
+    p_id: edit.id ?? null,
+    p_name: clean.name,
+    p_description: clean.description,
+    p_icon: clean.icon,
+    p_points: clean.points,
+    p_target: clean.target,
+    p_filters: filtersPayload,
+  });
+  if (rpc.error && (rpc.error.message?.includes('ikon') || rpc.error.message?.includes('badge_definitions_icon_check'))) {
+    const fallbackIcon = legacyFallbackIcon(clean.icon);
+    rpc = await db.rpc('admin_upsert_badge', {
+      p_token: admin.token,
+      p_id: edit.id ?? null,
+      p_name: clean.name,
+      p_description: clean.description,
+      p_icon: fallbackIcon,
+      p_points: clean.points,
+      p_target: clean.target,
+      p_filters: filtersPayload,
+    });
+  }
+  if (!rpc.error) return rpc.data as string;
+  if (rpc.error.code !== 'PGRST202') check(rpc.error);
+  // Starsza baza bez migracji odznak: bezpośredni zapis po weryfikacji sesji.
+  if (edit.id) {
+    let updateRes = await db.from('badge_definitions').update({ name: clean.name, description: clean.description, icon: clean.icon, points: clean.points, target: clean.target, filters: filtersPayload }).eq('id', edit.id).select('id');
+    if (updateRes.error && (updateRes.error.message?.includes('badge_definitions_icon_check') || updateRes.error.message?.includes('ikon'))) {
+      updateRes = await db.from('badge_definitions').update({ name: clean.name, description: clean.description, icon: legacyFallbackIcon(clean.icon), points: clean.points, target: clean.target, filters: filtersPayload }).eq('id', edit.id).select('id');
+    }
+    check(updateRes.error);
+    if (!updateRes.data?.length) throw new Error('Ta odznaka już nie istnieje.');
+    return edit.id;
+  }
+  let insertRes = await db.from('badge_definitions').insert({ id: crypto.randomUUID(), name: clean.name, description: clean.description, icon: clean.icon, points: clean.points, target: clean.target, filters: filtersPayload }).select('id').single();
+  if (insertRes.error && (insertRes.error.message?.includes('badge_definitions_icon_check') || insertRes.error.message?.includes('ikon'))) {
+    insertRes = await db.from('badge_definitions').insert({ id: crypto.randomUUID(), name: clean.name, description: clean.description, icon: legacyFallbackIcon(clean.icon), points: clean.points, target: clean.target, filters: filtersPayload }).select('id').single();
+  }
+  check(insertRes.error);
+  return (insertRes.data as { id: string }).id;
+}
+
+export async function deleteBadge(id: string, session: AdminSession | null): Promise<void> {
+  const admin = await requireAdminSession(session);
+  if (isDemo) return writeDemo(state => {
+    const list = (state.badgeDefinitions ??= DEFAULT_BADGE_DEFINITIONS.map(b => ({ ...b })));
+    state.badgeDefinitions = list.filter(b => b.id !== id);
+  });
+  const db = client();
+  const rpc = await db.rpc('admin_delete_badge', { p_token: admin.token, p_id: id });
+  if (!rpc.error) return;
+  if (rpc.error.code !== 'PGRST202') check(rpc.error);
+  check((await db.from('badge_definitions').delete().eq('id', id)).error);
+}
+
+/** Usuwa wszystkie odznaki, aby administrator mógł dodać własne od zera. */
+export async function clearBadges(session: AdminSession | null): Promise<void> {
+  const admin = await requireAdminSession(session);
+  if (isDemo) return writeDemo(state => { state.badgeDefinitions = []; });
+  const db = client();
+  const rpc = await db.rpc('admin_clear_badges', { p_token: admin.token });
+  if (!rpc.error) return;
+  if (rpc.error.code !== 'PGRST202') check(rpc.error);
+  const existing = await loadBadgeDefinitions();
+  if (existing === undefined) throw new Error('Uruchom migrację 202609170001_badge_definitions.sql w Supabase, aby edytować odznaki.');
+  check((await db.from('badge_definitions').delete().neq('id', '00000000-0000-0000-0000-000000000000')).error);
 }
 
 export async function loadPendingConfirmations(serverId: string): Promise<PendingConfirmations> {
@@ -656,7 +774,7 @@ export function subscribe(onChange: () => void, onStatus: (status: SyncStatus) =
   } else if (supabase) {
     onStatus('connecting');
     const channel = supabase.channel(`schedule-${crypto.randomUUID()}`);
-    for (const table of ['altar_servers', 'masses', 'recurring_rules', 'mass_attendees', 'day_annotations', 'service_confirmations', 'competition_seasons', 'point_adjustments', 'competition_participants']) {
+    for (const table of ['altar_servers', 'masses', 'recurring_rules', 'mass_attendees', 'day_annotations', 'service_confirmations', 'competition_seasons', 'point_adjustments', 'competition_participants', 'badge_definitions']) {
       channel.on('postgres_changes', { event: '*', schema: 'public', table }, onChange);
     }
     channel.subscribe(status => {

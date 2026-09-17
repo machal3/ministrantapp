@@ -24,9 +24,26 @@ export default function Modal({ title, children, onClose, busy = false, classNam
       previousFocus?.focus();
     };
   }, [initialFocusRef]);
+  const handleDialogClick = (event: React.MouseEvent<HTMLDialogElement>) => {
+    if (busy || !dismissible) return;
+    const dialog = ref.current;
+    if (!dialog || event.target !== dialog) return;
+    const rect = dialog.getBoundingClientRect();
+    if (rect.width > 0 && rect.height > 0) {
+      const isInDialog = (
+        rect.top <= event.clientY &&
+        event.clientY <= rect.top + rect.height &&
+        rect.left <= event.clientX &&
+        event.clientX <= rect.left + rect.width
+      );
+      if (isInDialog) return;
+    }
+    onClose();
+  };
+
   return <dialog ref={ref} className={`modal ${className}`} aria-labelledby={titleId}
     onCancel={event => { event.preventDefault(); if (!busy && dismissible) onClose(); }}
-    onClick={event => { if (event.target === event.currentTarget && !busy && dismissible) onClose(); }}>
+    onClick={handleDialogClick}>
     <div className="modal-content" onClick={event => event.stopPropagation()}>
       <div className="modal-heading">
         <h2 id={titleId}>{title}</h2>
