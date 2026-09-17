@@ -231,6 +231,50 @@ it('allows selecting time-frame and streak badge kinds with custom targets', asy
   ));
 });
 
+it('allows setting assistance size filter in both whole season and time-frame badges', async () => {
+  api.saveBadge.mockResolvedValue('new-id');
+  render(<AdminBadgesModal {...props} />);
+  goToStep2();
+
+  // 1. By default "W całym sezonie" is selected. Server count presets are available as an option.
+  expect(screen.getByText('Liczba służących (wielkość asysty)')).toBeTruthy();
+  expect(screen.getByRole('radio', { name: 'Dowolna asysta' }).getAttribute('aria-checked')).toBe('true');
+
+  // Select solo preset
+  fireEvent.click(screen.getByRole('radio', { name: /Solo \(samemu – 1 osoba\)/ }));
+  expect(screen.getByText(/służba solo \(samemu\)/)).toBeTruthy();
+
+  // Select duo preset
+  fireEvent.click(screen.getByRole('radio', { name: /W duecie \(2 osoby\)/ }));
+  expect(screen.getByText(/w duecie \(2 osoby\)/)).toBeTruthy();
+
+  // Select large group preset
+  fireEvent.click(screen.getByRole('radio', { name: /Duża asysta \(min\. 4\)/ }));
+  expect(screen.getByText(/liczna asysta \(min\. 4 służących\)/)).toBeTruthy();
+
+  // 2. Switch to "W jakimś czasie" -> "W jednym miesiącu" and set custom servers range
+  fireEvent.click(screen.getByRole('radio', { name: /W jakimś czasie/ }));
+  fireEvent.click(screen.getByRole('radio', { name: /W jednym miesiącu/ }));
+
+  fireEvent.click(screen.getByRole('radio', { name: /Własna liczba…/ }));
+  fireEvent.change(screen.getByLabelText(/Minimalna liczba osób/), { target: { value: '3' } });
+  fireEvent.change(screen.getByLabelText(/Maksymalna liczba osób/), { target: { value: '5' } });
+
+  expect(screen.getByText(/w jednym miesiącu · asysta 3–5 służących/)).toBeTruthy();
+
+  // Set target
+  fireEvent.change(screen.getByLabelText('Cel (liczba służb w jednym miesiącu)'), { target: { value: '4' } });
+
+  fireEvent.click(screen.getByRole('button', { name: 'Dodaj odznakę' }));
+  await waitFor(() => expect(api.saveBadge).toHaveBeenCalledWith(
+    expect.objectContaining({
+      target: 4,
+      filters: { kind: 'single_month', minServers: 3, maxServers: 5 },
+    }),
+    session,
+  ));
+});
+
 it('does not save or close the wizard on Enter in step 2 fields', async () => {
   api.saveBadge.mockResolvedValue('new-id');
   render(<AdminBadgesModal {...props} />);
@@ -240,14 +284,14 @@ it('does not save or close the wizard on Enter in step 2 fields', async () => {
   const cancelled = fireEvent.keyDown(title, { key: 'Enter', code: 'Enter' });
   expect(cancelled).toBe(false);
   expect(api.saveBadge).not.toHaveBeenCalled();
-  expect(screen.getByLabelText('Cel (liczba słu\u017Cb)')).toBeTruthy();
+  expect(screen.getByLabelText('Cel (liczba służb)')).toBeTruthy();
   expect(props.onClose).not.toHaveBeenCalled();
 });
 
 it('adds the date on Enter in the date field instead of saving', () => {
   render(<AdminBadgesModal {...props} />);
   goToStep2();
-  const dateInput = screen.getByLabelText('Dodaj dat\u0119');
+  const dateInput = screen.getByLabelText('Dodaj datę');
   fireEvent.change(dateInput, { target: { value: '2026-12-25' } });
   fireEvent.keyDown(dateInput, { key: 'Enter', code: 'Enter' });
   expect(screen.getByText('2026-12-25')).toBeTruthy();
@@ -265,4 +309,32 @@ it('opens legacy definitions without filters and keeps them editable', () => {
   fireEvent.click(screen.getByRole('button', { name: /Dalej/ }));
   expect(screen.getByLabelText('Cel (liczba słu\u017Cb)')).toHaveProperty('value', '3');
   expect(screen.getByText(/Cel: 3 słu\u017Cby/)).toBeTruthy();
+});
+
+it('sorts badges by points, name, target and kind', () => {
+  const customBadges = [
+    { id: 'b1', name: 'Złoty lektor', description: '', icon: 'medal', points: 100, target: 50, filters: { kind: 'total' } },
+    { id: 'b2', name: 'Albański poranek', description: '', icon: 'sunrise', points: 20, target: 5, filters: { kind: 'single_week' } },
+    { id: 'b3', name: 'Bystry ministrant', description: '', icon: 'star', points: 50, target: 20, filters: { kind: 'streak' } },
+  ];
+  const data = { ...props.data, badgeDefinitions: customBadges } as unknown as ScheduleData;
+  render(<AdminBadgesModal {...props} data={data} />);
+
+  const sortSelect = screen.getByLabelText('Sortowanie odznak');
+  expect(sortSelect).toBeTruthy();
+
+  // Sort by points descending
+  fireEvent.change(sortSelect, { target: { value: 'points_desc' } });
+  let badgeTitles = screen.getAllByRole('strong').map(el => el.textContent).filter(t => ['Złoty lektor', 'Albański poranek', 'Bystry ministrant'].includes(t ?? ''));
+  expect(badgeTitles).toEqual(['Złoty lektor', 'Bystry ministrant', 'Albański poranek']);
+
+  // Sort by name ascending (A-Z)
+  fireEvent.change(sortSelect, { target: { value: 'name_asc' } });
+  badgeTitles = screen.getAllByRole('strong').map(el => el.textContent).filter(t => ['Złoty lektor', 'Albański poranek', 'Bystry ministrant'].includes(t ?? ''));
+  expect(badgeTitles).toEqual(['Albański poranek', 'Bystry ministrant', 'Złoty lektor']);
+
+  // Sort by target ascending
+  fireEvent.change(sortSelect, { target: { value: 'target_asc' } });
+  badgeTitles = screen.getAllByRole('strong').map(el => el.textContent).filter(t => ['Złoty lektor', 'Albański poranek', 'Bystry ministrant'].includes(t ?? ''));
+  expect(badgeTitles).toEqual(['Albański poranek', 'Bystry ministrant', 'Złoty lektor']);
 });

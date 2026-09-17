@@ -127,3 +127,19 @@ it('hides opted-out servers from community ranking and shows opted-out status', 
   expect(screen.getByRole('button', { name: 'Zapisz się do rywalizacji' })).toBeTruthy();
 });
 
+it('allows sorting badges in competition view', async () => {
+  await openCompetition();
+  await screen.findByRole('heading', { name: 'Twoje odznaki' });
+
+  const sortSelect = screen.getByLabelText('Sortowanie odznak');
+  expect(sortSelect).toBeTruthy();
+
+  // Change sort to points descending
+  fireEvent.change(sortSelect, { target: { value: 'points_desc' } });
+  expect((sortSelect as HTMLSelectElement).value).toBe('points_desc');
+
+  // Change sort to name ascending
+  fireEvent.change(sortSelect, { target: { value: 'name_asc' } });
+  expect((sortSelect as HTMLSelectElement).value).toBe('name_asc');
+});
+

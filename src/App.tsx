@@ -568,12 +568,12 @@ export default function App() {
 
       {adminSession && <div className="admin-toolbar"><span><ShieldCheck size={18} />Tryb administratora aktywny</span>
         <div className="admin-toolbar-actions">
-          <button className="button secondary" onClick={() => setAdding(true)} disabled={loading || !!loadError}><Plus size={16} />Dodaj Mszę / wydarzenie</button>
+          <button className="button secondary" onClick={() => setAdding(true)}><Plus size={16} />Dodaj Mszę / wydarzenie</button>
           <button className="button secondary" onClick={() => setPointsOpen(true)}><Trophy size={16} />Zarządzaj punktacją</button>
           <button className="button secondary" onClick={() => setBadgesOpen(true)}><Award size={16} />Edytuj odznaki</button>
-          <button className="button secondary" onClick={() => setCelebrantsOpen(true)} disabled={loading || !!loadError}><UserRound size={16} />Księża na tydzień</button>
-          <button className="button secondary" onClick={() => setAnnotationsOpen(true)} disabled={loading || !!loadError}><CalendarDays size={16} />Oznaczanie dni</button>
-          <button className="button secondary" disabled={loading || !!loadError} onClick={() => setEditingServers(true)}><Users size={16} />Edytuj ministrantów</button>
+          <button className="button secondary" onClick={() => setCelebrantsOpen(true)}><UserRound size={16} />Księża na tydzień</button>
+          <button className="button secondary" onClick={() => setAnnotationsOpen(true)}><CalendarDays size={16} />Oznaczanie dni</button>
+          <button className="button secondary" onClick={() => setEditingServers(true)}><Users size={16} />Edytuj ministrantów</button>
           <button className="button secondary" onClick={() => void leaveAdmin()}><LogOut size={16} />Wyłącz tryb admina</button>
         </div></div>}
 
@@ -606,7 +606,7 @@ export default function App() {
             </div>
             {(adminSession || dayLabel) && <div className={`day-annotation-bar ${dayAppearance(selectedDay, dayLabel)}`}>
               <span className="day-annotation-label"><CalendarDays size={18} aria-hidden="true" /><span>{dayLabel || 'Dzień bez oznaczenia'}</span></span>
-              {adminSession && <button className="button secondary" disabled={loading || !!loadError} onClick={() => setEditingDay(selectedDay)}><Pencil size={14}/>Oznacz dzień</button>}
+              {adminSession && <button className="button secondary" onClick={() => setEditingDay(selectedDay)}><Pencil size={14}/>Oznacz dzień</button>}
             </div>}
           </div>
 

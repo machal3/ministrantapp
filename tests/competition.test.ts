@@ -25,9 +25,11 @@ describe('liturgical seasons and levels', () => {
     expect(competitionSeason(at('2026-11-29', '00:00')).label).toBe('2026/2027');
     expect(competitionSeason(at('2026-01-01')).label).toBe('2025/2026');
   });
-  it('uses Monday to Sunday for series regardless of schedule navigation', () => {
-    expect(competitionWeek('2026-09-20')).toBe('2026-09-14');
-    expect(competitionWeek('2026-09-21')).toBe('2026-09-21');
+  it('uses Sunday to Saturday for series and Twój rytm', () => {
+    expect(competitionWeek('2026-09-20')).toBe('2026-09-20');
+    expect(competitionWeek('2026-09-21')).toBe('2026-09-20');
+    expect(competitionWeek('2026-09-26')).toBe('2026-09-20');
+    expect(competitionWeek('2026-09-27')).toBe('2026-09-27');
   });
   it('calculates every level boundary and keeps progressing beyond named levels', () => {
     for (const [points, expected] of [[0, 1], [99, 1], [100, 2], [299, 2], [300, 3], [1000, 5], [5500, 11]]) {
@@ -42,7 +44,7 @@ describe('liturgical seasons and levels', () => {
 describe('scoring and weekly streaks', () => {
   it('scores weekdays and Sundays, skips future, previous season, other events and absences', () => {
     const data = fixture([
-      { day: '2026-09-14' }, { day: '2026-09-20' }, { day: '2026-09-21' },
+      { day: '2026-09-13' }, { day: '2026-09-14' }, { day: '2026-09-21' },
       { day: '2025-11-29' }, { day: '2026-09-16', category: 'other' }, { day: '2026-09-17' },
     ]);
     data.exceptions[5].type = 'excused';
@@ -289,6 +291,10 @@ describe('badge conditions', () => {
     expect(describeBadgeFilter({ kind: 'streak', category: 'mass' })).toBe('seria „Twój rytm” (min. 2/tydz.) · Msze Święte');
     expect(describeBadgeFilter({ weekdays: [0], timeFrom: '17:00', timeTo: '20:00' })).toContain('Niedz');
     expect(describeBadgeFilter({ title: 'Roraty' })).toContain('Roraty');
+    expect(describeBadgeFilter({ minServers: 1, maxServers: 1 })).toBe('służba solo (samemu)');
+    expect(describeBadgeFilter({ minServers: 2, maxServers: 2 })).toBe('w duecie (2 osoby)');
+    expect(describeBadgeFilter({ minServers: 4 })).toBe('liczna asysta (min. 4 służących)');
+    expect(describeBadgeFilter({ kind: 'single_month', minServers: 3, maxServers: 5 })).toBe('w jednym miesiącu · asysta 3–5 służących');
     expect(describeBadgeFilter({ dayMark: 'solemnity' })).toContain('uroczysto');
     expect(describeBadgeFilter({ perDay: true })).toContain('1 dziennie');
   });
@@ -361,11 +367,38 @@ describe('badge conditions', () => {
     expect(brokenProfile.badges[0]).toMatchObject({ value: 1, earned: false });
   });
 
+  it('evaluates server count filter (solo, duo, and large group) in whole season and time frames', () => {
+    const data = fixture([{ day: '2026-09-14' }, { day: '2026-09-15' }, { day: '2026-09-16' }]);
+    data.servers.push({ id: 'c', name: 'Adam', rank: 'Ministrant' }, { id: 'd', name: 'Tomasz', rank: 'Ministrant' });
+
+    data.confirmations!.push(
+      { mass_id: 'm1', server_id: 'b', attended: true, confirmed_at: data.masses[1].start_time },
+      { mass_id: 'm2', server_id: 'b', attended: true, confirmed_at: data.masses[2].start_time },
+      { mass_id: 'm2', server_id: 'c', attended: true, confirmed_at: data.masses[2].start_time },
+      { mass_id: 'm2', server_id: 'd', attended: true, confirmed_at: data.masses[2].start_time },
+    );
+
+    const solo = own({ ...data, badgeDefinitions: [def({ minServers: 1, maxServers: 1 }, 1)] }, at('2026-09-21'));
+    expect(solo.badges[0]).toMatchObject({ value: 1, earned: true });
+
+    const duo = own({ ...data, badgeDefinitions: [def({ kind: 'single_month', minServers: 2, maxServers: 2 }, 1)] }, at('2026-09-21'));
+    expect(duo.badges[0]).toMatchObject({ value: 1, earned: true });
+
+    const large = own({ ...data, badgeDefinitions: [def({ minServers: 4 }, 1)] }, at('2026-09-21'));
+    expect(large.badges[0]).toMatchObject({ value: 1, earned: true });
+
+    data.confirmations!.find(c => c.mass_id === 'm2' && c.server_id === 'd')!.attended = false;
+    const largeAfterAbsence = own({ ...data, badgeDefinitions: [def({ minServers: 4 }, 1)] }, at('2026-09-21'));
+    expect(largeAfterAbsence.badges[0]).toMatchObject({ value: 0, earned: false });
+  });
+
   it('normalizes stored filters and validates new ones', () => {
     expect(normalizeBadgeFilter(null)).toEqual({});
     expect(normalizeBadgeFilter({ kind: 'single_week' })).toEqual({ kind: 'single_week' });
     expect(normalizeBadgeFilter({ kind: 'single_month' })).toEqual({ kind: 'single_month' });
     expect(normalizeBadgeFilter({ kind: 'custom_period', dateFrom: '2026-12-01', dateTo: '2026-12-24' })).toEqual({ kind: 'custom_period', dateFrom: '2026-12-01', dateTo: '2026-12-24' });
+    expect(normalizeBadgeFilter({ minServers: 2, maxServers: 2 })).toEqual({ minServers: 2, maxServers: 2 });
+    expect(normalizeBadgeFilter({ kind: 'single_month', minServers: 2, maxServers: 2 })).toEqual({ kind: 'single_month', minServers: 2, maxServers: 2 });
     expect(normalizeBadgeFilter({ kind: 'streak' })).toEqual({ kind: 'streak' });
     expect(normalizeBadgeFilter({ kind: 'total' })).toEqual({});
     expect(normalizeBadgeFilter({ kind: 'invalid' })).toEqual({});
@@ -377,6 +410,8 @@ describe('badge conditions', () => {
     expect(normalizeBadgeFilter({ dayMark: 'party' })).toEqual({});
     expect(validateBadgeInput({ name: 'X', description: '', icon: 'medal', points: 10, target: 2, filters: { weekdays: [0] } }).filters)
       .toEqual({ weekdays: [0] });
+    expect(() => validateBadgeInput({ name: 'X', description: '', icon: 'medal', points: 10, target: 1, filters: { minServers: 5, maxServers: 2 } }))
+      .toThrow('Minimalna liczba służących nie może być większa niż maksymalna');
     expect(() => validateBadgeInput({ name: 'X', description: '', icon: 'medal', points: 10, target: 1, filters: { dates: ['2026-02-30'] } }))
       .toThrow('Nieprawidłowa data');
     expect(() => validateBadgeInput({ name: 'X', description: '', icon: 'medal', points: 10, target: 1, filters: { timeFrom: '18:00', timeTo: '18:00' } }))
@@ -424,6 +459,17 @@ describe('badge conditions', () => {
     const legacyNormalized = normalizeBadgeFilter({ dayMarkText: '__kind:streak|Święto' });
     expect(legacyNormalized.kind).toBe('streak');
     expect(legacyNormalized.dayMarkText).toBe('Święto');
+
+    // 5. servers count fallback encoding
+    const payloadServers = encodeBadgeFilterFallback({ kind: 'single_month', minServers: 2, maxServers: 2 }, 'trophy');
+    expect(payloadServers.dayMarkText).toContain('k=single_month');
+    expect(payloadServers.dayMarkText).toContain('smin=2');
+    expect(payloadServers.dayMarkText).toContain('smax=2');
+    const { kind: ___, ...dbRowServers } = payloadServers;
+    const normalizedServers = normalizeBadgeFilter(dbRowServers);
+    expect(normalizedServers.kind).toBe('single_month');
+    expect(normalizedServers.minServers).toBe(2);
+    expect(normalizedServers.maxServers).toBe(2);
   });
 
   it('correctly evaluates a streak badge recovered from unmigrated database fallback', () => {

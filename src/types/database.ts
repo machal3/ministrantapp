@@ -91,7 +91,21 @@ export type BadgeIcon =
   | 'zap'
   | 'target'
   | 'award'
-  | 'clock';
+  | 'clock'
+  | 'wolf'
+  | 'dog'
+  | 'bird'
+  | 'fish'
+  | 'sword'
+  | 'anchor'
+  | 'gem'
+  | 'compass'
+  | 'feather'
+  | 'mountain'
+  | 'sun'
+  | 'moon'
+  | 'footprints'
+  | 'shirt';
 export type DayMarkKind = 'sunday' | 'solemnity' | 'feast' | 'memorial' | 'annotated';
 export type BadgeKind = 'total' | 'single_week' | 'single_month' | 'custom_period' | 'streak';
 export type BadgeFilter = {
@@ -102,6 +116,8 @@ export type BadgeFilter = {
   dates?: string[];
   dateFrom?: string;
   dateTo?: string;
+  minServers?: number;
+  maxServers?: number;
   title?: string;
   celebrant?: string;
   occasion?: string;

@@ -1,15 +1,37 @@
 import { useMemo, useState } from 'react';
 import {
-  AlertCircle, Award, Bell, BookOpen, CalendarDays, Check, ChevronDown,
-  Church, Clock, Cross, Crown, Flame, HeartHandshake, Info, LoaderCircle,
-  Medal, RefreshCw, Shield, Sparkles, Star, Sunrise, Target, Trophy,
-  UserMinus, UserRound, Zap,
+  AlertCircle, Anchor, ArrowUpDown, Award, Bell, Bird, BookOpen, CalendarDays, Check, ChevronDown,
+  Church, Clock, Compass, Cross, Crown, Dog, Feather, Fish, Flame, Footprints, Gem, HeartHandshake,
+  Info, LoaderCircle, Medal, Moon, Mountain, RefreshCw, Shield, Shirt, Sparkles, Star, Sun, Sunrise,
+  Sword, Target, Trophy, UserMinus, UserRound, Zap,
 } from 'lucide-react';
+import Wolf from './WolfIcon';
 import { buildCompetition, competitionSeason, POINTS, type Badge, type BadgeIcon, type CompetitionProfile } from '../lib/competition';
 import { polishDate, shiftDate } from '../lib/dates';
 import type { ScheduleData } from '../types/database';
 import Modal from './Modal';
 import BackgroundSyncNotice from './BackgroundSyncNotice';
+
+export type BadgeSort =
+  | 'default'
+  | 'progress_desc'
+  | 'progress_asc'
+  | 'points_desc'
+  | 'points_asc'
+  | 'target_asc'
+  | 'target_desc'
+  | 'name_asc';
+
+const BADGE_SORT_LABELS: Record<BadgeSort, string> = {
+  default: 'Domyślnie',
+  progress_desc: 'Najbliżej celu',
+  progress_asc: 'Najdalej od celu',
+  points_desc: 'Punkty (najwięcej)',
+  points_asc: 'Punkty (najmniej)',
+  target_asc: 'Cel (od najmniejszego)',
+  target_desc: 'Cel (od największego)',
+  name_asc: 'Nazwa (A – Z)',
+};
 
 interface Props {
   data: ScheduleData | null;
@@ -23,7 +45,7 @@ interface Props {
   onLeaveCompetition?: (serverId: string) => Promise<void> | void;
 }
 
-const badgeIcons: Record<BadgeIcon, typeof Sunrise> = {
+const badgeIcons: Record<BadgeIcon, React.ComponentType<{ size?: number | string; strokeWidth?: number | string; className?: string; [key: string]: unknown }>> = {
   sunrise: Sunrise,
   star: Star,
   flame: Flame,
@@ -42,6 +64,20 @@ const badgeIcons: Record<BadgeIcon, typeof Sunrise> = {
   target: Target,
   award: Award,
   clock: Clock,
+  wolf: Wolf,
+  dog: Dog,
+  bird: Bird,
+  fish: Fish,
+  sword: Sword,
+  anchor: Anchor,
+  gem: Gem,
+  compass: Compass,
+  feather: Feather,
+  mountain: Mountain,
+  sun: Sun,
+  moon: Moon,
+  footprints: Footprints,
+  shirt: Shirt,
 };
 const displayDate = (day: string) => polishDate(day, { day: 'numeric', month: 'long', year: 'numeric' });
 
@@ -97,7 +133,7 @@ function PersonalProgress({ profile }: { profile: CompetitionProfile }) {
         <div className="competition-streak-total"><strong>{profile.streak}</strong><span>tygodni w aktualnej serii</span></div>
       </div>
       <div className="competition-streak-progress">
-        <div className="competition-week-goal"><span>Ten tydzień · pon.–niedz.</span><strong>{profile.weekCount} / 2 służby</strong></div>
+        <div className="competition-week-goal"><span>Ten tydzień · niedz.–sob.</span><strong>{profile.weekCount} / 2 służby</strong></div>
         <progress max={2} value={Math.min(profile.weekCount, 2)} aria-label="Cel dwóch służb w tym tygodniu" />
         <p>{remaining ? `Jeszcze ${remaining === 1 ? '1 potwierdzona służba' : '2 potwierdzone służby'}, aby ${profile.streak ? 'przedłużyć' : 'rozpocząć'} serię. Niedziela też się liczy!` : 'Cel obecności osiągnięty! W tym tygodniu masz już co najmniej dwie potwierdzone służby.'}</p>
       </div>
@@ -114,11 +150,58 @@ export default function CompetitionView({ data, activeId, now, loading, error, o
   const [historyLimit, setHistoryLimit] = useState(8);
   const [rankingLimit, setRankingLimit] = useState(10);
   const [badgeFilter, setBadgeFilter] = useState<'all' | 'earned' | 'pending'>('all');
+  const [badgeSort, setBadgeSort] = useState<BadgeSort>('default');
   const [showAllBadges, setShowAllBadges] = useState(false);
-  const filteredBadges = profile?.badges.filter(badge => badgeFilter === 'all' || badge.earned === (badgeFilter === 'earned')) ?? [];
+  const filteredBadges = useMemo(() => {
+    if (!profile?.badges) return [];
+    const list = profile.badges.filter(badge => badgeFilter === 'all' || badge.earned === (badgeFilter === 'earned'));
+    switch (badgeSort) {
+      case 'progress_desc':
+        return list.sort((a, b) => {
+          const pa = a.target > 0 ? a.value / a.target : 1;
+          const pb = b.target > 0 ? b.value / b.target : 1;
+          return pb - pa || b.points - a.points || a.name.localeCompare(b.name, 'pl');
+        });
+      case 'progress_asc':
+        return list.sort((a, b) => {
+          const pa = a.target > 0 ? a.value / a.target : 1;
+          const pb = b.target > 0 ? b.value / b.target : 1;
+          return pa - pb || a.points - b.points || a.name.localeCompare(b.name, 'pl');
+        });
+      case 'points_desc':
+        return list.sort((a, b) => b.points - a.points || a.target - b.target || a.name.localeCompare(b.name, 'pl'));
+      case 'points_asc':
+        return list.sort((a, b) => a.points - b.points || a.target - b.target || a.name.localeCompare(b.name, 'pl'));
+      case 'target_asc':
+        return list.sort((a, b) => a.target - b.target || a.name.localeCompare(b.name, 'pl'));
+      case 'target_desc':
+        return list.sort((a, b) => b.target - a.target || a.name.localeCompare(b.name, 'pl'));
+      case 'name_asc':
+        return list.sort((a, b) => a.name.localeCompare(b.name, 'pl'));
+      default:
+        return list;
+    }
+  }, [profile?.badges, badgeFilter, badgeSort]);
   const [badgesPersonId, setBadgesPersonId] = useState<string | null>(null);
   const badgesPerson = result?.profiles.find(person => person.isParticipant && person.server.id === badgesPersonId);
-  const communityBadges = badgesPerson?.badges.filter(badge => badge.earned) ?? [];
+  const communityBadges = useMemo(() => {
+    if (!badgesPerson?.badges) return [];
+    const list = badgesPerson.badges.filter(badge => badge.earned);
+    switch (badgeSort) {
+      case 'points_desc':
+        return list.sort((a, b) => b.points - a.points || a.target - b.target || a.name.localeCompare(b.name, 'pl'));
+      case 'points_asc':
+        return list.sort((a, b) => a.points - b.points || a.target - b.target || a.name.localeCompare(b.name, 'pl'));
+      case 'target_asc':
+        return list.sort((a, b) => a.target - b.target || a.name.localeCompare(b.name, 'pl'));
+      case 'target_desc':
+        return list.sort((a, b) => b.target - a.target || a.name.localeCompare(b.name, 'pl'));
+      case 'name_asc':
+        return list.sort((a, b) => a.name.localeCompare(b.name, 'pl'));
+      default:
+        return list;
+    }
+  }, [badgesPerson?.badges, badgeSort]);
   const [confirmLeaveOpen, setConfirmLeaveOpen] = useState(false);
   const [leaveBusy, setLeaveBusy] = useState(false);
   const [leaveError, setLeaveError] = useState('');
@@ -149,9 +232,37 @@ export default function CompetitionView({ data, activeId, now, loading, error, o
         ) : <div className="empty-state competition-selection"><UserRound size={32} /><h3>Odkryj swój postęp</h3><p>Wybierz swoje imię w nagłówku, aby zobaczyć poziom, serię i odznaki. Ranking wspólnoty znajdziesz obok.</p></div>}
         {profile && isParticipant && <section className="competition-badges" aria-labelledby="badges-heading"><div className="competition-section-heading"><div><h3 id="badges-heading"><Award size={19} />Twoje odznaki</h3><p>Każda opowiada inną historię Twojej służby.</p></div><span>{earned} / {profile.badges.length} zdobytych</span></div>
           {profile.badges.length === 0 ? <p className="sidebar-empty">W tym sezonie nie ma jeszcze odznak. Administrator może dodać je w panelu „Edytuj odznaki”.</p> : <>
-          <div className="competition-badge-filters" role="group" aria-label="Filtr odznak">{([
-            ['all', 'Wszystkie'], ['earned', 'Zdobyte'], ['pending', 'W drodze'],
-          ] as const).map(([value, label]) => <button key={value} type="button" aria-pressed={badgeFilter === value} onClick={() => { setBadgeFilter(value); setShowAllBadges(false); }}>{label}</button>)}</div>
+          <div className="competition-badge-bar">
+            <div className="competition-badge-filters" role="group" aria-label="Filtr odznak">{([
+              ['all', 'Wszystkie'], ['earned', 'Zdobyte'], ['pending', 'W drodze'],
+            ] as const).map(([value, label]) => <button key={value} type="button" aria-pressed={badgeFilter === value} onClick={() => { setBadgeFilter(value); setShowAllBadges(false); }}>{label}</button>)}</div>
+            {profile.badges.length > 1 && (
+              <div className="badge-sort-control">
+                <div className="badge-sort-display" aria-hidden="true">
+                  <ArrowUpDown size={14} />
+                  <span className="badge-sort-prefix">Sortuj:</span>
+                  <span className="badge-sort-value">{BADGE_SORT_LABELS[badgeSort]}</span>
+                  <ChevronDown size={14} className="badge-sort-chevron" />
+                </div>
+                <select
+                  id="competition-badge-sort"
+                  className="badge-sort-select"
+                  value={badgeSort}
+                  onChange={e => { setBadgeSort(e.target.value as BadgeSort); setShowAllBadges(false); }}
+                  aria-label="Sortowanie odznak"
+                >
+                  <option value="default">Domyślnie</option>
+                  <option value="progress_desc">Najbliżej celu</option>
+                  <option value="progress_asc">Najdalej od celu</option>
+                  <option value="points_desc">Punkty: od największych</option>
+                  <option value="points_asc">Punkty: od najniższych</option>
+                  <option value="target_asc">Cel: od najmniejszego</option>
+                  <option value="target_desc">Cel: od największego</option>
+                  <option value="name_asc">Nazwa: A – Z</option>
+                </select>
+              </div>
+            )}
+          </div>
           <ul>{(showAllBadges ? filteredBadges : filteredBadges.slice(0, 6)).map(badge => <BadgeCard key={badge.id} badge={badge} />)}</ul>
           {!filteredBadges.length && <p className="sidebar-empty">{badgeFilter === 'earned' ? 'Pierwsza odznaka jeszcze przed Tobą. Zobacz cele w zakładce „W drodze”.' : 'Wszystkie odznaki w tym sezonie są już Twoje!'}</p>}
           {filteredBadges.length > 6 && <button type="button" className="button secondary competition-more" onClick={() => setShowAllBadges(value => !value)}>{showAllBadges ? 'Pokaż mniej' : `Pokaż wszystkie odznaki (${filteredBadges.length})`}</button>}
@@ -180,7 +291,7 @@ export default function CompetitionView({ data, activeId, now, loading, error, o
             <div><dt>Kolejny tydzień w serii</dt><dd>+{POINTS.streakStep} do bonusu</dd></div>
             <div><dt>Odznaki i osiągnięcia</dt><dd>{badgeReward}</dd></div>
           </dl>
-          <p>Bonus tygodniowy rośnie wraz z Twoją regularnością: 10, 15, 20, 25, aż do 30 pkt. Przyznajemy go po drugiej służbie w danym tygodniu (od poniedziałku do niedzieli).</p>
+          <p>Bonus tygodniowy rośnie wraz z Twoją regularnością: 10, 15, 20, 25, aż do 30 pkt. Przyznajemy go po drugiej służbie w danym tygodniu (od niedzieli do soboty).</p>
           <details><summary>Szczegółowe zasady i poziomy</summary><div className="competition-rule-details">
             <p><strong>Potwierdzanie obecności</strong>Punkty otrzymujesz za każdą potwierdzoną służbę na Mszy Świętej lub nabożeństwie (wystarczy zaznaczyć „Byłem”). Dwie służby tego samego dnia również wliczają się do celu tygodniowego.</p>
             <p><strong>Serie i regularność</strong>Służąc co najmniej 2 razy w tygodniu, budujesz serię tygodniową. Każdy kolejny tydzień podnosi Twój bonus o 5 punktów, co ułatwia zdobywanie kolejnych stopni.</p>

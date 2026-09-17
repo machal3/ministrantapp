@@ -1,11 +1,12 @@
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import type { FormEvent, KeyboardEvent as ReactKeyboardEvent } from 'react';
 import {
-  ArrowLeft, ArrowRight, Award, Bell, BookOpen, Calendar, CalendarCheck, CalendarDays, CalendarRange, Check,
-  Church, Clock, Cross, Crown, Flame, HeartHandshake, Info, LoaderCircle,
-  Medal, Plus, Save, Shield, Sparkles, Star, Sunrise, Target, Trash2, Trophy,
-  X, Zap,
+  Anchor, ArrowLeft, ArrowRight, ArrowUpDown, Award, Bell, Bird, BookOpen, Calendar, CalendarCheck, CalendarDays, CalendarRange, Check,
+  ChevronDown, Church, Clock, Compass, Cross, Crown, Dog, Feather, Fish, Flame, Footprints, Gem, HeartHandshake, Info, LoaderCircle,
+  Medal, Moon, Mountain, Plus, Save, Shield, Shirt, Sparkles, Star, Sun, Sunrise, Sword, Target, Trash2, Trophy,
+  UserRound, Users, X, Zap,
 } from 'lucide-react';
+import Wolf from './WolfIcon';
 import { BADGE_ICONS, DAY_MARK_KINDS, DAY_MARK_LABELS, DEFAULT_BADGE_DEFINITIONS, describeBadgeFilter, type BadgeFilter, type BadgeIcon, type BadgeKind, type DayMarkKind } from '../lib/competition';
 import { deleteBadge, saveBadge } from '../lib/repository';
 import { DAY_NAMES } from '../lib/dates';
@@ -14,7 +15,7 @@ import { CELEBRANT_PRESETS } from './WeekCelebrantsModal';
 import { ANNOTATION_PRESETS } from './MonthAnnotationsModal';
 import Modal from './Modal';
 
-const ICONS: Record<BadgeIcon, typeof Sunrise> = {
+const ICONS: Record<BadgeIcon, React.ComponentType<{ size?: number | string; strokeWidth?: number | string; className?: string; [key: string]: unknown }>> = {
   sunrise: Sunrise,
   star: Star,
   flame: Flame,
@@ -33,6 +34,20 @@ const ICONS: Record<BadgeIcon, typeof Sunrise> = {
   target: Target,
   award: Award,
   clock: Clock,
+  wolf: Wolf,
+  dog: Dog,
+  bird: Bird,
+  fish: Fish,
+  sword: Sword,
+  anchor: Anchor,
+  gem: Gem,
+  compass: Compass,
+  feather: Feather,
+  mountain: Mountain,
+  sun: Sun,
+  moon: Moon,
+  footprints: Footprints,
+  shirt: Shirt,
 };
 
 const ICON_LABELS: Record<BadgeIcon, string> = {
@@ -54,6 +69,20 @@ const ICON_LABELS: Record<BadgeIcon, string> = {
   target: 'Cel',
   award: 'Order',
   clock: 'Zegar',
+  wolf: 'Wilk',
+  dog: 'Pies',
+  bird: 'Ptak',
+  fish: 'Ryba',
+  sword: 'Miecz',
+  anchor: 'Kotwica',
+  gem: 'Diament',
+  compass: 'Kompas',
+  feather: 'Pióro',
+  mountain: 'Góra',
+  sun: 'Słońce',
+  moon: 'Księżyc',
+  footprints: 'Ślady',
+  shirt: 'Alba / Szata',
 };
 
 const WEEKDAY_BUTTONS = [1, 2, 3, 4, 5, 6, 0];
@@ -114,7 +143,7 @@ const BADGE_KINDS = [
   {
     id: 'streak',
     title: 'Seria „Twój rytm”',
-    subtitle: 'Kolejne tygodnie z rzędu z min. 2 służbami',
+    subtitle: 'Kolejne tygodnie z rzędu z min. 2 służbami (od niedzieli do soboty)',
     icon: Flame,
   },
 ];
@@ -140,6 +169,9 @@ type Step2 = {
   dateDraft: string;
   dateFrom: string;
   dateTo: string;
+  minServers: string;
+  maxServers: string;
+  serverCountPreset: 'any' | 'solo' | 'duo' | 'small_group' | 'large_group' | 'custom';
   title: string;
   celebrant: string;
   occasion: string;
@@ -153,11 +185,19 @@ const EMPTY_STEP2: Step2 = {
   target: '5', perDay: false, category: 'all', weekdays: [],
   timeFrom: '', timeTo: '', dates: [], dateDraft: '',
   dateFrom: '', dateTo: '',
+  minServers: '', maxServers: '', serverCountPreset: 'any',
   title: '', celebrant: '', occasion: '', dayMark: '', dayMarkText: '',
 };
 
 function step2FromFilters(filters: BadgeFilter | undefined, target: number): Step2 {
   const f = filters ?? {};
+  let serverCountPreset: 'any' | 'solo' | 'duo' | 'small_group' | 'large_group' | 'custom' = 'any';
+  if (f.minServers === 1 && f.maxServers === 1) serverCountPreset = 'solo';
+  else if (f.minServers === 2 && f.maxServers === 2) serverCountPreset = 'duo';
+  else if (f.minServers === 3 && f.maxServers === 4) serverCountPreset = 'small_group';
+  else if (f.minServers === 4 && (!f.maxServers || f.maxServers <= 0)) serverCountPreset = 'large_group';
+  else if (f.minServers || f.maxServers) serverCountPreset = 'custom';
+
   return {
     kind: f.kind ?? 'total',
     target: String(target),
@@ -170,6 +210,9 @@ function step2FromFilters(filters: BadgeFilter | undefined, target: number): Ste
     dateDraft: '',
     dateFrom: f.dateFrom ?? '',
     dateTo: f.dateTo ?? '',
+    minServers: f.minServers ? String(f.minServers) : '',
+    maxServers: f.maxServers ? String(f.maxServers) : '',
+    serverCountPreset,
     title: f.title ?? '',
     celebrant: f.celebrant ?? '',
     occasion: f.occasion ?? '',
@@ -187,6 +230,16 @@ function buildFilters(step: Step2): BadgeFilter {
   if (step.kind === 'custom_period') {
     if (step.dateFrom.trim()) filters.dateFrom = step.dateFrom.trim();
     if (step.dateTo.trim()) filters.dateTo = step.dateTo.trim();
+  }
+  if (step.serverCountPreset !== 'any' && (step.minServers.trim() || step.maxServers.trim())) {
+    if (step.minServers.trim()) {
+      const n = Number(step.minServers.trim());
+      if (Number.isSafeInteger(n) && n >= 1) filters.minServers = n;
+    }
+    if (step.maxServers.trim()) {
+      const n = Number(step.maxServers.trim());
+      if (Number.isSafeInteger(n) && n >= 1) filters.maxServers = n;
+    }
   }
   if (step.weekdays.length) filters.weekdays = [...step.weekdays].sort((a, b) => a - b);
   if (step.timeFrom.trim()) filters.timeFrom = step.timeFrom.trim();
@@ -217,9 +270,31 @@ function summaryFor(target: string, filters: BadgeFilter): string {
   return condition ? `${base} · ${condition}` : `${base} · dowolne służby`;
 }
 
+export type AdminBadgeSort =
+  | 'default'
+  | 'name_asc'
+  | 'name_desc'
+  | 'points_desc'
+  | 'points_asc'
+  | 'target_asc'
+  | 'target_desc'
+  | 'kind';
+
+const ADMIN_SORT_LABELS: Record<AdminBadgeSort, string> = {
+  default: 'Domyślnie',
+  name_asc: 'Nazwa (A – Z)',
+  name_desc: 'Nazwa (Z – A)',
+  points_desc: 'Punkty (najwięcej)',
+  points_asc: 'Punkty (najmniej)',
+  target_asc: 'Cel (od najmniejszego)',
+  target_desc: 'Cel (od największego)',
+  kind: 'Rodzaj warunku',
+};
+
 export default function AdminBadgesModal({ data, session, onRefresh, onClose, onSaved }: Props) {
   const isDefault = data?.badgeDefinitions === undefined;
   const definitions = data?.badgeDefinitions ?? DEFAULT_BADGE_DEFINITIONS;
+  const [sortOrder, setSortOrder] = useState<AdminBadgeSort>('default');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [wizardOpen, setWizardOpen] = useState(false);
   const [step, setStep] = useState<1 | 2>(1);
@@ -231,7 +306,43 @@ export default function AdminBadgesModal({ data, session, onRefresh, onClose, on
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const lock = useRef(false);
 
+  const sortedDefinitions = useMemo(() => {
+    const list = [...definitions];
+    switch (sortOrder) {
+      case 'name_asc':
+        return list.sort((a, b) => a.name.localeCompare(b.name, 'pl'));
+      case 'name_desc':
+        return list.sort((a, b) => b.name.localeCompare(a.name, 'pl'));
+      case 'points_desc':
+        return list.sort((a, b) => b.points - a.points || a.target - b.target || a.name.localeCompare(b.name, 'pl'));
+      case 'points_asc':
+        return list.sort((a, b) => a.points - b.points || a.target - b.target || a.name.localeCompare(b.name, 'pl'));
+      case 'target_asc':
+        return list.sort((a, b) => a.target - b.target || a.name.localeCompare(b.name, 'pl'));
+      case 'target_desc':
+        return list.sort((a, b) => b.target - a.target || a.name.localeCompare(b.name, 'pl'));
+      case 'kind': {
+        const kindOrder: Record<string, number> = {
+          total: 1,
+          single_week: 2,
+          single_month: 3,
+          custom_period: 4,
+          streak: 5,
+        };
+        return list.sort((a, b) => {
+          const ka = kindOrder[a.filters?.kind ?? 'total'] ?? 99;
+          const kb = kindOrder[b.filters?.kind ?? 'total'] ?? 99;
+          return ka - kb || a.target - b.target || a.name.localeCompare(b.name, 'pl');
+        });
+      }
+      default:
+        return list;
+    }
+  }, [definitions, sortOrder]);
+
   const preview = summaryFor(step2.target, buildFilters(step2));
+
+  const serverFiltersActive = step2.serverCountPreset !== 'any' && Boolean(step2.minServers.trim() || step2.maxServers.trim());
 
   const timeFiltersCount = (step2.category !== 'all' ? 1 : 0) +
     (step2.weekdays.length > 0 ? 1 : 0) +
@@ -375,6 +486,32 @@ export default function AdminBadgesModal({ data, session, onRefresh, onClose, on
       <div className="badge-list-view">
         <div className="badge-list-toolbar">
           <button type="button" className="button primary" disabled={busy} onClick={startAdd}><Plus size={16} />Dodaj odznakę</button>
+          {definitions.length > 1 && (
+            <div className="badge-sort-control">
+              <div className="badge-sort-display" aria-hidden="true">
+                <ArrowUpDown size={14} />
+                <span className="badge-sort-prefix">Sortuj:</span>
+                <span className="badge-sort-value">{ADMIN_SORT_LABELS[sortOrder]}</span>
+                <ChevronDown size={14} className="badge-sort-chevron" />
+              </div>
+              <select
+                id="admin-badge-sort"
+                className="badge-sort-select"
+                value={sortOrder}
+                onChange={e => setSortOrder(e.target.value as AdminBadgeSort)}
+                aria-label="Sortowanie odznak"
+              >
+                <option value="default">Domyślnie</option>
+                <option value="name_asc">Nazwa: A – Z</option>
+                <option value="name_desc">Nazwa: Z – A</option>
+                <option value="points_desc">Punkty: od najwyższych</option>
+                <option value="points_asc">Punkty: od najniższych</option>
+                <option value="target_asc">Cel: od najmniejszego</option>
+                <option value="target_desc">Cel: od największego</option>
+                <option value="kind">Rodzaj warunku</option>
+              </select>
+            </div>
+          )}
         </div>
         <div className="badge-list-body">
           {definitions.length === 0 ? (
@@ -385,7 +522,7 @@ export default function AdminBadgesModal({ data, session, onRefresh, onClose, on
             </div>
           ) : (
             <ul className="servers-cards-list badge-items-list">
-              {definitions.map(def => {
+              {sortedDefinitions.map(def => {
                 const Icon = ICONS[def.icon] ?? Medal;
                 const isDeleting = deleteId === def.id;
                 // Starsze wiersze (sprzed filtrów) nie mają filters — traktuj jak dowolne służby.
@@ -770,6 +907,127 @@ export default function AdminBadgesModal({ data, session, onRefresh, onClose, on
 
               {step2.kind !== 'streak' && (
                 <>
+                  <div className="badge-form-card">
+                    <div className="badge-form-card-header">
+                      <h3 className="badge-form-card-title"><Users size={16} />Liczba służących (wielkość asysty)</h3>
+                      {serverFiltersActive ? (
+                        <span className="badge-active-filter-pill">Aktywne</span>
+                      ) : (
+                        <span className="field-optional">Dowolna liczba</span>
+                      )}
+                    </div>
+
+                    <fieldset className="badge-filter-group" disabled={busy}>
+                      <legend>Wymagana liczba służących na Mszy / nabożeństwie</legend>
+                      <div className="preset-chips" role="radiogroup" aria-label="Wybierz wielkość asysty">
+                        <button
+                          type="button"
+                          role="radio"
+                          aria-checked={step2.serverCountPreset === 'any'}
+                          className={step2.serverCountPreset === 'any' ? 'is-active' : ''}
+                          disabled={busy}
+                          onClick={() => setStep2(f => ({ ...f, serverCountPreset: 'any', minServers: '', maxServers: '' }))}
+                        >
+                          Dowolna asysta
+                        </button>
+                        <button
+                          type="button"
+                          role="radio"
+                          aria-checked={step2.serverCountPreset === 'solo'}
+                          className={step2.serverCountPreset === 'solo' ? 'is-active' : ''}
+                          disabled={busy}
+                          onClick={() => setStep2(f => ({ ...f, serverCountPreset: 'solo', minServers: '1', maxServers: '1' }))}
+                        >
+                          <UserRound size={14} /> Solo (samemu – 1 osoba)
+                        </button>
+                        <button
+                          type="button"
+                          role="radio"
+                          aria-checked={step2.serverCountPreset === 'duo'}
+                          className={step2.serverCountPreset === 'duo' ? 'is-active' : ''}
+                          disabled={busy}
+                          onClick={() => setStep2(f => ({ ...f, serverCountPreset: 'duo', minServers: '2', maxServers: '2' }))}
+                        >
+                          <Users size={14} /> W duecie (2 osoby)
+                        </button>
+                        <button
+                          type="button"
+                          role="radio"
+                          aria-checked={step2.serverCountPreset === 'small_group'}
+                          className={step2.serverCountPreset === 'small_group' ? 'is-active' : ''}
+                          disabled={busy}
+                          onClick={() => setStep2(f => ({ ...f, serverCountPreset: 'small_group', minServers: '3', maxServers: '4' }))}
+                        >
+                          <Users size={14} /> 3–4 osoby
+                        </button>
+                        <button
+                          type="button"
+                          role="radio"
+                          aria-checked={step2.serverCountPreset === 'large_group'}
+                          className={step2.serverCountPreset === 'large_group' ? 'is-active' : ''}
+                          disabled={busy}
+                          onClick={() => setStep2(f => ({ ...f, serverCountPreset: 'large_group', minServers: '4', maxServers: '' }))}
+                        >
+                          <Users size={14} /> Duża asysta (min. 4)
+                        </button>
+                        <button
+                          type="button"
+                          role="radio"
+                          aria-checked={step2.serverCountPreset === 'custom'}
+                          className={step2.serverCountPreset === 'custom' ? 'is-active' : ''}
+                          disabled={busy}
+                          onClick={() => setStep2(f => ({ ...f, serverCountPreset: 'custom' }))}
+                        >
+                          Własna liczba…
+                        </button>
+                      </div>
+
+                      <p className="field-hint mt-2 text-xs">
+                        {step2.serverCountPreset === 'any' && 'Zliczane są wszystkie służby niezależnie od liczby służących.'}
+                        {step2.serverCountPreset === 'solo' && 'Zliczane są tylko służby, na których ministrant służył samemu (brak innych potwierdzonych służących).'}
+                        {step2.serverCountPreset === 'duo' && 'Zliczane są tylko służby dokładnie we dwóch służących.'}
+                        {step2.serverCountPreset === 'small_group' && 'Zliczane są tylko służby w zespole 3 lub 4 służących.'}
+                        {step2.serverCountPreset === 'large_group' && 'Zliczane są tylko służby z liczną asystą (co najmniej 4 służących na Mszy).'}
+                        {step2.serverCountPreset === 'custom' && 'Własny zakres lub dokładna liczba służących na Mszy.'}
+                      </p>
+
+                      {step2.serverCountPreset === 'custom' && (
+                        <div className="pt-3 mt-2 border-t border-[var(--border)] space-y-2">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <label className="field">
+                              Minimalna liczba osób (od)
+                              <input
+                                type="number"
+                                inputMode="numeric"
+                                min={1}
+                                max={50}
+                                placeholder="Dowolna"
+                                value={step2.minServers}
+                                disabled={busy}
+                                onChange={e => setStep2(f => ({ ...f, minServers: e.target.value }))}
+                              />
+                            </label>
+                            <label className="field">
+                              Maksymalna liczba osób (do)
+                              <input
+                                type="number"
+                                inputMode="numeric"
+                                min={1}
+                                max={50}
+                                placeholder="Dowolna"
+                                value={step2.maxServers}
+                                disabled={busy}
+                                onChange={e => setStep2(f => ({ ...f, maxServers: e.target.value }))}
+                              />
+                            </label>
+                          </div>
+                          <p className="field-hint text-xs">
+                            Wpisz tę samą liczbę w obu polach dla dokładnej liczby (np. dokładnie 3) lub pozostaw jedno pole puste dla progu otwartego (np. od 5 osób).
+                          </p>
+                        </div>
+                      )}
+                    </fieldset>
+                  </div>
                   <div className="badge-form-card">
                     <div className="badge-form-card-header">
                       <h3 className="badge-form-card-title"><CalendarDays size={16} />Czas i kalendarz</h3>
