@@ -4,6 +4,7 @@ import { buildCompetition, competitionSeason, POINTS, type Badge, type Competiti
 import { polishDate, shiftDate } from '../lib/dates';
 import type { ScheduleData } from '../types/database';
 import Modal from './Modal';
+import BackgroundSyncNotice from './BackgroundSyncNotice';
 
 interface Props {
   data: ScheduleData | null;
@@ -20,7 +21,7 @@ interface Props {
 const badgeIcons = { sunrise: Sunrise, star: Star, flame: Flame, calendar: CalendarDays, medal: Medal, heart: HeartHandshake };
 const displayDate = (day: string) => polishDate(day, { day: 'numeric', month: 'long', year: 'numeric' });
 
-function BadgeCard({ badge }: { badge: Badge }) {
+function BadgeCard({ badge, showProgress = true }: { badge: Badge; showProgress?: boolean }) {
   const Icon = badgeIcons[badge.icon];
   return <li className={`competition-badge ${badge.earned ? 'is-earned' : ''}`}>
     <div className="competition-badge-header">
@@ -28,8 +29,8 @@ function BadgeCard({ badge }: { badge: Badge }) {
       <span className="competition-badge-reward">+{badge.points} pkt</span>
     </div>
     <div className="competition-badge-copy"><h4>{badge.name}</h4><p>{badge.description}</p></div>
-    <div className="competition-badge-progress"><span>{badge.earned ? <><Check size={14} />Zdobyta</> : 'W drodze'}</span><strong>{badge.value} / {badge.target}</strong></div>
-    <progress max={badge.target} value={badge.value} aria-label={`Postęp odznaki ${badge.name}`} />
+    <div className="competition-badge-progress"><span>{badge.earned ? <><Check size={14} />Zdobyta</> : 'W drodze'}</span>{showProgress && <strong>{badge.value} / {badge.target}</strong>}</div>
+    {showProgress && <progress max={badge.target} value={badge.value} aria-label={`Postęp odznaki ${badge.name}`} />}
   </li>;
 }
 
@@ -88,6 +89,10 @@ export default function CompetitionView({ data, activeId, now, loading, error, o
   const season = result?.season ?? competitionSeason(now);
   const [historyLimit, setHistoryLimit] = useState(8);
   const [rankingLimit, setRankingLimit] = useState(10);
+  const [badgesPersonId, setBadgesPersonId] = useState<string | null>(null);
+  const participants = useMemo(() => result?.profiles.filter(person => person.isParticipant).sort((a, b) => a.server.name.localeCompare(b.server.name, 'pl')) ?? [], [result]);
+  const badgesPerson = participants.find(person => person.server.id === badgesPersonId);
+  const communityBadges = badgesPerson?.badges.filter(badge => badge.earned) ?? [];
   const [confirmLeaveOpen, setConfirmLeaveOpen] = useState(false);
   const [leaveBusy, setLeaveBusy] = useState(false);
   const [leaveError, setLeaveError] = useState('');
@@ -98,9 +103,9 @@ export default function CompetitionView({ data, activeId, now, loading, error, o
       <span className="competition-season-dates">{displayDate(season.start)} – {displayDate(shiftDate(season.end, -1))}</span>
     </header>
     {data?.competitionState?.reset_at && <div className="info-banner">Administrator zresetował punktację {new Date(data.competitionState.reset_at).toLocaleString('pl-PL', { timeZone: 'Europe/Warsaw' })}. Punkty naliczają się za służby rozpoczynające się po resecie. Serie i odznaki są zachowane.</div>}
-    {offline && <div className="info-banner" role="status">Połączenie na żywo jest niedostępne. Wyniki odświeżają się co minutę oraz po powrocie do karty.</div>}
-    {error && <div className="error-banner" role="alert"><AlertCircle size={20} /><div><strong>Nie udało się odświeżyć rywalizacji</strong><p>{error}</p>{data && <p>Wyświetlane wyniki mogą być nieaktualne.</p>}</div><button className="button secondary" disabled={loading} onClick={onRetry}><RefreshCw size={16} />Ponów</button></div>}
-    {loading && <p className="services-loading" role="status"><LoaderCircle className="animate-spin" size={20} />{data ? 'Odświeżamy wyniki…' : 'Przygotowujemy rywalizację…'}</p>}
+    {error && !data && <div className="error-banner" role="alert"><AlertCircle size={20} /><div><strong>Nie udało się odświeżyć rywalizacji</strong><p>{error}</p>{data && <p>Wyświetlane wyniki mogą być nieaktualne.</p>}</div><button className="button secondary" disabled={loading} onClick={onRetry}><RefreshCw size={16} />Ponów</button></div>}
+    {loading && !data && <p className="services-loading" role="status"><LoaderCircle className="animate-spin" size={20} />{data ? 'Odświeżamy wyniki…' : 'Przygotowujemy rywalizację…'}</p>}
+    {data && <BackgroundSyncNotice loading={loading} offline={offline} error={error} staleMessage="Wyświetlane wyniki mogą być nieaktualne." onRetry={onRetry} />}
     {result && <div className="competition-layout">
       <div className="competition-main">
         {profile ? (
@@ -121,7 +126,8 @@ export default function CompetitionView({ data, activeId, now, loading, error, o
       <aside className="competition-sidebar" aria-label="Ranking i zasady rywalizacji">
         <section className="sidebar-panel competition-ranking" aria-labelledby="ranking-heading"><h3 id="ranking-heading"><Trophy size={18} />Ranking wspólnoty</h3>
           {profile && <div className="competition-own-place"><span>Twoje miejsce</span><strong>{!isParticipant ? 'Wypisany z rywalizacji' : profile.points ? `#${profile.place}` : 'Start przed Tobą'}</strong></div>}
-          {result.profiles.some(person => person.isParticipant && person.points > 0) ? <><ol>{result.profiles.filter(person => person.isParticipant && person.points > 0).slice(0, rankingLimit).map(person => <li key={person.server.id} className={person.server.id === activeId ? 'is-own' : ''} aria-current={person.server.id === activeId ? 'true' : undefined}><span className={`competition-place place-${person.place}`} aria-label={`Miejsce ${person.place}`}>{person.place <= 3 ? <Medal size={18} /> : null}{person.place}</span><div><strong>{person.server.name}{person.server.id === activeId && <small> Ty</small>}</strong><span>Poziom {person.level.level} · {person.serviceCount} służb</span></div><strong className="competition-ranking-points">{person.points}<small>pkt</small></strong></li>)}</ol>{rankingLimit < result.profiles.filter(person => person.isParticipant && person.points > 0).length && <button className="button secondary competition-more" onClick={() => setRankingLimit(value => value + 20)}>Pokaż kolejne osoby</button>}</> : <p className="sidebar-empty">Nowy sezon, czysta karta. Ranking otworzą pierwsze służby.</p>}
+          {result.profiles.some(person => person.isParticipant && person.points > 0) ? <><ol>{result.profiles.filter(person => person.isParticipant && person.points > 0).slice(0, rankingLimit).map(person => <li key={person.server.id} className={person.server.id === activeId ? 'is-own' : ''} aria-current={person.server.id === activeId ? 'true' : undefined}><span className={`competition-place place-${person.place}`} aria-label={`Miejsce ${person.place}`}>{person.place <= 3 ? <Medal size={18} /> : null}{person.place}</span><div><strong>{person.server.name}{person.server.id === activeId && <small> Ty</small>}</strong><span>Poziom {person.level.level} · {person.serviceCount} służb</span><button type="button" className="competition-person-badges" aria-label={`Zobacz odznaki: ${person.server.name}`} onClick={() => setBadgesPersonId(person.server.id)}><Award size={14} aria-hidden="true" />Odznaki: {person.badges.filter(badge => badge.earned).length}<ChevronDown size={13} aria-hidden="true" /></button></div><strong className="competition-ranking-points">{person.points}<small>pkt</small></strong></li>)}</ol>{rankingLimit < result.profiles.filter(person => person.isParticipant && person.points > 0).length && <button className="button secondary competition-more" onClick={() => setRankingLimit(value => value + 20)}>Pokaż kolejne osoby</button>}</> : <p className="sidebar-empty">Nowy sezon, czysta karta. Ranking otworzą pierwsze służby.</p>}
+          {participants.length > 0 && <button type="button" className="button secondary competition-more" onClick={() => setBadgesPersonId((participants.find(person => person.server.id !== activeId) ?? participants[0]).server.id)}><Award size={17} />Odznaki wspólnoty</button>}
           <p className="competition-ranking-note">Tyle samo punktów oznacza wspólne miejsce.</p>
         </section>
         <section className="sidebar-panel competition-rules" aria-labelledby="competition-rules-heading"><h3 id="competition-rules-heading"><Info size={18} />Jak zdobywać punkty?</h3>
@@ -154,6 +160,18 @@ export default function CompetitionView({ data, activeId, now, loading, error, o
         )}
       </aside>
     </div>}
+    {badgesPersonId !== null && <Modal title="Odznaki wspólnoty" className="community-badges-modal" onClose={() => setBadgesPersonId(null)}>
+      <p className="community-badges-intro">Poznaj osiągnięcia uczestników w sezonie {season.label}.</p>
+      <label className="field">Uczestnik<select value={badgesPerson?.server.id ?? ''} onChange={event => setBadgesPersonId(event.target.value)}>
+        {!badgesPerson && <option value="" disabled>Wybierz uczestnika</option>}
+        {participants.map(person => <option key={person.server.id} value={person.server.id}>{person.server.name}{person.server.id === activeId ? ' (Ty)' : ''}</option>)}
+      </select></label>
+      {badgesPerson ? <section className="competition-badges community-badges-collection" aria-labelledby="community-person-heading">
+        <div className="competition-section-heading"><div><h3 id="community-person-heading">{badgesPerson.server.name}</h3><p>{badgesPerson.server.rank}</p></div><span>{communityBadges.length} / {badgesPerson.badges.length} zdobytych</span></div>
+        {communityBadges.length ? <ul>{communityBadges.map(badge => <BadgeCard key={badge.id} badge={badge} showProgress={false} />)}</ul> : <div className="community-badges-empty"><Award size={32} strokeWidth={1.5} aria-hidden="true" /><h4>Pierwsza odznaka jeszcze przed nami</h4><p>Gdy ta osoba zdobędzie odznakę w tym sezonie, zobaczysz ją tutaj.</p></div>}
+      </section> : <p className="rule-help" role="status">Ta osoba nie jest już dostępna w rywalizacji. Wybierz innego uczestnika.</p>}
+      <div className="modal-actions"><button type="button" className="button secondary" onClick={() => setBadgesPersonId(null)}>Zamknij</button></div>
+    </Modal>}
     {confirmLeaveOpen && profile && (
       <Modal
         title="Wypisanie z rywalizacji"

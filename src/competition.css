@@ -125,7 +125,22 @@
 .competition-own-place { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px; padding: 10px 12px; border-radius: 10px; background: var(--surface-soft); margin-bottom: 12px; font-size: 12px; color: var(--green); }
 .competition-ranking li { display: flex; align-items: center; gap: 10px; padding: 12px 6px; border-bottom: 1px solid var(--border); }
 .competition-ranking li.is-own { background: #edf5ed; border-radius: 10px; }
-.competition-ranking li > div { flex: 1; }
+.competition-ranking li > div { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.competition-person-badges { display: inline-flex; align-items: center; gap: 5px; min-height: 44px; padding: 6px 8px; margin: 4px 0 0; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--green); font-size: 11px; font-weight: 600; }
+.competition-person-badges:hover { background: var(--accent-soft); border-color: var(--accent-edge); }
+.community-badges-intro { margin: -8px 0 20px; color: var(--muted); font-size: 13px; line-height: 1.7; }
+.community-badges-collection { margin-top: 24px; }
+.community-badges-collection .competition-section-heading h3 { margin: 0; overflow-wrap: anywhere; font-size: 17px; color: var(--ink); }
+.community-badges-modal .competition-badges > ul { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.community-badges-modal .competition-badge { min-width: 0; overflow-wrap: anywhere; background: var(--surface-soft); border-color: var(--accent-edge); }
+.community-badges-modal .competition-badge :is(.competition-badge-icon, .competition-badge-reward) { color: var(--green); background: var(--accent-soft); border-color: var(--accent-edge); }
+.community-badges-empty { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 28px 20px; border: 1px dashed var(--border); border-radius: var(--radius); background: var(--surface-soft); color: var(--muted); }
+.community-badges-empty > svg { color: var(--green); }
+.community-badges-empty h4 { margin: 14px 0 8px; color: var(--ink); font-size: 14px; }
+.community-badges-empty p { margin: 0; font-size: 13px; line-height: 1.7; }
+@media (max-width: 480px) {
+  .community-badges-modal .competition-badges > ul { grid-template-columns: minmax(0, 1fr); }
+}
 .competition-ranking li > div > strong { display: block; font-size: 12px; font-weight: 600; }
 .competition-ranking li > div > strong small { color: var(--green); font-size: 10px; }
 .competition-ranking li > div > span { display: block; font-size: 10px; color: var(--muted); margin-top: 2px; }

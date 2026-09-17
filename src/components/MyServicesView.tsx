@@ -4,11 +4,13 @@ import type { AltarServer, Mass, RecurringRule, ScheduleData } from '../types/da
 import type { MassAction } from './MassCard';
 import MyRecurringRules from './MyRecurringRules';
 import ServiceCard from './ServiceCard';
+import BackgroundSyncNotice from './BackgroundSyncNotice';
 
 interface Props {
   server?: AltarServer;
   data: ScheduleData | null;
   loading: boolean;
+  offline?: boolean;
   error: string;
   now: Date;
   busy: boolean;
@@ -19,14 +21,15 @@ interface Props {
   onDeleteRule: (rule: RecurringRule) => void;
 }
 
-export default function MyServicesView({ server, data, loading, error, now, busy, onRetry, onAction, onOpenDay, onEditRule, onDeleteRule }: Props) {
+export default function MyServicesView({ server, data, loading, offline, error, now, busy, onRetry, onAction, onOpenDay, onEditRule, onDeleteRule }: Props) {
   const services = data && server ? personalServices(data, server.id, now) : [];
   const next = services.find(service => !service.excused);
   const upcoming = services.filter(service => service !== next);
   return <section className="my-services" aria-label="Moje służby">
     {!server ? <div className="empty-state"><UserRound size={36} /><h3>Wybierz swoje imię</h3><p>Wybierz ministranta w nagłówku, aby zobaczyć swoje najbliższe służby i stałe dyżury.</p></div> : <>
-      {error && <div className="error-banner" role="alert"><AlertCircle size={20} /><div><strong>Nie udało się pobrać służb</strong><p>{error}</p>{data && <p>Wyświetlane dane mogą być nieaktualne.</p>}</div><button className="button secondary" disabled={loading} onClick={onRetry}><RefreshCw size={16} />Ponów</button></div>}
-      {loading && <div className="services-loading" role="status"><LoaderCircle size={22} className="animate-spin" />{data ? 'Odświeżamy Twoje służby…' : 'Wczytujemy Twoje służby…'}</div>}
+      {error && !data && <div className="error-banner" role="alert"><AlertCircle size={20} /><div><strong>Nie udało się pobrać służb</strong><p>{error}</p>{data && <p>Wyświetlane dane mogą być nieaktualne.</p>}</div><button className="button secondary" disabled={loading} onClick={onRetry}><RefreshCw size={16} />Ponów</button></div>}
+      {loading && !data && <div className="services-loading" role="status"><LoaderCircle size={22} className="animate-spin" />{data ? 'Odświeżamy Twoje służby…' : 'Wczytujemy Twoje służby…'}</div>}
+      {data && <BackgroundSyncNotice loading={loading} offline={offline} error={error} onRetry={onRetry} />}
       {data && <div className="dashboard-layout services-layout"><div className="services-content">
         {next ? <ServiceCard service={next} activeId={server.id} featured now={now} busy={busy || loading || !!error} onAction={onAction} onOpenDay={onOpenDay} />
           : <div className="empty-state"><CalendarDays size={36} /><h3>Nie masz obecnie żadnych zaplanowanych służb.</h3><p>Sprawdziliśmy najbliższe 30 dni.{services.length > 0 && ' Zgłoszone nieobecności znajdziesz poniżej.'}</p><button className="button primary" onClick={() => onOpenDay()}>Przejdź do grafiku</button></div>}

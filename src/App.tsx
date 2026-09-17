@@ -11,6 +11,7 @@ import { Pencil } from 'lucide-react';
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { AlertCircle, ArrowRight, CalendarDays, CalendarPlus, Check, Church, HeartHandshake, LoaderCircle, LogOut, Plus, RefreshCw, Trash2, Trophy, UserRound, Users, X, ShieldCheck } from 'lucide-react';
 import AppLogo from './components/AppLogo';
+import BackgroundSyncNotice from './components/BackgroundSyncNotice';
 import UserSelector, { readSelectedServer } from './components/UserSelector';
 import WeekNavigator from './components/WeekNavigator';
 import DaySelector from './components/DaySelector';
@@ -575,10 +576,9 @@ export default function App() {
       <Suspense fallback={null}>
         {view === 'competition' && <CompetitionView key={activeId} data={competition.data} activeId={activeId} now={competition.now} loading={competition.loading} error={competition.error} offline={syncStatus === 'offline'} onRetry={() => void competition.refresh()} onJoinCompetition={handleJoinCompetition} onLeaveCompetition={handleLeaveCompetition} />}
         {view === 'services' && <>
-          {syncStatus === 'offline' && <div className="info-banner" role="status">Połączenie na żywo jest niedostępne. Służby odświeżają się co minutę oraz po powrocie do karty.</div>}
           {actionError && !confirmation && <div className="error-banner" role="alert"><AlertCircle size={18} /><p>{actionError}</p><button className="icon-button" aria-label="Zamknij komunikat" onClick={() => setActionError('')}><X size={17} /></button></div>}
           {!snapshot && loadError && <div className="error-banner" role="alert"><p>{loadError}</p><button className="button secondary" onClick={() => void refresh()}>Ponów pobieranie ministrantów</button></div>}
-          <MyServicesView server={activeServer} data={upcoming.data} loading={upcoming.loading} error={upcoming.error} now={upcoming.now} busy={busy}
+          <MyServicesView offline={syncStatus === 'offline'} server={activeServer} data={upcoming.data} loading={upcoming.loading} error={upcoming.error} now={upcoming.now} busy={busy}
             onRetry={() => void upcoming.refresh()} onAction={handleAction}
             onOpenDay={(day = dateKey()) => { resetScrollOnDayOpen.current = true; setWeek(weekStart(day)); setSelectedDay(day); setView('schedule'); }}
             onEditRule={setEditingRule} onDeleteRule={rule => { setActionError(''); setConfirmation({ kind: 'rule', rule }); }} />
@@ -589,8 +589,8 @@ export default function App() {
           <WeekNavigator week={week} onChange={changeWeek} onPrefetch={prefetchWeek} />
           <DaySelector week={week} selected={selectedDay} onChange={setSelectedDay} counts={counts} dayAnnotations={data.dayAnnotations} />
 
-          {syncStatus === 'offline' && <div className="info-banner" role="status">Połączenie na żywo jest niedostępne. Grafik odświeża się co minutę oraz po powrocie do karty.</div>}
-          {loadError && <div className="error-banner" role="alert"><AlertCircle size={19} /><div><strong>Nie udało się odświeżyć grafiku</strong><p>{loadError}</p>{snapshot?.week === week && <p>Wyświetlane dane mogą być nieaktualne.</p>}</div><button className="button secondary" onClick={() => void refresh()}><RefreshCw size={14} />Ponów</button></div>}
+          {snapshot?.week === week && <BackgroundSyncNotice loading={loading} offline={syncStatus === 'offline'} error={loadError} onRetry={() => void refresh()} />}
+          {loadError && snapshot?.week !== week && <div className="error-banner" role="alert"><AlertCircle size={19} /><div><strong>Nie udało się odświeżyć grafiku</strong><p>{loadError}</p>{snapshot?.week === week && <p>Wyświetlane dane mogą być nieaktualne.</p>}</div><button className="button secondary" onClick={() => void refresh()}><RefreshCw size={14} />Ponów</button></div>}
           {actionError && !confirmation && <div className="error-banner" role="alert"><AlertCircle size={18} /><p>{actionError}</p><button className="icon-button" aria-label="Zamknij komunikat" onClick={() => setActionError('')}><X size={17} /></button></div>}
 
           <div className="day-summary">
@@ -598,7 +598,7 @@ export default function App() {
               <h3>{DAY_NAMES[weekday(selectedDay)]}{' '}<span>{polishDate(selectedDay, { day: 'numeric', month: 'long' })}</span></h3>
               {selectedDay === dateKey() && <span className="today-badge">Dzisiaj</span>}
               <div className="day-heading-line" />
-              {!loading && <span className="day-count">{formatLiturgyCount(dayMasses)}</span>}
+              {snapshot?.week === week && <span className="day-count">{formatLiturgyCount(dayMasses)}</span>}
             </div>
             {(adminSession || dayLabel) && <div className={`day-annotation-bar ${dayAppearance(selectedDay, dayLabel)}`}>
               <span className="day-annotation-label"><CalendarDays size={18} aria-hidden="true" /><span>{dayLabel || 'Dzień bez oznaczenia'}</span></span>

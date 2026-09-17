@@ -295,6 +295,11 @@ h1 { font-family: var(--font-sans); font-size: clamp(31px, 3vw, 42px); font-weig
 .toast { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%); z-index: 20; display: flex; align-items: center; gap: 11px; width: max-content; max-width: calc(100% - 32px); border: 1px solid #c4d2b9; background: #fff; box-shadow: 0 8px 40px #273f2220; padding: 11px 12px 11px 16px; border-radius: 10px; }
 .toast > span { background: #eaf1e1; color: #5a8045; border-radius: 50%; width: 28px; height: 28px; display: grid; place-items: center; flex-shrink: 0; }
 .toast p { margin: 0; font-size: 14px; line-height: 1.6; }
+.background-sync-notice { position: fixed; right: max(16px, env(safe-area-inset-right)); bottom: calc(88px + env(safe-area-inset-bottom, 0px)); z-index: 40; display: flex; align-items: center; gap: 8px; width: max-content; max-width: min(420px, calc(100vw - 32px)); padding: 8px 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); color: var(--muted); box-shadow: 0 4px 18px #00000012; font-size: 12px; line-height: 1.5; }
+.background-sync-notice > svg { flex-shrink: 0; color: var(--green); }
+.background-sync-notice > span { min-width: 0; overflow-wrap: anywhere; }
+.background-sync-notice button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; flex-shrink: 0; min-height: 44px; padding: 4px 8px; border: 0; border-radius: 8px; color: var(--green); background: var(--surface-soft); font-size: 12px; font-weight: 600; }
+.background-sync-notice button:hover:not(:disabled) { background: var(--accent-soft); }
 .modal { border: 1px solid #e0e6d8; border-radius: 14px; padding: 0; width: min(510px, calc(100vw - 20px)); max-width: calc(100vw - 20px); max-height: calc(100dvh - 32px); color: #354633; background: #fff; box-shadow: 0 20px 100px #15362135; margin: auto; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; box-sizing: border-box; }
 .modal::backdrop { background: #172a2270; backdrop-filter: blur(3px); }
 .modal-content { padding: 28px; box-sizing: border-box; max-width: 100%; overflow-x: hidden; }
