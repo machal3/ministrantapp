@@ -161,7 +161,7 @@ export default function EditMassModal({ mass, onClose, onSave }: Props) {
             <div className="preset-chips">
               {(isOther ? ['Spotkanie', 'Zbiórka ministrantów', 'Próba', 'Wyjazd'] : !isExtra
                 ? ['Msza Święta', 'Msza roratnia', 'Msza niedzielna', 'Msza z udziałem dzieci']
-                : ['Różaniec', 'Droga Krzyżowa', 'Gorzkie Żale', 'Nabożeństwo majowe', 'Adoracja']
+                : ['Różaniec', 'Droga Krzyżowa', 'Gorzkie Żale', 'Nabożeństwo majowe', 'Adoracja', 'Nabożeństwo czerwcowe', 'Nabożeństwo pierwszosobotnie', 'Koronka do Miłosierdzia Bożego']
               ).map(preset => (
                 <button
                   type="button"

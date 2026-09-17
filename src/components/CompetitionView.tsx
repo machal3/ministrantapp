@@ -89,9 +89,11 @@ export default function CompetitionView({ data, activeId, now, loading, error, o
   const season = result?.season ?? competitionSeason(now);
   const [historyLimit, setHistoryLimit] = useState(8);
   const [rankingLimit, setRankingLimit] = useState(10);
+  const [badgeFilter, setBadgeFilter] = useState<'all' | 'earned' | 'pending'>('all');
+  const [showAllBadges, setShowAllBadges] = useState(false);
+  const filteredBadges = profile?.badges.filter(badge => badgeFilter === 'all' || badge.earned === (badgeFilter === 'earned')) ?? [];
   const [badgesPersonId, setBadgesPersonId] = useState<string | null>(null);
-  const participants = useMemo(() => result?.profiles.filter(person => person.isParticipant).sort((a, b) => a.server.name.localeCompare(b.server.name, 'pl')) ?? [], [result]);
-  const badgesPerson = participants.find(person => person.server.id === badgesPersonId);
+  const badgesPerson = result?.profiles.find(person => person.isParticipant && person.server.id === badgesPersonId);
   const communityBadges = badgesPerson?.badges.filter(badge => badge.earned) ?? [];
   const [confirmLeaveOpen, setConfirmLeaveOpen] = useState(false);
   const [leaveBusy, setLeaveBusy] = useState(false);
@@ -116,7 +118,12 @@ export default function CompetitionView({ data, activeId, now, loading, error, o
           )
         ) : <div className="empty-state competition-selection"><UserRound size={32} /><h3>Odkryj swój postęp</h3><p>Wybierz swoje imię w nagłówku, aby zobaczyć poziom, serię i odznaki. Ranking wspólnoty znajdziesz obok.</p></div>}
         {profile && isParticipant && <section className="competition-badges" aria-labelledby="badges-heading"><div className="competition-section-heading"><div><h3 id="badges-heading"><Award size={19} />Twoje odznaki</h3><p>Każda opowiada inną historię Twojej służby.</p></div><span>{earned} / {profile.badges.length} zdobytych</span></div>
-          <ul>{profile.badges.map(badge => <BadgeCard key={badge.id} badge={badge} />)}</ul>
+          <div className="competition-badge-filters" role="group" aria-label="Filtr odznak">{([
+            ['all', 'Wszystkie'], ['earned', 'Zdobyte'], ['pending', 'W drodze'],
+          ] as const).map(([value, label]) => <button key={value} type="button" aria-pressed={badgeFilter === value} onClick={() => { setBadgeFilter(value); setShowAllBadges(false); }}>{label}</button>)}</div>
+          <ul>{(showAllBadges ? filteredBadges : filteredBadges.slice(0, 6)).map(badge => <BadgeCard key={badge.id} badge={badge} />)}</ul>
+          {!filteredBadges.length && <p className="sidebar-empty">{badgeFilter === 'earned' ? 'Pierwsza odznaka jeszcze przed Tobą. Zobacz cele w zakładce „W drodze”.' : 'Wszystkie odznaki w tym sezonie są już Twoje!'}</p>}
+          {filteredBadges.length > 6 && <button type="button" className="button secondary competition-more" onClick={() => setShowAllBadges(value => !value)}>{showAllBadges ? 'Pokaż mniej' : `Pokaż wszystkie odznaki (${filteredBadges.length})`}</button>}
           <p className="competition-month-note"><CalendarDays size={15} />Niedziele w tym miesiącu: <strong>{profile.monthProgress} / {profile.monthTarget}</strong>. Liczy się każda niedziela, niezależnie od liczby służb tego dnia.</p>
         </section>}
         {profile && isParticipant && <section className="sidebar-panel competition-history" aria-labelledby="points-heading"><div className="competition-section-heading"><h3 id="points-heading">Historia punktów</h3><span>{profile.serviceCount} służb w sezonie</span></div>
@@ -126,8 +133,12 @@ export default function CompetitionView({ data, activeId, now, loading, error, o
       <aside className="competition-sidebar" aria-label="Ranking i zasady rywalizacji">
         <section className="sidebar-panel competition-ranking" aria-labelledby="ranking-heading"><h3 id="ranking-heading"><Trophy size={18} />Ranking wspólnoty</h3>
           {profile && <div className="competition-own-place"><span>Twoje miejsce</span><strong>{!isParticipant ? 'Wypisany z rywalizacji' : profile.points ? `#${profile.place}` : 'Start przed Tobą'}</strong></div>}
-          {result.profiles.some(person => person.isParticipant && person.points > 0) ? <><ol>{result.profiles.filter(person => person.isParticipant && person.points > 0).slice(0, rankingLimit).map(person => <li key={person.server.id} className={person.server.id === activeId ? 'is-own' : ''} aria-current={person.server.id === activeId ? 'true' : undefined}><span className={`competition-place place-${person.place}`} aria-label={`Miejsce ${person.place}`}>{person.place <= 3 ? <Medal size={18} /> : null}{person.place}</span><div><strong>{person.server.name}{person.server.id === activeId && <small> Ty</small>}</strong><span>Poziom {person.level.level} · {person.serviceCount} służb</span><button type="button" className="competition-person-badges" aria-label={`Zobacz odznaki: ${person.server.name}`} onClick={() => setBadgesPersonId(person.server.id)}><Award size={14} aria-hidden="true" />Odznaki: {person.badges.filter(badge => badge.earned).length}<ChevronDown size={13} aria-hidden="true" /></button></div><strong className="competition-ranking-points">{person.points}<small>pkt</small></strong></li>)}</ol>{rankingLimit < result.profiles.filter(person => person.isParticipant && person.points > 0).length && <button className="button secondary competition-more" onClick={() => setRankingLimit(value => value + 20)}>Pokaż kolejne osoby</button>}</> : <p className="sidebar-empty">Nowy sezon, czysta karta. Ranking otworzą pierwsze służby.</p>}
-          {participants.length > 0 && <button type="button" className="button secondary competition-more" onClick={() => setBadgesPersonId((participants.find(person => person.server.id !== activeId) ?? participants[0]).server.id)}><Award size={17} />Odznaki wspólnoty</button>}
+          {result.profiles.some(person => person.isParticipant && person.points > 0) ? <><ol>{result.profiles.filter(person => person.isParticipant && person.points > 0).slice(0, rankingLimit).map(person => <li key={person.server.id} className={person.server.id === activeId ? 'is-own' : ''} aria-current={person.server.id === activeId ? 'true' : undefined}>
+            <span className={`competition-place place-${person.place}`} aria-label={`Miejsce ${person.place}`}>{person.place <= 3 ? <Medal size={18} /> : null}{person.place}</span>
+            <div><strong>{person.server.name}{person.server.id === activeId && <small> Ty</small>}</strong><span>Poziom {person.level.level} · {person.serviceCount} służb</span></div>
+            <button type="button" className="competition-person-badges" aria-label={`Zobacz odznaki: ${person.server.name}`} aria-haspopup="dialog" title={`Odznaki: ${person.badges.filter(badge => badge.earned).length}`} onClick={() => setBadgesPersonId(person.server.id)}><Award size={15} aria-hidden="true" /><span>{person.badges.filter(badge => badge.earned).length}</span></button>
+            <strong className="competition-ranking-points">{person.points}<small>pkt</small></strong>
+          </li>)}</ol>{rankingLimit < result.profiles.filter(person => person.isParticipant && person.points > 0).length && <button className="button secondary competition-more" onClick={() => setRankingLimit(value => value + 20)}>Pokaż kolejne osoby</button>}</> : <p className="sidebar-empty">Nowy sezon, czysta karta. Ranking otworzą pierwsze służby.</p>}
           <p className="competition-ranking-note">Tyle samo punktów oznacza wspólne miejsce.</p>
         </section>
         <section className="sidebar-panel competition-rules" aria-labelledby="competition-rules-heading"><h3 id="competition-rules-heading"><Info size={18} />Jak zdobywać punkty?</h3>
@@ -143,7 +154,9 @@ export default function CompetitionView({ data, activeId, now, loading, error, o
             <p><strong>Potwierdzanie obecności</strong>Punkty otrzymujesz za każdą potwierdzoną służbę na Mszy Świętej lub nabożeństwie (wystarczy zaznaczyć „Byłem”). Dwie służby tego samego dnia również wliczają się do celu tygodniowego.</p>
             <p><strong>Serie i regularność</strong>Służąc co najmniej 2 razy w tygodniu, budujesz serię tygodniową. Każdy kolejny tydzień podnosi Twój bonus o 5 punktów, co ułatwia zdobywanie kolejnych stopni.</p>
             <p><strong>Poziomy formacji</strong>Wraz ze wzrostem liczby punktów awansujesz na wyższe poziomy (progi to m.in. 100, 300, 600, 1000, 1500 pkt). To widoczny znak Twojej wierności posłudze przy ołtarzu.</p>
-            <p><strong>Odznaki i uroczystości</strong>Odznaki nagradzają wyjątkowe momenty w roku – m.in. pierwszą służbę, udział w Pasterce i Triduum Paschalnym, roraty czy nienaganną obecność w niedziele całego miesiąca.</p>
+            <p><strong>Odznaki i uroczystości</strong>25 odznak za regularną służbę, pierwsze piątki i soboty, adorację, różaniec, Koronkę, roraty, nabożeństwa majowe i czerwcowe, Drogę Krzyżową, Gorzkie Żale i wybrane uroczystości. Każda odznaka podaje swój cel i nagrodę.</p>
+            <p><strong>Co zalicza się do odznaki?</strong>Potwierdzona obecność w bieżącym sezonie. Przy odznakach nabożeństw liczymy różne dni, a przy pierwszych piątkach i sobotach — różne miesiące. Nazwa lub okazja wydarzenia powinna wskazywać nabożeństwo, np. „Adoracja”, „Różaniec” czy „Boże Ciało”. Liczy się też właściwa kategoria i data wydarzenia.</p>
+            <p><strong>Pierwsze piątki i soboty</strong>Odznaki opisują udział w wydarzeniach. Nie potwierdzają spowiedzi, Komunii, intencji ani wypełnienia warunków praktyk religijnych. Seria dziewięciu piątków dotyczy dziewięciu kolejnych miesięcy w jednym sezonie aplikacji.</p>
             <p><strong>Sezon liturgiczny</strong>Rywalizacja trwa przez cały rok liturgiczny – od I Niedzieli Adwentu do kolejnego Adwentu, kiedy to wspólnie podsumowujemy osiągnięcia.</p>
           </div></details>
         </section>
@@ -160,16 +173,12 @@ export default function CompetitionView({ data, activeId, now, loading, error, o
         )}
       </aside>
     </div>}
-    {badgesPersonId !== null && <Modal title="Odznaki wspólnoty" className="community-badges-modal" onClose={() => setBadgesPersonId(null)}>
-      <p className="community-badges-intro">Poznaj osiągnięcia uczestników w sezonie {season.label}.</p>
-      <label className="field">Uczestnik<select value={badgesPerson?.server.id ?? ''} onChange={event => setBadgesPersonId(event.target.value)}>
-        {!badgesPerson && <option value="" disabled>Wybierz uczestnika</option>}
-        {participants.map(person => <option key={person.server.id} value={person.server.id}>{person.server.name}{person.server.id === activeId ? ' (Ty)' : ''}</option>)}
-      </select></label>
+    {badgesPersonId !== null && <Modal title="Zdobyte odznaki" className="community-badges-modal" onClose={() => setBadgesPersonId(null)}>
+      <p className="community-badges-intro">Sezon {season.label}</p>
       {badgesPerson ? <section className="competition-badges community-badges-collection" aria-labelledby="community-person-heading">
         <div className="competition-section-heading"><div><h3 id="community-person-heading">{badgesPerson.server.name}</h3><p>{badgesPerson.server.rank}</p></div><span>{communityBadges.length} / {badgesPerson.badges.length} zdobytych</span></div>
         {communityBadges.length ? <ul>{communityBadges.map(badge => <BadgeCard key={badge.id} badge={badge} showProgress={false} />)}</ul> : <div className="community-badges-empty"><Award size={32} strokeWidth={1.5} aria-hidden="true" /><h4>Pierwsza odznaka jeszcze przed nami</h4><p>Gdy ta osoba zdobędzie odznakę w tym sezonie, zobaczysz ją tutaj.</p></div>}
-      </section> : <p className="rule-help" role="status">Ta osoba nie jest już dostępna w rywalizacji. Wybierz innego uczestnika.</p>}
+      </section> : <p className="rule-help" role="status">Ta osoba nie jest już dostępna w rywalizacji. Zamknij panel, aby wrócić do rankingu.</p>}
       <div className="modal-actions"><button type="button" className="button secondary" onClick={() => setBadgesPersonId(null)}>Zamknij</button></div>
     </Modal>}
     {confirmLeaveOpen && profile && (

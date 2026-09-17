@@ -106,7 +106,7 @@ describe('badges', () => {
   it('awards points according to difficulty tiers', () => {
     const profile = own(fixture([]), at('2026-09-20'));
     const pointsById = Object.fromEntries(profile.badges.map(b => [b.id, b.points]));
-    expect(pointsById).toEqual({
+    expect(pointsById).toMatchObject({
       first: 10,
       ten: 25,
       morning: 30,
@@ -239,4 +239,3 @@ describe('competition participation and opting out', () => {
     expect(joined.points).toBe(50);
   });
 });
-

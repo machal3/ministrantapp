@@ -18,6 +18,22 @@ export const POINTS = {
     sundays: 60,
     twelve: 100,
     fifty: 120,
+    firstFridays: 35,
+    nineFridays: 100,
+    firstSaturdays: 35,
+    adoration: 15,
+    adorationFive: 40,
+    rosary: 35,
+    may: 25,
+    june: 25,
+    stations: 35,
+    lamentations: 25,
+    rorate: 35,
+    corpusChristi: 30,
+    mercySunday: 25,
+    palmSunday: 25,
+    ashWednesday: 25,
+    chaplet: 25,
   },
 } as const;
 
@@ -68,7 +84,53 @@ function badge(id: string, name: string, description: string, icon: Badge['icon'
 }
 
 function normalize(value: string) {
-  return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pl');
+  return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pl').replace(/ł/g, 'l').replace(/\s+/g, ' ');
+}
+
+/** Input contains only eligible, attended events in the current season, in time order. */
+function devotionalBadges(services: Mass[]) {
+  const events = services.map(mass => {
+    const day = dateKey(mass.start_time);
+    return { mass, day, month: day.slice(0, 7), title: normalize(`${mass.title} ${mass.liturgy_type ?? ''}`), category: eventCategory(mass), easterDay: easter(Number(day.slice(0, 4))) };
+  });
+  type Event = typeof events[number];
+  // Separate times on one date count as one day of a devotional practice.
+  const distinctDays = (predicate: (event: Event) => boolean) => {
+    const days = new Map<string, Event>();
+    for (const event of events) if (predicate(event) && !days.has(event.day)) days.set(event.day, event);
+    return [...days.values()];
+  };
+  const counted = (id: keyof typeof POINTS.badges, name: string, description: string, icon: Badge['icon'], target: number, matches: Event[]) => ({
+    badge: badge(id, name, description, icon, matches.length, target, POINTS.badges[id]), earnedAt: matches[target - 1]?.mass.start_time,
+  });
+  const firstFridays = distinctDays(event => weekday(event.day) === 5 && Number(event.day.slice(-2)) <= 7);
+  let run = 0, best = 0, previous = '', nineEarnedAt: string | undefined;
+  for (const event of firstFridays) {
+    run = previous && shiftMonth(previous, 1) === event.month ? run + 1 : 1;
+    best = Math.max(best, run);
+    previous = event.month;
+    if (run === 9 && !nineEarnedAt) nineEarnedAt = event.mass.start_time;
+  }
+  const adoration = distinctDays(event => event.category === 'devotion' && /\badoracj\w*/.test(event.title) && !/\bkrzyz\w*/.test(event.title));
+  const inLent = (event: Event) => event.day >= shiftDate(event.easterDay, -46) && event.day <= shiftDate(event.easterDay, -2);
+  return [
+    counted('firstFridays', 'Rytm pierwszych piątków', 'Służ na Mszy lub nabożeństwie w pierwsze piątki 3 różnych miesięcy w sezonie.', 'calendar', 3, firstFridays),
+    { badge: badge('nineFridays', 'Dziewięć spotkań przy ołtarzu', 'Służ na Mszy lub nabożeństwie w 9 kolejnych pierwszych piątkach w jednym sezonie. Odznaka dotyczy służby, nie potwierdza spełnienia warunków praktyki religijnej.', 'heart', best, 9, POINTS.badges.nineFridays), earnedAt: nineEarnedAt },
+    counted('firstSaturdays', 'Soboty z Maryją', 'Weź udział w nabożeństwie pierwszosobotnim w 3 różnych miesiącach sezonu.', 'heart', 3, distinctDays(event => event.category === 'devotion' && weekday(event.day) === 6 && Number(event.day.slice(-2)) <= 7 && /\b(pierwsz\w* sobot\w*|pierwszosobot\w*)/.test(event.title))),
+    counted('adoration', 'Chwila przed Panem', 'Weź udział w pierwszej adoracji eucharystycznej w sezonie.', 'star', 1, adoration),
+    counted('adorationFive', 'Wierność w ciszy', 'Weź udział w adoracji eucharystycznej w 5 różnych dniach sezonu.', 'star', 5, adoration),
+    counted('rosary', 'Z Maryją przez tajemnice', 'Weź udział w nabożeństwie różańcowym w 5 różnych dniach sezonu.', 'heart', 5, distinctDays(event => event.category === 'devotion' && /\brozan\w*/.test(event.title))),
+    counted('may', 'Maj z Maryją', 'Weź udział w nabożeństwie majowym w 3 różnych dniach maja.', 'heart', 3, distinctDays(event => event.category === 'devotion' && event.day.slice(5, 7) === '05' && /\b(majow\w*|litani\w* loretansk\w*)/.test(event.title))),
+    counted('june', 'Blisko Serca Jezusa', 'Weź udział w nabożeństwie czerwcowym w 3 różnych dniach czerwca.', 'heart', 3, distinctDays(event => event.category === 'devotion' && event.day.slice(5, 7) === '06' && /\b(czerwcow\w*|litani\w* do (najswietszego )?serca (pana )?jezusa)/.test(event.title))),
+    counted('stations', 'Śladami Krzyża', 'Weź udział w Drodze Krzyżowej w 3 różnych dniach od Środy Popielcowej do Wielkiego Piątku.', 'heart', 3, distinctDays(event => event.category === 'devotion' && inLent(event) && /\bdrog\w* krzyzow\w*/.test(event.title))),
+    counted('lamentations', 'Przy Tobie w Męce', 'Weź udział w Gorzkich Żalach w 2 różnych dniach od Środy Popielcowej do Wielkiego Piątku.', 'heart', 2, distinctDays(event => event.category === 'devotion' && inLent(event) && /\bgorzki\w* zal\w*/.test(event.title))),
+    counted('rorate', 'Światło oczekiwania', 'Służ na roratach w 3 różnych dniach Adwentu, najpóźniej 24 grudnia.', 'sunrise', 3, distinctDays(event => event.category === 'mass' && /\brorat\w*/.test(event.title) && event.day >= advent(Number(event.day.slice(0, 4))) && event.day <= `${event.day.slice(0, 4)}-12-24`)),
+    counted('corpusChristi', 'Przy eucharystycznym stole', 'Służ na Mszy oznaczonej jako Boże Ciało, w czwartek 60 dni po Wielkanocy.', 'star', 1, distinctDays(event => event.category === 'mass' && event.day === shiftDate(event.easterDay, 60) && /\bboz\w* cial\w*/.test(event.title))),
+    counted('mercySunday', 'Niedziela nadziei', 'Służ na Mszy oznaczonej jako Niedziela Miłosierdzia, tydzień po Wielkanocy.', 'heart', 1, distinctDays(event => event.category === 'mass' && event.day === shiftDate(event.easterDay, 7) && /\bmilosierdz\w*/.test(event.title))),
+    counted('palmSunday', 'Hosanna', 'Służ na Mszy oznaczonej jako Niedziela Palmowa, tydzień przed Wielkanocą.', 'star', 1, distinctDays(event => event.category === 'mass' && event.day === shiftDate(event.easterDay, -7) && /\bpalmow\w*/.test(event.title))),
+    counted('ashWednesday', 'Początek drogi', 'Służ na Mszy oznaczonej jako Środa Popielcowa, 46 dni przed Wielkanocą.', 'flame', 1, distinctDays(event => event.category === 'mass' && event.day === shiftDate(event.easterDay, -46) && /\bpopiel\w*/.test(event.title))),
+    counted('chaplet', 'Jezu, ufam Tobie', 'Weź udział w Koronce do Miłosierdzia Bożego w 3 różnych dniach sezonu.', 'heart', 3, distinctDays(event => event.category === 'devotion' && /\bkoronk\w*/.test(event.title) && /\bmilosierdz\w*/.test(event.title))),
+  ];
 }
 
 export function buildCompetition(data: Pick<ScheduleData, 'servers' | 'masses' | 'attendees' | 'confirmations' | 'pointAdjustments' | 'competitionState' | 'competitionParticipants'>, now: Date) {
@@ -183,6 +245,7 @@ export function buildCompetition(data: Pick<ScheduleData, 'servers' | 'masses' |
       { badge: badge('sundays', 'Wierny niedzielom', 'Służ w każdą niedzielę jednego miesiąca kalendarzowego w sezonie.', 'calendar', fullMonths, 1, POINTS.badges.sundays), earnedAt: sundaysBadgeEarnedAt },
       { badge: badge('twelve', 'Niezłomny', 'Utrzymaj serię 12 tygodni, w każdym co najmniej 2 służby.', 'medal', bestStreak, 12, POINTS.badges.twelve), earnedAt: twelveStreakEarnedAt },
       { badge: badge('fifty', 'Filar wspólnoty', 'Podejmij 50 służb w jednym sezonie.', 'medal', services.length, 50, POINTS.badges.fifty), earnedAt: services[49]?.start_time },
+      ...devotionalBadges(services),
     ];
     const badges = badgeDefinitions.map(def => def.badge);
     let badgePoints = 0;

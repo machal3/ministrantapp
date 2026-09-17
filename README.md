@@ -15,7 +15,7 @@ Punkty, serie i odznaki naliczają się wyłącznie za potwierdzone obecności n
 - Poniedziałek–sobota: 15 pkt za służbę; niedziela: 10 pkt.
 - Co najmniej 2 służby w tygodniu poniedziałek–niedziela dają bonus 10 pkt. Kolejne tygodnie serii: 15, 20, 25, maksymalnie 30 pkt. Bonus jest jednorazowy w tygodniu; różne wydarzenia tego samego dnia się liczą. Trwający niepełny tydzień nie przerywa serii poprzedniego tygodnia.
 - Poziom `n` zaczyna się przy `50 × n × (n − 1)` pkt (0, 100, 300, 600…). Poziom nie zmienia stopnia ministranta w aplikacji.
-- Dziewięć odznak sezonowych nagradza pierwszą służbę, 10 i 50 służb, 5 porannych Mszy (4:00–8:59), Pasterkę, Wigilię Paschalną, wszystkie niedziele pełnego miesiąca w sezonie oraz serie 4 i 12 tygodni. Odznaki nie dodają punktów.
+- 25 odznak sezonowych nagradza regularną służbę, nabożeństwa i wybrane uroczystości. Odznaki dodają jednorazowo od 10 do 120 pkt; ich warunki i nagrody widać na kartach. Kolekcja ma filtry „Wszystkie”, „Zdobyte” i „W drodze” oraz początkowo pokazuje 6 kart.
 - Pasterka musi mieć „Pasterka” w nazwie/okazji i zaczynać się 24 grudnia od 18:00 lub 25 grudnia przed 4:00. Wigilia Paschalna musi być nazwana w tytule/okazji i przypadać od 18:00 Wielkiej Soboty do 4:00 Niedzieli Wielkanocnej (kalendarz gregoriański).
 - Sezon rozpoczyna się o 00:00 czasu Europe/Warsaw w pierwszą niedzielę Adwentu, a kończy przed kolejnym takim początkiem. Dzień początku wynika z [kalendarza liturgicznego](https://www.usccb.org/prayer-worship/liturgical-year); godzina 00:00 jest zasadą rozliczeniową aplikacji. Punkty, poziomy, serie i odznaki liczymy od nowa, bez kasowania danych grafiku. Pierwszy niepełny tydzień uwzględnia wyłącznie terminy z nowego sezonu.
 - Remis punktowy daje wspólne miejsce. Osoby bez punktów nie zajmują miejsc w rankingu.
@@ -27,6 +27,8 @@ Przycisk **„Zarządzaj punktacją”** znajduje się w pasku administratora ob
 Zapisy korekt i reset wymagają zweryfikowanej w bazie sesji administratora. Bezpośrednie modyfikacje nowych tabel są zabronione. Wersjonowanie sezonu chroni edycję wyniku przed równoczesną zmianą danych; przy konflikcie trzeba odświeżyć podgląd. Potwierdzenia są zapisywane atomowo i ponowienie tej samej odpowiedzi jest bezpieczne. Nadal obowiązuje model zaufania i wyboru imienia, bez kont osobistych.
 
 ## Uruchomienie
+
+Pełny opis nowych odznak, zasad rozpoznawania wydarzeń i źródeł inspiracji: [Odznaki za nabożeństwa i rok liturgiczny](docs/odznaki.md).
 
 Wymagany Node.js 22.12+ lub 24 LTS i npm.
 
