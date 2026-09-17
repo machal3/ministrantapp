@@ -101,7 +101,6 @@ export default memo(function MassCard({ mass, attendees, rules, exceptions, acti
     </div>}
     <div className="mass-actions">
       {!activeId ? <p className="select-prompt">Wybierz ministranta w nagłówku, aby się zapisać.</p> : past ? <>
-        {confirmed === undefined && excused && <p className="excused-note">Zgłoszono Twoją nieobecność w tym terminie.</p>}
         {confirmed === undefined && attendance && !excused && <p className="past-confirm-hint">Ta służba już się odbyła. Potwierdź swoją obecność:</p>}
         {confirmed === undefined && !attendance && !excused && <p className="past-confirm-hint">Ta służba już się odbyła. Nie byłeś zapisany? Możesz dopisać swoją obecność wstecz.</p>}
         {confirmed === undefined && attendance && !excused && <button className="button primary w-full" disabled={busy} onClick={() => onAction(mass, 'attended')}><Check size={16} />Byłem</button>}
@@ -113,7 +112,6 @@ export default memo(function MassCard({ mass, attendees, rules, exceptions, acti
         {attendance && <button type="button" className="link-button" disabled={busy} onClick={() => onAction(mass, 'undeclare')}>{hasRule ? 'Zgłoś nieobecność w tym terminie' : 'Wypisz się z tego terminu'}</button>}
         {!attendance && !excused && confirmed === undefined && <button type="button" className="link-button" disabled={busy} onClick={() => onAction(mass, 'excuse')}>Zgłoś nieobecność wstecz</button>}
       </> : <>
-        {excused && <p className="excused-note">Zgłoszono Twoją nieobecność w tym terminie.</p>}
         {excused ? <button className="button secondary w-full" disabled={busy} onClick={() => onAction(mass, 'restore')}><Undo2 size={16} />{hasRule ? 'Przywróć obecność w tym dniu' : 'Zadeklaruj się jednorazowo'}</button>
           : attendance ? <button className="button registered w-full" disabled={busy} onClick={() => onAction(mass, hasRule ? 'excuse' : 'withdraw')}>
             <UserMinus size={16} />{hasRule ? 'Zgłoś nieobecność w tym dniu' : 'Wypisz się'}

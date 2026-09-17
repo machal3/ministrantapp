@@ -763,7 +763,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .registered:hover:not(:disabled) { background: #e8eee8; }
 .recurring-note, .select-prompt, .excused-note { font-size: 12px; line-height: 1.6; }
 .select-prompt { color: var(--muted); text-align: center; padding: 10px 12px; margin: 0; }
-.recurring-note { border-style: dashed; color: #3b624f; }
+.recurring-note { border-style: dashed; color: #3b624f; min-height: 46px; height: 46px; padding: 0 14px; margin: 0; display: flex; align-items: center; justify-content: center; gap: 6px; box-sizing: border-box; }
 .sidebar { gap: 18px; }
 .personal-panel { background: var(--green); border-radius: var(--radius); padding: 24px; }
 .personal-panel h2 { font-size: 23px; font-weight: 600; line-height: 1.4; letter-spacing: -.6px; }
