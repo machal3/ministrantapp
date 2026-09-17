@@ -338,3 +338,29 @@ it('sorts badges by points, name, target and kind', () => {
   badgeTitles = screen.getAllByRole('strong').map(el => el.textContent).filter(t => ['Złoty lektor', 'Albański poranek', 'Bystry ministrant'].includes(t ?? ''));
   expect(badgeTitles).toEqual(['Albański poranek', 'Bystry ministrant', 'Złoty lektor']);
 });
+
+it('allows searching badges in admin modal', () => {
+  const customBadges = [
+    { id: 'b1', name: 'Złoty lektor', description: 'Za piękne czytania', icon: 'medal', points: 100, target: 50, filters: { kind: 'total' } },
+    { id: 'b2', name: 'Albański poranek', description: 'Poranna wierność', icon: 'sunrise', points: 20, target: 5, filters: { kind: 'single_week' } },
+    { id: 'b3', name: 'Bystry ministrant', description: 'Błyskawiczna służba', icon: 'star', points: 50, target: 20, filters: { kind: 'streak' } },
+  ];
+  const data = { ...props.data, badgeDefinitions: customBadges } as unknown as ScheduleData;
+  render(<AdminBadgesModal {...props} data={data} />);
+
+  const searchInput = screen.getByRole('searchbox', { name: 'Szukaj odznaki' });
+  expect(searchInput).toBeTruthy();
+
+  fireEvent.change(searchInput, { target: { value: 'Złoty' } });
+  let badgeTitles = screen.getAllByRole('strong').map(el => el.textContent).filter(t => ['Złoty lektor', 'Albański poranek', 'Bystry ministrant'].includes(t ?? ''));
+  expect(badgeTitles).toEqual(['Złoty lektor']);
+
+  fireEvent.change(searchInput, { target: { value: 'nieistniejąca' } });
+  expect(screen.getByText('Brak wyników wyszukiwania')).toBeTruthy();
+  expect(screen.getByText(/Nie znaleziono odznak pasujących do frazy „nieistniejąca”/)).toBeTruthy();
+
+  fireEvent.click(screen.getByRole('button', { name: 'Wyczyść wyszukiwanie' }));
+  badgeTitles = screen.getAllByRole('strong').map(el => el.textContent).filter(t => ['Złoty lektor', 'Albański poranek', 'Bystry ministrant'].includes(t ?? ''));
+  expect(badgeTitles).toHaveLength(3);
+});
+

@@ -77,6 +77,12 @@
 [data-theme="dark"] .capacity.filled { background: #243f30; color: #b2dbbf; }
 [data-theme="dark"] .type-badge.single { background: #293a31; color: #bdcfc3; border-color: var(--border); }
 [data-theme="dark"] .page-heading .admin-toggle-btn.active { color: #112c20; }
+[data-theme="dark"] .no-attendees svg { color: #557262; }
+[data-theme="dark"] .no-attendees p > span { color: #8da496; }
+[data-theme="dark"] .attendee-list { scrollbar-color: #3b5244 transparent; }
+[data-theme="dark"] .attendee-list::-webkit-scrollbar-thumb { background: #3b5244; }
+[data-theme="dark"] .attendee-list::-webkit-scrollbar-thumb:hover { background: #4f6e5b; }
+[data-theme="dark"] :is(.registered, .recurring-note, .select-prompt) { background: var(--surface); border-color: var(--border); }
 @media (max-width: 900px) {
   .theme-toggle, .settings-toggle { width: 46px; height: 46px; flex-basis: 46px; }
 }

@@ -622,7 +622,7 @@ export default function App() {
           ) : (
             <div className="day-groups">
               <section className="day-group" key={selectedDay} aria-label={DAY_NAMES[weekday(selectedDay)]}>
-                <div className="mass-grid">
+                <div className={`mass-grid ${dayMasses.length === 1 ? 'single-mass' : ''}`}>
                   {dayMasses.map(mass => (
                     <MassCard
                       key={mass.id}

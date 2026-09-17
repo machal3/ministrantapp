@@ -81,3 +81,22 @@ it('updates the open collection and removes access when a participant opts out',
   expect(within(dialog).queryByRole('heading', { name: 'Pierwszy krok' })).toBeNull();
   expect(within(dialog).getByRole('status')).toBeTruthy();
 });
+
+it('filters badges by search query', () => {
+  render(<CompetitionView {...props} activeId="jan" data={fixture()} />);
+  const collection = within(screen.getByRole('region', { name: 'Twoje odznaki' }));
+  expect(collection.getAllByRole('listitem')).toHaveLength(3);
+
+  const searchInput = screen.getByRole('searchbox', { name: 'Szukaj odznaki' });
+  fireEvent.change(searchInput, { target: { value: 'Pierwszy' } });
+  expect(collection.getAllByRole('listitem')).toHaveLength(1);
+  expect(collection.getByRole('heading', { name: 'Pierwszy krok' })).toBeTruthy();
+
+  fireEvent.change(searchInput, { target: { value: 'nieistniejąca' } });
+  expect(collection.queryAllByRole('listitem')).toHaveLength(0);
+  expect(collection.getByText(/Brak odznak pasujących do wyszukiwania/)).toBeTruthy();
+
+  fireEvent.change(searchInput, { target: { value: '' } });
+  expect(collection.getAllByRole('listitem')).toHaveLength(3);
+});
+

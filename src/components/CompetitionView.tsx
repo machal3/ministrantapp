@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import {
   AlertCircle, Anchor, ArrowUpDown, Award, Bell, Bird, BookOpen, CalendarDays, Check, ChevronDown,
   Church, Clock, Compass, Cross, Crown, Dog, Feather, Fish, Flame, Footprints, Gem, HeartHandshake,
-  Info, LoaderCircle, Medal, Moon, Mountain, RefreshCw, Shield, Shirt, Sparkles, Star, Sun, Sunrise,
+  Info, LoaderCircle, Medal, Moon, Mountain, RefreshCw, Search, Shield, Shirt, Sparkles, Star, Sun, Sunrise,
   Sword, Target, Trophy, UserMinus, UserRound, Zap,
 } from 'lucide-react';
 import Wolf from './WolfIcon';
@@ -151,10 +151,20 @@ export default function CompetitionView({ data, activeId, now, loading, error, o
   const [rankingLimit, setRankingLimit] = useState(10);
   const [badgeFilter, setBadgeFilter] = useState<'all' | 'earned' | 'pending'>('all');
   const [badgeSort, setBadgeSort] = useState<BadgeSort>('default');
+  const [badgeSearch, setBadgeSearch] = useState('');
   const [showAllBadges, setShowAllBadges] = useState(false);
   const filteredBadges = useMemo(() => {
     if (!profile?.badges) return [];
-    const list = profile.badges.filter(badge => badgeFilter === 'all' || badge.earned === (badgeFilter === 'earned'));
+    const query = badgeSearch.trim().toLowerCase();
+    const list = profile.badges.filter(badge => {
+      if (badgeFilter !== 'all' && badge.earned !== (badgeFilter === 'earned')) return false;
+      if (!query) return true;
+      return (
+        badge.name.toLowerCase().includes(query) ||
+        badge.description.toLowerCase().includes(query) ||
+        (badge.summary && badge.summary.toLowerCase().includes(query))
+      );
+    });
     switch (badgeSort) {
       case 'progress_desc':
         return list.sort((a, b) => {
@@ -181,7 +191,7 @@ export default function CompetitionView({ data, activeId, now, loading, error, o
       default:
         return list;
     }
-  }, [profile?.badges, badgeFilter, badgeSort]);
+  }, [profile?.badges, badgeFilter, badgeSort, badgeSearch]);
   const [badgesPersonId, setBadgesPersonId] = useState<string | null>(null);
   const badgesPerson = result?.profiles.find(person => person.isParticipant && person.server.id === badgesPersonId);
   const communityBadges = useMemo(() => {
@@ -236,36 +246,56 @@ export default function CompetitionView({ data, activeId, now, loading, error, o
             <div className="competition-badge-filters" role="group" aria-label="Filtr odznak">{([
               ['all', 'Wszystkie'], ['earned', 'Zdobyte'], ['pending', 'W drodze'],
             ] as const).map(([value, label]) => <button key={value} type="button" aria-pressed={badgeFilter === value} onClick={() => { setBadgeFilter(value); setShowAllBadges(false); }}>{label}</button>)}</div>
-            {profile.badges.length > 1 && (
-              <div className="badge-sort-control">
-                <div className="badge-sort-display" aria-hidden="true">
-                  <ArrowUpDown size={14} />
-                  <span className="badge-sort-prefix">Sortuj:</span>
-                  <span className="badge-sort-value">{BADGE_SORT_LABELS[badgeSort]}</span>
-                  <ChevronDown size={14} className="badge-sort-chevron" />
-                </div>
-                <select
-                  id="competition-badge-sort"
-                  className="badge-sort-select"
-                  value={badgeSort}
-                  onChange={e => { setBadgeSort(e.target.value as BadgeSort); setShowAllBadges(false); }}
-                  aria-label="Sortowanie odznak"
-                >
-                  <option value="default">Domyślnie</option>
-                  <option value="progress_desc">Najbliżej celu</option>
-                  <option value="progress_asc">Najdalej od celu</option>
-                  <option value="points_desc">Punkty: od największych</option>
-                  <option value="points_asc">Punkty: od najniższych</option>
-                  <option value="target_asc">Cel: od najmniejszego</option>
-                  <option value="target_desc">Cel: od największego</option>
-                  <option value="name_asc">Nazwa: A – Z</option>
-                </select>
+            <div className="competition-badge-tools">
+              <div className="search-field competition-badge-search">
+                <Search size={15} className="search-icon" aria-hidden="true" />
+                <input
+                  type="search"
+                  placeholder="Szukaj odznaki…"
+                  value={badgeSearch}
+                  onChange={e => { setBadgeSearch(e.target.value); setShowAllBadges(false); }}
+                  aria-label="Szukaj odznaki"
+                />
               </div>
-            )}
+              {profile.badges.length > 1 && (
+                <div className="badge-sort-control">
+                  <div className="badge-sort-display" aria-hidden="true">
+                    <ArrowUpDown size={14} />
+                    <span className="badge-sort-prefix">Sortuj:</span>
+                    <span className="badge-sort-value">{BADGE_SORT_LABELS[badgeSort]}</span>
+                    <ChevronDown size={14} className="badge-sort-chevron" />
+                  </div>
+                  <select
+                    id="competition-badge-sort"
+                    className="badge-sort-select"
+                    value={badgeSort}
+                    onChange={e => { setBadgeSort(e.target.value as BadgeSort); setShowAllBadges(false); }}
+                    aria-label="Sortowanie odznak"
+                  >
+                    <option value="default">Domyślnie</option>
+                    <option value="progress_desc">Najbliżej celu</option>
+                    <option value="progress_asc">Najdalej od celu</option>
+                    <option value="points_desc">Punkty: od największych</option>
+                    <option value="points_asc">Punkty: od najniższych</option>
+                    <option value="target_asc">Cel: od najmniejszego</option>
+                    <option value="target_desc">Cel: od największego</option>
+                    <option value="name_asc">Nazwa: A – Z</option>
+                  </select>
+                </div>
+              )}
+            </div>
           </div>
-          <ul>{(showAllBadges ? filteredBadges : filteredBadges.slice(0, 6)).map(badge => <BadgeCard key={badge.id} badge={badge} />)}</ul>
-          {!filteredBadges.length && <p className="sidebar-empty">{badgeFilter === 'earned' ? 'Pierwsza odznaka jeszcze przed Tobą. Zobacz cele w zakładce „W drodze”.' : 'Wszystkie odznaki w tym sezonie są już Twoje!'}</p>}
-          {filteredBadges.length > 6 && <button type="button" className="button secondary competition-more" onClick={() => setShowAllBadges(value => !value)}>{showAllBadges ? 'Pokaż mniej' : `Pokaż wszystkie odznaki (${filteredBadges.length})`}</button>}
+          <ul>{((showAllBadges || Boolean(badgeSearch.trim())) ? filteredBadges : filteredBadges.slice(0, 6)).map(badge => <BadgeCard key={badge.id} badge={badge} />)}</ul>
+          {!filteredBadges.length && (
+            <p className="sidebar-empty">
+              {badgeSearch.trim()
+                ? `Brak odznak pasujących do wyszukiwania „${badgeSearch.trim()}”.`
+                : (badgeFilter === 'earned'
+                  ? 'Pierwsza odznaka jeszcze przed Tobą. Zobacz cele w zakładce „W drodze”.'
+                  : 'Wszystkie odznaki w tym sezonie są już Twoje!')}
+            </p>
+          )}
+          {!badgeSearch.trim() && filteredBadges.length > 6 && <button type="button" className="button secondary competition-more" onClick={() => setShowAllBadges(value => !value)}>{showAllBadges ? 'Pokaż mniej' : `Pokaż wszystkie odznaki (${filteredBadges.length})`}</button>}
           </>}
         </section>}
         {profile && isParticipant && <section className="sidebar-panel competition-history" aria-labelledby="points-heading"><div className="competition-section-heading"><h3 id="points-heading">Historia punktów</h3><span>{profile.serviceCount} służb w sezonie</span></div>

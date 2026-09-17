@@ -3,7 +3,7 @@ import type { FormEvent, KeyboardEvent as ReactKeyboardEvent } from 'react';
 import {
   Anchor, ArrowLeft, ArrowRight, ArrowUpDown, Award, Bell, Bird, BookOpen, Calendar, CalendarCheck, CalendarDays, CalendarRange, Check,
   ChevronDown, Church, Clock, Compass, Cross, Crown, Dog, Feather, Fish, Flame, Footprints, Gem, HeartHandshake, Info, LoaderCircle,
-  Medal, Moon, Mountain, Plus, Save, Shield, Shirt, Sparkles, Star, Sun, Sunrise, Sword, Target, Trash2, Trophy,
+  Medal, Moon, Mountain, Plus, Save, Search, Shield, Shirt, Sparkles, Star, Sun, Sunrise, Sword, Target, Trash2, Trophy,
   UserRound, Users, X, Zap,
 } from 'lucide-react';
 import Wolf from './WolfIcon';
@@ -295,6 +295,7 @@ export default function AdminBadgesModal({ data, session, onRefresh, onClose, on
   const isDefault = data?.badgeDefinitions === undefined;
   const definitions = data?.badgeDefinitions ?? DEFAULT_BADGE_DEFINITIONS;
   const [sortOrder, setSortOrder] = useState<AdminBadgeSort>('default');
+  const [search, setSearch] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [wizardOpen, setWizardOpen] = useState(false);
   const [step, setStep] = useState<1 | 2>(1);
@@ -307,7 +308,18 @@ export default function AdminBadgesModal({ data, session, onRefresh, onClose, on
   const lock = useRef(false);
 
   const sortedDefinitions = useMemo(() => {
-    const list = [...definitions];
+    const query = search.trim().toLowerCase();
+    let list = [...definitions];
+    if (query) {
+      list = list.filter(def => {
+        const condition = describeBadgeFilter(def.filters ?? {});
+        return (
+          def.name.toLowerCase().includes(query) ||
+          (def.description && def.description.toLowerCase().includes(query)) ||
+          condition.toLowerCase().includes(query)
+        );
+      });
+    }
     switch (sortOrder) {
       case 'name_asc':
         return list.sort((a, b) => a.name.localeCompare(b.name, 'pl'));
@@ -338,7 +350,7 @@ export default function AdminBadgesModal({ data, session, onRefresh, onClose, on
       default:
         return list;
     }
-  }, [definitions, sortOrder]);
+  }, [definitions, search, sortOrder]);
 
   const preview = summaryFor(step2.target, buildFilters(step2));
 
@@ -486,32 +498,47 @@ export default function AdminBadgesModal({ data, session, onRefresh, onClose, on
       <div className="badge-list-view">
         <div className="badge-list-toolbar">
           <button type="button" className="button primary" disabled={busy} onClick={startAdd}><Plus size={16} />Dodaj odznakę</button>
-          {definitions.length > 1 && (
-            <div className="badge-sort-control">
-              <div className="badge-sort-display" aria-hidden="true">
-                <ArrowUpDown size={14} />
-                <span className="badge-sort-prefix">Sortuj:</span>
-                <span className="badge-sort-value">{ADMIN_SORT_LABELS[sortOrder]}</span>
-                <ChevronDown size={14} className="badge-sort-chevron" />
+          <div className="badge-list-toolbar-actions">
+            {definitions.length > 0 && (
+              <div className="search-field badge-list-search">
+                <Search size={15} className="search-icon" aria-hidden="true" />
+                <input
+                  type="search"
+                  placeholder="Szukaj odznaki…"
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  disabled={busy}
+                  aria-label="Szukaj odznaki"
+                />
               </div>
-              <select
-                id="admin-badge-sort"
-                className="badge-sort-select"
-                value={sortOrder}
-                onChange={e => setSortOrder(e.target.value as AdminBadgeSort)}
-                aria-label="Sortowanie odznak"
-              >
-                <option value="default">Domyślnie</option>
-                <option value="name_asc">Nazwa: A – Z</option>
-                <option value="name_desc">Nazwa: Z – A</option>
-                <option value="points_desc">Punkty: od najwyższych</option>
-                <option value="points_asc">Punkty: od najniższych</option>
-                <option value="target_asc">Cel: od najmniejszego</option>
-                <option value="target_desc">Cel: od największego</option>
-                <option value="kind">Rodzaj warunku</option>
-              </select>
-            </div>
-          )}
+            )}
+            {definitions.length > 1 && (
+              <div className="badge-sort-control">
+                <div className="badge-sort-display" aria-hidden="true">
+                  <ArrowUpDown size={14} />
+                  <span className="badge-sort-prefix">Sortuj:</span>
+                  <span className="badge-sort-value">{ADMIN_SORT_LABELS[sortOrder]}</span>
+                  <ChevronDown size={14} className="badge-sort-chevron" />
+                </div>
+                <select
+                  id="admin-badge-sort"
+                  className="badge-sort-select"
+                  value={sortOrder}
+                  onChange={e => setSortOrder(e.target.value as AdminBadgeSort)}
+                  aria-label="Sortowanie odznak"
+                >
+                  <option value="default">Domyślnie</option>
+                  <option value="name_asc">Nazwa: A – Z</option>
+                  <option value="name_desc">Nazwa: Z – A</option>
+                  <option value="points_desc">Punkty: od najwyższych</option>
+                  <option value="points_asc">Punkty: od najniższych</option>
+                  <option value="target_asc">Cel: od najmniejszego</option>
+                  <option value="target_desc">Cel: od największego</option>
+                  <option value="kind">Rodzaj warunku</option>
+                </select>
+              </div>
+            )}
+          </div>
         </div>
         <div className="badge-list-body">
           {definitions.length === 0 ? (
@@ -519,6 +546,15 @@ export default function AdminBadgesModal({ data, session, onRefresh, onClose, on
               <Award size={32} strokeWidth={1.5} aria-hidden="true" />
               <h4>Brak odznak</h4>
               <p>Lista jest pusta. Dodaj pierwszą odznakę przyciskiem powyżej — w kroku 1 wybierzesz nazwę, opis, ikonę i nagrodę, a w kroku 2 warunek.</p>
+            </div>
+          ) : sortedDefinitions.length === 0 ? (
+            <div className="community-badges-empty">
+              <Search size={32} strokeWidth={1.5} aria-hidden="true" />
+              <h4>Brak wyników wyszukiwania</h4>
+              <p>Nie znaleziono odznak pasujących do frazy „{search}”.</p>
+              <button type="button" className="button secondary" onClick={() => setSearch('')}>
+                Wyczyść wyszukiwanie
+              </button>
             </div>
           ) : (
             <ul className="servers-cards-list badge-items-list">

@@ -85,6 +85,12 @@
 .competition-badge-filters { display: flex; flex-wrap: wrap; gap: 6px; }
 .competition-badge-filters button { min-height: 44px; padding: 8px 14px; border: 1px solid var(--border); border-radius: var(--control-radius); background: var(--surface); color: var(--muted); font-size: 12px; font-weight: 600; }
 .competition-badge-filters button:hover, .competition-badge-filters button[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent-edge); color: var(--green); }
+.competition-badge-tools { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.competition-badge-search { width: 190px; max-width: 100%; }
+.competition-badge-search input,
+.admin-badges-modal .badge-list-search input { min-height: 44px; height: 44px; border-radius: var(--control-radius); font-size: 13px; }
+.admin-badges-modal .badge-list-toolbar-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.admin-badges-modal .badge-list-search { width: 200px; max-width: 100%; }
 .badge-sort-control { position: relative; display: inline-flex; align-items: center; background: var(--surface); border: 1px solid var(--border); border-radius: var(--control-radius); min-height: 44px; box-sizing: border-box; cursor: pointer; transition: border-color 0.15s, background 0.15s, box-shadow 0.15s; }
 .badge-sort-control:hover { border-color: var(--accent-edge); background: var(--surface-soft); }
 .badge-sort-control:focus-within { border-color: var(--green); box-shadow: 0 0 0 2px var(--accent-soft); }
@@ -737,6 +743,14 @@
     flex-direction: column;
     align-items: stretch;
   }
+  .competition-badge-tools {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .competition-badge-search {
+    width: 100%;
+  }
   .competition-badge-bar .badge-sort-control {
     width: 100%;
   }
@@ -747,6 +761,14 @@
   .admin-badges-modal .badge-list-toolbar .button {
     width: 100%;
     justify-content: center;
+  }
+  .admin-badges-modal .badge-list-toolbar-actions {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .admin-badges-modal .badge-list-search {
+    width: 100%;
   }
   .admin-badges-modal .badge-sort-control {
     width: 100%;

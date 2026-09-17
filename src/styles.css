@@ -116,8 +116,8 @@ h1 { font-family: var(--font-sans); font-size: clamp(31px, 3vw, 42px); font-weig
 .liturgy-pill.mass { background: #f7e6c1; color: #724c0d; }
 .liturgy-pill.devotion { background: #edd9fa; color: #6a2a96; }
 
-.mass-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; align-items: start; }
-.mass-card { background: white; border: 1px solid var(--border); border-radius: 9px; overflow: hidden; box-shadow: 0 2px 3px #273f2203; }
+.mass-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; align-items: stretch; }
+.mass-card { display: flex; flex-direction: column; height: 100%; min-height: 0; background: white; border: 1px solid var(--border); border-radius: 9px; overflow: hidden; box-shadow: 0 2px 3px #273f2203; }
 .mass-card.my-mass { border-color: #becfb1; }
 .eucharist-card { --liturgy-accent: #617852; --liturgy-tint: #f5f8f1; --liturgy-edge: #c2d0b5; }
 .devotion-card { --liturgy-accent: #8b683e; --liturgy-tint: #fcf8f0; --liturgy-edge: #deccb0; }
@@ -607,6 +607,18 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .main-container { max-width: 1440px; padding: 10px var(--gutter) 48px; padding-top: calc(env(safe-area-inset-top, 0px) + 10px); }
 .demo-banner { background: #fff9eb; border-color: #eadfc3; border-radius: var(--control-radius); font-size: 12px; margin-bottom: 0; }
 .page-heading { position: relative; top: auto; margin: 0 0 24px; padding: 12px 0 16px; gap: 24px; background: transparent; border-bottom: 1px solid var(--border); }
+@media (min-width: 641px) {
+  .main-container { padding-top: 0; }
+  .page-heading {
+    position: sticky;
+    top: 0;
+    z-index: 35;
+    background: var(--canvas);
+    margin: 0 calc(-1 * var(--gutter)) 24px;
+    padding: 14px var(--gutter);
+    border-bottom: 1px solid var(--border);
+  }
+}
 .page-heading-titles { flex: 1; min-width: 0; }
 .page-heading h1 { font: 800 clamp(24px, 2.4vw, 32px)/1.25 var(--font-sans); letter-spacing: -1.1px; color: var(--ink); }
 .page-heading p { margin-top: 5px; font-size: 12px; }
@@ -644,39 +656,114 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .day-heading h3 > span { font-size: 12px; }
 .day-count { font-size: 11px; }
 .today-badge { font-size: 10px; border-radius: 6px; padding: 3px 8px; }
-.mass-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
-.mass-card { border-radius: var(--radius); box-shadow: var(--shadow); }
+.mass-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  align-items: stretch;
+}
+.mass-grid:has(> .mass-card:only-child),
+.mass-grid.single-mass {
+  grid-template-columns: minmax(0, 720px);
+  max-width: 720px;
+}
+.mass-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  overflow: hidden;
+}
 .mass-card.my-mass { border-color: #85ad95; }
 .eucharist-card { --liturgy-accent: #39634e; --liturgy-tint: #f1f6f2; --liturgy-edge: #a9c8b5; }
 .devotion-card { --liturgy-accent: #816025; --liturgy-tint: #fcf7ec; --liturgy-edge: #dfc993; }
 .other-card { --liturgy-accent: #486681; --liturgy-tint: #f1f5fa; --liturgy-edge: #b1c8df; }
-.mass-heading { padding: 22px 18px 18px; gap: 14px; align-items: flex-start; }
+.mass-heading { padding: 20px 18px 16px; gap: 14px; align-items: flex-start; flex-shrink: 0; }
 .mass-time { min-width: 87px; padding-right: 14px; font: 700 27px/1.15 var(--font-sans); letter-spacing: -1px; }
 .mass-type-label, .mass-time > span:not(.mass-time-digits) { font-size: 9px; letter-spacing: .3px; margin-top: 8px; line-height: 1.4; }
 .mass-meta { gap: 4px; }
 .mass-heading h4, .mass-meta h4, .service-calendar h3 { color: var(--ink); font-size: clamp(17px, 2vw, 20px); font-weight: 700; line-height: 1.3; letter-spacing: -.3px; text-wrap: balance; overflow-wrap: anywhere; }
 .capacity { font-size: 11px; padding: 4px 7px; border-radius: 6px; }
-.mass-details { padding: 12px 18px; gap: 10px; flex-wrap: wrap; background: var(--surface); }
+.mass-details { padding: 12px 18px; gap: 10px; flex-wrap: wrap; background: var(--surface); flex-shrink: 0; }
 .mass-details .mass-celebrant { font-size: 12px; flex-basis: 130px; }
 .mass-details .mass-celebrant span, .mass-details .liturgy-rank-badge { white-space: normal; overflow-wrap: anywhere; }
 .mass-details .liturgy-rank-badge { font-size: 11px; }
-.attendance-section { padding: 18px; border-color: var(--border); }
-.attendance-label { font-size: 12px; color: var(--muted); }
+.attendance-section {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  padding: 16px 18px;
+  border-top: 1px solid var(--border);
+}
+.attendance-section + .attendance-section {
+  flex: 0 0 auto;
+  border-top: 1px dashed var(--border);
+  padding-top: 12px;
+}
+.attendance-label { font-size: 12px; color: var(--muted); flex-shrink: 0; }
 .attendance-label > span:nth-child(3), .attendance-label .you-attend { font-size: 11px; }
-.attendee-list { gap: 14px; margin-top: 16px; }
+.attendee-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 14px 0 0;
+  padding: 0 4px 2px 0;
+  list-style: none;
+  max-height: 230px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd8cf transparent;
+}
+.attendee-list::-webkit-scrollbar { width: 5px; }
+.attendee-list::-webkit-scrollbar-track { background: transparent; }
+.attendee-list::-webkit-scrollbar-thumb { background: #cbd8cf; border-radius: 10px; }
+.attendee-list::-webkit-scrollbar-thumb:hover { background: #a2b7a9; }
 .avatar { width: 34px; height: 34px; font-size: 11px; }
 .attendee-person > span:first-child { font-size: 13px; }
 .attendee-person > span:last-child { font-size: 11px; }
 .attendee-person small { font-size: 10px; }
 .type-badge, .presence-badge { font-size: 11px; padding: 2.5px 7px; }
-.no-attendees { min-height: 90px; color: var(--muted); }
-.no-attendees p { font-size: 13px; }
-.no-attendees p > span { font-size: 12px; }
-.mass-actions { padding: 0 18px 18px; gap: 10px; }
+.no-attendees {
+  flex: 1 1 auto;
+  min-height: 100px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 8px;
+  padding: 18px 14px;
+  margin: 0;
+  color: var(--muted);
+}
+.no-attendees svg { color: #a4b4a9; flex-shrink: 0; }
+.no-attendees p { font-size: 13px; margin: 0; line-height: 1.5; }
+.no-attendees p > span { font-size: 12px; color: #7d9084; }
+.mass-actions {
+  margin-top: auto;
+  flex-shrink: 0;
+  padding: 14px 18px 16px;
+  border-top: 1px solid var(--border);
+  background: var(--surface-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-bottom-left-radius: inherit;
+  border-bottom-right-radius: inherit;
+}
 .button, .mass-actions .button { height: auto; min-height: 46px; padding: 11px 14px; font-size: 13px; border-radius: var(--control-radius); line-height: 1.5; }
 .secondary, .recurring-button { border-color: var(--border); background: var(--surface); color: var(--green); }
-.registered, .recurring-note, .select-prompt { background: var(--surface-soft); color: var(--green); border-radius: var(--control-radius); }
+.registered, .recurring-note, .select-prompt { background: var(--surface); color: var(--green); border: 1px solid var(--border); border-radius: var(--control-radius); }
+.registered { color: #355e4b; }
+.registered:hover:not(:disabled) { background: #e8eee8; }
 .recurring-note, .select-prompt, .excused-note { font-size: 12px; line-height: 1.6; }
+.select-prompt { color: var(--muted); text-align: center; padding: 10px 12px; margin: 0; }
+.recurring-note { border-style: dashed; color: #3b624f; }
 .sidebar { gap: 18px; }
 .personal-panel { background: var(--green); border-radius: var(--radius); padding: 24px; }
 .personal-panel h2 { font-size: 23px; font-weight: 600; line-height: 1.4; letter-spacing: -.6px; }
@@ -770,7 +857,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 }
 @media (max-width: 640px) {
   .main-container { padding-top: calc(env(safe-area-inset-top, 0px) + 14px); padding-bottom: 28px; }
-  .page-heading { gap: 12px; padding: 10px 0 14px; margin-bottom: 18px; align-items: center; }
+  .page-heading { position: relative; top: auto; margin: 0 0 18px; padding: 10px 0 14px; background: transparent; gap: 12px; align-items: center; }
   .page-heading h1 { font-size: clamp(19px, 4.8vw, 23px); letter-spacing: -.8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .app-logo { width: 28px; height: 28px; border-radius: 6px; flex-shrink: 0; }
   .page-heading-titles { gap: 10px; min-width: 0; display: flex; align-items: center; }
