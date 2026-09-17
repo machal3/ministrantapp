@@ -61,3 +61,37 @@
 .accent-option:hover { background: var(--surface-soft); }
 .accent-option[aria-pressed="true"] { border-color: var(--green); background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--green); }
 .accent-swatch { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; color: white; box-shadow: inset 0 0 0 1px #ffffff30; }
+
+/* Keep liturgical colors independent of the chosen application accent. */
+:root[data-accent="purple"] .is-feast {
+  --day-tint: #fff0f3;
+  --day-edge: #f8bcc6;
+  --day-ink: #9e1b34;
+}
+:root[data-accent="purple"][data-theme="dark"] .is-feast {
+  --day-tint: #38151e;
+  --day-edge: #782637;
+  --day-ink: #fca2b2;
+}
+:root[data-accent][data-theme] .day-tab:is(.is-sunday, .is-feast):not(.selected) {
+  background: var(--day-tint);
+  border-color: var(--day-edge);
+  color: var(--day-ink);
+  box-shadow: inset 0 -3px 0 var(--day-ink);
+}
+:root[data-accent][data-theme] .day-tab:is(.is-sunday, .is-feast):not(.selected) > :is(span, strong) {
+  color: var(--day-ink);
+}
+:root[data-accent][data-theme] .day-tab:is(.is-sunday, .is-feast):not(.selected):hover,
+:root[data-accent][data-theme] .day-tab:is(.is-sunday, .is-feast).is-today:not(.selected) {
+  border-color: var(--day-ink);
+  box-shadow: inset 0 0 0 1px var(--day-ink), inset 0 -3px 0 var(--day-ink);
+}
+:root[data-accent][data-theme] .day-tab:is(.is-sunday, .is-feast).selected {
+  background: var(--day-ink);
+  border-color: var(--day-ink);
+  color: var(--day-tint);
+}
+:root[data-accent][data-theme] .day-tab:is(.is-sunday, .is-feast).selected > :is(span, strong) {
+  color: var(--day-tint);
+}
