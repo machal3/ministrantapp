@@ -80,9 +80,6 @@
   .theme-toggle { width: 46px; height: 46px; flex-basis: 46px; }
 }
 @media (max-width: 640px) {
-  .page-heading { grid-template-columns: 1fr; }
-  .page-heading .user-selector-wrap { justify-self: end; }
-  .page-heading-controls { max-width: 100%; }
   [data-theme="dark"] .page-heading .user-selector { background: transparent; }
 }
 @media (max-width: 380px) {

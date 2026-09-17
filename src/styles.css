@@ -735,10 +735,10 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .mass-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .sidebar { padding-top: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
   .open-invitation { align-self: center; }
-  .page-heading { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 20px; }
+  .page-heading { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 20px; align-items: center; }
   .page-heading-controls { display: contents; }
   .page-heading .user-selector-wrap { width: auto; }
-  .page-heading .user-selector { display: flex; padding: 0; gap: 8px; border: 0; background: transparent; box-shadow: none; }
+  .page-heading .user-selector { display: flex; align-items: center; flex-shrink: 0; padding: 0; gap: 8px; border: 0; background: transparent; box-shadow: none; }
   .user-trigger-text, .user-select-trigger > svg, .admin-toggle-btn > span { display: none; }
   .page-heading .user-select-trigger, .page-heading .admin-toggle-btn, .page-heading .pwa-install-btn { width: 46px; height: 46px; padding: 0; border: 1px solid var(--border); border-radius: var(--control-radius); justify-content: center; background: var(--surface); }
   .page-heading .admin-toggle-btn.active { background: var(--green); color: white; }
@@ -748,10 +748,10 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 }
 @media (max-width: 640px) {
   .main-container { padding-top: calc(env(safe-area-inset-top, 0px) + 14px); padding-bottom: 28px; }
-  .page-heading { gap: 12px; padding: 10px 0 14px; margin-bottom: 18px; }
-  .page-heading h1 { font-size: 23px; letter-spacing: -.8px; }
-  .app-logo { width: 28px; height: 28px; border-radius: 6px; }
-  .page-heading-titles { gap: 10px; }
+  .page-heading { gap: 12px; padding: 10px 0 14px; margin-bottom: 18px; align-items: center; }
+  .page-heading h1 { font-size: clamp(19px, 4.8vw, 23px); letter-spacing: -.8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .app-logo { width: 28px; height: 28px; border-radius: 6px; flex-shrink: 0; }
+  .page-heading-titles { gap: 10px; min-width: 0; display: flex; align-items: center; }
   .page-heading p { font-size: 11px; max-width: 210px; line-height: 1.6; }
   .mass-grid, .sidebar { grid-template-columns: 1fr; }
   .sidebar { gap: 16px; }
