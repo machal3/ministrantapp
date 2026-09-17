@@ -291,6 +291,17 @@ const ADMIN_SORT_LABELS: Record<AdminBadgeSort, string> = {
   kind: 'Rodzaj warunku',
 };
 
+const ADMIN_SORT_SHORT_LABELS: Record<AdminBadgeSort, string> = {
+  default: 'Domyślnie',
+  name_asc: 'A – Z',
+  name_desc: 'Z – A',
+  points_desc: 'Punkty ↓',
+  points_asc: 'Punkty ↑',
+  target_asc: 'Cel ↑',
+  target_desc: 'Cel ↓',
+  kind: 'Warunek',
+};
+
 export default function AdminBadgesModal({ data, session, onRefresh, onClose, onSaved }: Props) {
   const isDefault = data?.badgeDefinitions === undefined;
   const definitions = data?.badgeDefinitions ?? DEFAULT_BADGE_DEFINITIONS;
@@ -518,6 +529,7 @@ export default function AdminBadgesModal({ data, session, onRefresh, onClose, on
                   <ArrowUpDown size={14} />
                   <span className="badge-sort-prefix">Sortuj:</span>
                   <span className="badge-sort-value">{ADMIN_SORT_LABELS[sortOrder]}</span>
+                  <span className="badge-sort-value-short">{ADMIN_SORT_SHORT_LABELS[sortOrder]}</span>
                   <ChevronDown size={14} className="badge-sort-chevron" />
                 </div>
                 <select

@@ -33,6 +33,17 @@ const BADGE_SORT_LABELS: Record<BadgeSort, string> = {
   name_asc: 'Nazwa (A – Z)',
 };
 
+const BADGE_SORT_SHORT_LABELS: Record<BadgeSort, string> = {
+  default: 'Domyślnie',
+  progress_desc: 'Najbliżej',
+  progress_asc: 'Najdalej',
+  points_desc: 'Punkty ↓',
+  points_asc: 'Punkty ↑',
+  target_asc: 'Cel ↑',
+  target_desc: 'Cel ↓',
+  name_asc: 'A – Z',
+};
+
 interface Props {
   data: ScheduleData | null;
   activeId: string;
@@ -263,6 +274,7 @@ export default function CompetitionView({ data, activeId, now, loading, error, o
                     <ArrowUpDown size={14} />
                     <span className="badge-sort-prefix">Sortuj:</span>
                     <span className="badge-sort-value">{BADGE_SORT_LABELS[badgeSort]}</span>
+                    <span className="badge-sort-value-short">{BADGE_SORT_SHORT_LABELS[badgeSort]}</span>
                     <ChevronDown size={14} className="badge-sort-chevron" />
                   </div>
                   <select

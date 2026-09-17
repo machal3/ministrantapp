@@ -83,22 +83,23 @@
 .competition-badges > ul { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; padding: 0; margin: 0; list-style: none; }
 .competition-badge-bar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
 .competition-badge-filters { display: flex; flex-wrap: wrap; gap: 6px; }
-.competition-badge-filters button { min-height: 44px; padding: 8px 14px; border: 1px solid var(--border); border-radius: var(--control-radius); background: var(--surface); color: var(--muted); font-size: 12px; font-weight: 600; }
+.competition-badge-filters button { min-height: 42px; padding: 8px 14px; border: 1px solid var(--border); border-radius: var(--control-radius); background: var(--surface); color: var(--muted); font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; }
 .competition-badge-filters button:hover, .competition-badge-filters button[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent-edge); color: var(--green); }
 .competition-badge-tools { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.competition-badge-search { width: 190px; max-width: 100%; }
+.competition-badge-search { width: 170px; max-width: 100%; }
 .competition-badge-search input,
-.admin-badges-modal .badge-list-search input { min-height: 44px; height: 44px; border-radius: var(--control-radius); font-size: 13px; }
+.admin-badges-modal .badge-list-search input { min-height: 42px; height: 42px; border-radius: var(--control-radius); font-size: 13px; }
 .admin-badges-modal .badge-list-toolbar-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.admin-badges-modal .badge-list-search { width: 200px; max-width: 100%; }
-.badge-sort-control { position: relative; display: inline-flex; align-items: center; background: var(--surface); border: 1px solid var(--border); border-radius: var(--control-radius); min-height: 44px; box-sizing: border-box; cursor: pointer; transition: border-color 0.15s, background 0.15s, box-shadow 0.15s; }
+.admin-badges-modal .badge-list-search { width: 170px; max-width: 100%; }
+.badge-sort-control { position: relative; display: inline-flex; align-items: center; background: var(--surface); border: 1px solid var(--border); border-radius: var(--control-radius); min-height: 42px; height: 42px; box-sizing: border-box; cursor: pointer; transition: border-color 0.15s, background 0.15s, box-shadow 0.15s; }
 .badge-sort-control:hover { border-color: var(--accent-edge); background: var(--surface-soft); }
 .badge-sort-control:focus-within { border-color: var(--green); box-shadow: 0 0 0 2px var(--accent-soft); }
 .badge-sort-display { display: inline-flex; align-items: center; gap: 6px; padding: 0 12px; width: 100%; pointer-events: none; font-size: 13px; box-sizing: border-box; }
 .badge-sort-display svg { color: var(--muted); flex-shrink: 0; }
 .badge-sort-prefix { color: var(--muted); font-size: 12px; font-weight: 600; white-space: nowrap; }
 .badge-sort-value { color: var(--ink); font-weight: 700; font-size: 13px; white-space: nowrap; }
-.badge-sort-chevron { margin-left: auto; color: var(--muted); }
+.badge-sort-value-short { display: none; }
+.badge-sort-chevron { margin-left: auto; color: var(--muted); flex-shrink: 0; }
 .badge-sort-select { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; -webkit-appearance: menulist; appearance: menulist; z-index: 1; font-size: 16px; }
 .badge-sort-select option { background: var(--surface); color: var(--ink); }
 .competition-badge { padding: 18px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); display: flex; flex-direction: column; align-items: flex-start; }
@@ -742,36 +743,121 @@
   .competition-badge-bar {
     flex-direction: column;
     align-items: stretch;
+    gap: 8px;
+  }
+  .competition-badge-filters {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    width: 100%;
+  }
+  .competition-badge-filters button {
+    min-height: 40px;
+    height: 40px;
+    padding: 6px 4px;
+    font-size: 12px;
+    font-weight: 600;
+    justify-content: center;
+    text-align: center;
+    white-space: nowrap;
   }
   .competition-badge-tools {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
     width: 100%;
-    flex-direction: column;
-    align-items: stretch;
   }
   .competition-badge-search {
-    width: 100%;
+    flex: 1 1 auto;
+    min-width: 0;
+    width: auto;
+  }
+  .competition-badge-search input {
+    min-height: 40px;
+    height: 40px;
+    font-size: 13px;
+    padding: 6px 10px 6px 32px !important;
+  }
+  .competition-badge-search .search-icon {
+    left: 10px;
   }
   .competition-badge-bar .badge-sort-control {
-    width: 100%;
+    flex: 0 0 auto;
+    width: auto;
+    min-height: 40px;
+    height: 40px;
+  }
+  .badge-sort-display {
+    padding: 0 10px;
+    gap: 5px;
+    font-size: 12px;
+  }
+  .badge-sort-prefix {
+    display: none;
+  }
+  .badge-sort-value {
+    display: none;
+  }
+  .badge-sort-value-short {
+    display: inline;
+    font-weight: 700;
+    font-size: 12px;
+    color: var(--ink);
+    white-space: nowrap;
   }
   .admin-badges-modal .badge-list-toolbar {
     flex-direction: column;
     align-items: stretch;
+    gap: 8px;
   }
   .admin-badges-modal .badge-list-toolbar .button {
     width: 100%;
     justify-content: center;
+    min-height: 40px;
+    height: 40px;
   }
   .admin-badges-modal .badge-list-toolbar-actions {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
     width: 100%;
-    flex-direction: column;
-    align-items: stretch;
   }
   .admin-badges-modal .badge-list-search {
-    width: 100%;
+    flex: 1 1 auto;
+    min-width: 0;
+    width: auto;
+  }
+  .admin-badges-modal .badge-list-search input {
+    min-height: 40px;
+    height: 40px;
+    font-size: 13px;
+    padding: 6px 10px 6px 32px !important;
+  }
+  .admin-badges-modal .badge-list-search .search-icon {
+    left: 10px;
   }
   .admin-badges-modal .badge-sort-control {
-    width: 100%;
+    flex: 0 0 auto;
+    width: auto;
+    min-height: 40px;
+    height: 40px;
+  }
+}
+
+@media (max-width: 380px) {
+  .competition-badge-filters button {
+    font-size: 11px;
+    padding-inline: 2px;
+  }
+  .badge-sort-display {
+    padding: 0 7px;
+    gap: 4px;
+    font-size: 11px;
+  }
+  .badge-sort-value-short {
+    font-size: 11px;
   }
 }
 
