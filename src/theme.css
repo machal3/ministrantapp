@@ -34,6 +34,7 @@
 [data-theme="dark"] ::selection { background: #365e48; color: #f0fff5; }
 [data-theme="dark"] :is(.mass-card, .service-card, .sidebar-panel, .week-navigator, .day-selector, .modal, .toast, .celebrant-row, .celebrants-presets, .server-admin-card, .person-option, .weekday-pill, .recurrence-tab.active) { background: var(--surface); border-color: var(--border); color: var(--ink); }
 [data-theme="dark"] .page-heading .user-selector { background: var(--surface); }
+[data-theme="dark"] .app-logo { filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5)) drop-shadow(0 0 1px rgba(255, 255, 255, 0.25)); }
 [data-theme="dark"] :is(.user-select-trigger, .user-trigger-text strong, .week-navigator h2, .day-tab > strong, .day-heading h3, .attendee-person > span:first-child, .week-summary strong, .empty-state h3, .radio-label strong, .scope-extra-toggle-head, .competition-rule-details strong, .checkbox-field, .recurrence-summary-box, .person-option-text strong) { color: var(--ink); }
 [data-theme="dark"] :is(.user-trigger-avatar, .avatar, .server-avatar, .user-icon, .sidebar-panel h2 > span, .attendance-label > span:nth-child(3), .toast > span) { background: var(--surface-soft); color: var(--green); }
 [data-theme="dark"] :is(.user-trigger-avatar.has-selection, .avatar.own-avatar, .person-option.selected, .person-option:hover, .radio-label:has(input:checked), .scope-extra-toggle, .scope-extra-toggle:has(input:checked), .admin-toolbar, .celebrant-row.changed) { background: #244234; border-color: #486d57; color: var(--ink); }
@@ -43,6 +44,8 @@
 [data-theme="dark"] :is(.secondary:hover:not(:disabled), .registered:hover:not(:disabled), .icon-button:hover:not(:disabled), .today-button:hover, .week-controls .icon-button:hover:not(:disabled), .pwa-install-btn:hover, .user-select-trigger:hover, .preset-chips button:hover, .day-tab:not(.selected):hover) { background: #2c4236; color: var(--ink); border-color: #587361; }
 [data-theme="dark"] .pwa-install-btn { background: var(--surface); }
 [data-theme="dark"] .personal-panel { background: linear-gradient(145deg, #254e3d, #1b362b); border: 1px solid #3c6650; }
+[data-theme="dark"] .personal-panel.competition-opted-out .competition-opted-out-header h3 { color: white; }
+[data-theme="dark"] .personal-panel.competition-opted-out :is(p, .competition-opted-out-header p, .competition-opted-out-body p) { color: #e5eaf0; }
 [data-theme="dark"] .eucharist-card { --liturgy-accent: #a0cfaf; --liturgy-tint: #20392c; --liturgy-edge: #3b5b47; }
 [data-theme="dark"] .devotion-card { --liturgy-accent: #e2c184; --liturgy-tint: #352e20; --liturgy-edge: #685536; }
 [data-theme="dark"] .other-card { --liturgy-accent: #abc9e7; --liturgy-tint: #223343; --liturgy-edge: #435c71; }

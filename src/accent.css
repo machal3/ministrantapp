@@ -44,6 +44,8 @@
 :root[data-accent][data-theme] .day-tab.is-today:not(.selected) > strong { color: var(--ink); }
 :root[data-accent][data-theme] .personal-panel { background: linear-gradient(140deg, var(--hero-start), var(--hero-end)); border: 1px solid var(--accent-edge); color: white; }
 :root[data-accent][data-theme] .personal-panel :is(p, .personal-summary > span, .competition-points > span, .competition-level-caption, .competition-point-breakdown) { color: #e5eaf0; }
+:root[data-accent][data-theme] .personal-panel.competition-opted-out .competition-opted-out-header h3 { color: white; }
+:root[data-accent][data-theme] .personal-panel.competition-opted-out :is(p, .competition-opted-out-header p, .competition-opted-out-body p) { color: #e5eaf0; }
 :root[data-accent][data-theme] .eucharist-card { --liturgy-accent: var(--green); --liturgy-tint: var(--accent-soft); --liturgy-edge: var(--accent-edge); }
 :root[data-accent][data-theme] .mass-card.my-mass { border-color: var(--accent-edge); }
 :root[data-accent][data-theme] .person-search { background: var(--surface-soft); border-color: var(--border); }
