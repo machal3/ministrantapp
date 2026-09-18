@@ -945,16 +945,26 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .page-heading .user-selector-wrap { width: auto; }
 }
 @media (max-width: 640px) {
-  .page-heading { gap: 8px; }
+  .page-heading {
+    position: sticky;
+    top: env(safe-area-inset-top, 0px);
+    z-index: 35;
+    gap: 8px;
+    margin: 0 calc(-1 * var(--gutter)) 18px;
+    padding: 10px var(--gutter) 12px;
+    background: var(--canvas);
+    border-bottom: 1px solid var(--border);
+  }
   .page-heading-primary { gap: 8px; }
-  .view-navigation-trigger { width: 48px; padding: 0; gap: 2px; }
+  .page-heading .user-selector { gap: 8px; }
+  .view-navigation-trigger { width: 46px; height: 46px; padding: 0; gap: 2px; }
   .view-navigation-trigger > span { display: none; }
 }
 @media (max-width: 480px) {
   .page-heading { gap: 6px; }
   .page-heading-titles .app-logo { display: none; }
   .page-heading h1 { font-size: 17px; letter-spacing: -.6px; }
-  .page-heading .user-selector { gap: 4px; }
+  .page-heading .user-selector { gap: 8px; }
   .page-heading .user-select-trigger, .page-heading .settings-toggle { width: 44px; height: 44px; }
   .view-navigation-trigger { width: 44px; }
   .view-navigation-options { right: -48px; }

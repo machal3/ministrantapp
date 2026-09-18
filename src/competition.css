@@ -405,6 +405,7 @@
   overflow-x: hidden;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
   padding: 6px 12px 20px 12px;
   box-sizing: border-box;
 }

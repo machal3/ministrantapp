@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent, KeyboardEvent as ReactKeyboardEvent } from 'react';
 import {
   Anchor, ArrowLeft, ArrowRight, ArrowUpDown, Award, Bell, Bird, BookOpen, Calendar, CalendarCheck, CalendarDays, CalendarRange, Check,
@@ -317,6 +317,11 @@ export default function AdminBadgesModal({ data, session, onRefresh, onClose, on
   const [error, setError] = useState('');
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const lock = useRef(false);
+  const wizardBodyRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    if (wizardOpen && wizardBodyRef.current) wizardBodyRef.current.scrollTop = 0;
+  }, [step, wizardOpen]);
 
   const sortedDefinitions = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -655,7 +660,7 @@ export default function AdminBadgesModal({ data, session, onRefresh, onClose, on
           </ol>
         </div>
 
-        <div className="badge-wizard-body">
+        <div ref={wizardBodyRef} className="badge-wizard-body" role="region" aria-label={`Krok: ${step === 1 ? 'Podstawy' : 'Za co'}`}>
           {step === 1 ? (
             <div className="badge-step-content-area space-y-4">
               <div className="badge-live-preview-box">

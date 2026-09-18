@@ -54,6 +54,20 @@ it('walks through two steps: basics first, condition second', () => {
   expect(screen.getByLabelText('Nazwa odznaki')).toHaveProperty('value', 'Wierna służba');
 });
 
+it('starts each badge wizard step at the top of its scroll area', () => {
+  render(<AdminBadgesModal {...props} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Dodaj odznakę' }));
+  fireEvent.change(screen.getByLabelText('Nazwa odznaki'), { target: { value: 'Wierna służba' } });
+  const basics = screen.getByRole('region', { name: 'Krok: Podstawy' });
+  basics.scrollTop = 500;
+  fireEvent.click(screen.getByRole('button', { name: /Dalej/ }));
+  const conditions = screen.getByRole('region', { name: 'Krok: Za co' });
+  expect(conditions.scrollTop).toBe(0);
+  conditions.scrollTop = 700;
+  fireEvent.click(screen.getByRole('button', { name: /Wstecz/ }));
+  expect(screen.getByRole('region', { name: 'Krok: Podstawy' }).scrollTop).toBe(0);
+});
+
 it('blocks step 2 without a name and keeps the entered reward', () => {
   render(<AdminBadgesModal {...props} />);
   fireEvent.click(screen.getByRole('button', { name: 'Dodaj odznakę' }));
@@ -363,4 +377,3 @@ it('allows searching badges in admin modal', () => {
   badgeTitles = screen.getAllByRole('strong').map(el => el.textContent).filter(t => ['Złoty lektor', 'Albański poranek', 'Bystry ministrant'].includes(t ?? ''));
   expect(badgeTitles).toHaveLength(3);
 });
-
