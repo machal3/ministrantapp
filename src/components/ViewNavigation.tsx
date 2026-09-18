@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import { CalendarDays, HeartHandshake, Trophy } from 'lucide-react';
+import { CalendarDays, HeartHandshake, Settings, Trophy } from 'lucide-react';
 
-type View = 'schedule' | 'services' | 'competition';
-const views = [
+export type View = 'schedule' | 'services' | 'competition' | 'settings';
+export const views = [
   { id: 'schedule', label: 'Grafik', Icon: CalendarDays },
   { id: 'services', label: 'Moje służby', Icon: HeartHandshake },
   { id: 'competition', label: 'Rywalizacja', Icon: Trophy },
+  { id: 'settings', label: 'Ustawienia', Icon: Settings },
 ] as const;
 
 export default function ViewNavigation({ view, onChange, onPreload }: {
@@ -16,7 +17,7 @@ export default function ViewNavigation({ view, onChange, onPreload }: {
   const [open, setOpen] = useState(false);
   const nav = useRef<HTMLElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
-  const active = views.find(item => item.id === view)!;
+  const active = views.find(item => item.id === view) ?? views[0];
 
   useEffect(() => {
     if (!open) return;
@@ -36,6 +37,7 @@ export default function ViewNavigation({ view, onChange, onPreload }: {
 
   return <nav ref={nav} className="view-navigation" aria-label="Widoki aplikacji"
     onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false); }}>
+    {open && <div className="view-navigation-backdrop" aria-hidden="true" onPointerDown={() => setOpen(false)} />}
     <button ref={trigger} type="button" className="view-navigation-trigger"
       aria-label={`Widok: ${active.label}. Wybierz widok`} aria-expanded={open}
       aria-controls="view-navigation-options" title={`Widok: ${active.label}`}
@@ -49,7 +51,8 @@ export default function ViewNavigation({ view, onChange, onPreload }: {
         aria-current={view === id ? 'page' : undefined}
         onClick={() => { onChange(id); setOpen(false); if (open) trigger.current?.focus(); }}
         onMouseEnter={() => onPreload(id)} onFocus={() => onPreload(id)} onTouchStart={() => onPreload(id)}>
-        <Icon size={18} aria-hidden="true" />{label}
+        <Icon size={18} aria-hidden="true" />
+        <span>{label}</span>
       </button>)}
     </div>
   </nav>;

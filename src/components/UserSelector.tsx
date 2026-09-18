@@ -71,6 +71,7 @@ export default function UserSelector({ servers, selectedId, onChange, adminSessi
 
   return <div className="user-selector-wrap">
     <div className="user-selector user-selector--full">
+      <SettingsModal adminSession={adminSession} onAdminToggle={onAdminToggle} />
       <div className="user-select-custom">
         <button
           type="button"
@@ -90,9 +91,7 @@ export default function UserSelector({ servers, selectedId, onChange, adminSessi
           </span>
           <ChevronDown size={15} aria-hidden="true" className={open ? 'chevron-open' : ''} />
         </button>
-
       </div>
-      <SettingsModal adminSession={adminSession} onAdminToggle={onAdminToggle} />
     </div>
 
     {open && <Modal title="Wybierz ministranta" onClose={closePanel} className="person-modal">

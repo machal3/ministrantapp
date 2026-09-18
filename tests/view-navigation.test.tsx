@@ -33,3 +33,18 @@ it('dismisses the dropdown with Escape, an outside click or focus leaving naviga
   fireEvent.blur(trigger, { relatedTarget: document.body });
   expect(trigger.getAttribute('aria-expanded')).toBe('false');
 });
+
+it('renders view options and dismisses when tapping backdrop', () => {
+  const { container } = render(<ViewNavigation view="schedule" onChange={() => {}} onPreload={() => {}} />);
+  const trigger = screen.getByRole('button', { name: 'Widok: Grafik. Wybierz widok' });
+  fireEvent.click(trigger);
+  expect(screen.getByRole('button', { name: 'Grafik' })).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Moje służby' })).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Rywalizacja' })).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Ustawienia' })).toBeTruthy();
+
+  const backdrop = container.querySelector('.view-navigation-backdrop')!;
+  expect(backdrop).toBeTruthy();
+  fireEvent.pointerDown(backdrop);
+  expect(trigger.getAttribute('aria-expanded')).toBe('false');
+});

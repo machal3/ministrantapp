@@ -61,6 +61,7 @@ const MonthAnnotationsModal = lazyWithPreload(() => import('./components/MonthAn
 const DayAnnotationModal = lazyWithPreload(() => import('./components/DayAnnotationModal'));
 const MyServicesView = lazyWithPreload(() => import('./components/MyServicesView'));
 const CompetitionView = lazyWithPreload(() => import('./components/CompetitionView'));
+const SettingsView = lazyWithPreload(() => import('./components/SettingsView'));
 
 function preloadAdminModals() {
   void AdminPointsModal.preload();
@@ -110,7 +111,7 @@ function messageFrom(error: unknown): string {
 }
 
 export default function App() {
-  const [view, setView] = useState<'schedule' | 'services' | 'competition'>('schedule');
+  const [view, setView] = useState<'schedule' | 'services' | 'competition' | 'settings'>('schedule');
   const [week, setWeek] = useState(() => weekStart());
   const [selectedDay, setSelectedDay] = useState<string>(() => {
     const today = dateKey();
@@ -563,6 +564,7 @@ export default function App() {
           <ViewNavigation view={view} onChange={setView} onPreload={target => {
             if (target === 'services') void MyServicesView.preload();
             if (target === 'competition') void CompetitionView.preload();
+            if (target === 'settings') void SettingsView.preload();
           }} />
         </div>
         <div className="page-heading-controls">
@@ -593,6 +595,28 @@ export default function App() {
             onOpenDay={(day = dateKey()) => { resetScrollOnDayOpen.current = true; setWeek(weekStart(day)); setSelectedDay(day); setView('schedule'); }}
             onEditRule={setEditingRule} onDeleteRule={rule => { setActionError(''); setConfirmation({ kind: 'rule', rule }); }} />
         </>}
+        {view === 'settings' && (
+          <SettingsView
+            adminSession={adminSession}
+            onAdminToggle={() => {
+              if (adminSession) {
+                void leaveAdmin();
+              } else {
+                preloadAdminModals();
+                setAdminLoginOpen(true);
+              }
+            }}
+            onOpenAdminModal={modal => {
+              preloadAdminModals();
+              if (modal === 'add') setAdding(true);
+              if (modal === 'points') setPointsOpen(true);
+              if (modal === 'badges') setBadgesOpen(true);
+              if (modal === 'celebrants') setCelebrantsOpen(true);
+              if (modal === 'annotations') setAnnotationsOpen(true);
+              if (modal === 'servers') setEditingServers(true);
+            }}
+          />
+        )}
       </Suspense>
       {view === 'schedule' && <div className="dashboard-layout">
         <section className="schedule-panel" aria-label="Grafik tygodniowy">

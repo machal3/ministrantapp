@@ -50,9 +50,10 @@
 [data-theme="dark"] .eucharist-card { --liturgy-accent: #a0cfaf; --liturgy-tint: #20392c; --liturgy-edge: #3b5b47; }
 [data-theme="dark"] .devotion-card { --liturgy-accent: #e2c184; --liturgy-tint: #352e20; --liturgy-edge: #685536; }
 [data-theme="dark"] .other-card { --liturgy-accent: #abc9e7; --liturgy-tint: #223343; --liturgy-edge: #435c71; }
-[data-theme="dark"] .is-sunday { --day-tint: #352e20; --day-edge: #685536; --day-ink: #e2c184; }
-[data-theme="dark"] .is-feast { --day-tint: #302738; --day-edge: #5d456d; --day-ink: #d3b4e6; }
-[data-theme="dark"] .day-tab:is(.is-sunday, .is-feast):not(.selected) > :is(span, strong) { color: var(--day-ink); }
+[data-theme="dark"] .is-sunday { --day-tint: #231f18; --day-edge: #3d3527; --day-ink: #c9ab76; }
+[data-theme="dark"] .is-feast { --day-tint: #16202c; --day-edge: #25364b; --day-ink: #7aaed6; }
+[data-theme="dark"] .day-tab:is(.is-sunday, .is-feast):not(.selected) > span { color: var(--day-ink); }
+[data-theme="dark"] .day-tab:is(.is-sunday, .is-feast):not(.selected) > strong { color: var(--ink); }
 [data-theme="dark"] .day-tab.is-today:not(.selected) { background: #244234; border-color: #486d57; box-shadow: inset 0 0 0 1px #486d57; }
 [data-theme="dark"] .day-tab.is-today:not(.selected):hover { background: #2c4e3e; border-color: #5b876d; box-shadow: inset 0 0 0 1px #5b876d; }
 [data-theme="dark"] .day-tab.is-today:not(.selected) > span { color: var(--green); font-weight: 800; }
