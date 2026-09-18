@@ -962,12 +962,20 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 }
 @media (max-width: 480px) {
   .page-heading { gap: 6px; }
-  .page-heading-titles .app-logo { display: none; }
+  .page-heading-titles .app-logo { display: block; }
   .page-heading h1 { font-size: 17px; letter-spacing: -.6px; }
   .page-heading .user-selector { gap: 8px; }
   .page-heading .user-select-trigger, .page-heading .settings-toggle { width: 44px; height: 44px; }
-  .view-navigation-trigger { width: 44px; }
+  .view-navigation-trigger { width: 44px; height: 44px; }
   .view-navigation-options { right: -48px; }
+}
+@media (max-width: 360px) {
+  .page-heading { gap: 4px; }
+  .page-heading-primary, .page-heading .user-selector { gap: 6px; }
+  .page-heading-titles { gap: 6px; }
+  .page-heading-titles .app-logo { width: 22px; height: 22px; }
+  .page-heading h1 { font-size: 15px; letter-spacing: -.5px; }
+  .page-heading .user-select-trigger, .page-heading .settings-toggle, .view-navigation-trigger { width: 40px; height: 40px; }
 }
 .my-services, .services-content, .services-sidebar { min-width: 0; }
 .services-heading { margin-bottom: 18px; }
