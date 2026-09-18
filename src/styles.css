@@ -920,8 +920,35 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 }
 
 /* Personal services reuse the schedule's surfaces, controls and attendance colors. */
-.view-navigation { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 26px; }
-.view-navigation .button { min-width: 150px; }
+.page-heading { display: flex; flex-wrap: nowrap; gap: 20px; }
+.page-heading-titles { flex: 1 1 auto; }
+.page-heading h1 { white-space: nowrap; }
+.page-heading-controls { display: flex; flex: 0 0 auto; flex-wrap: nowrap; }
+.view-navigation { position: relative; flex: 0 0 auto; }
+.view-navigation-options { display: flex; gap: 6px; }
+.view-navigation .button { min-width: 0; min-height: 44px; padding: 10px 14px; white-space: nowrap; }
+.view-navigation-trigger { display: none; }
+@media (max-width: 1199px) {
+  .view-navigation-trigger { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--control-radius); background: var(--surface); color: var(--green); font-size: 13px; font-weight: 700; cursor: pointer; }
+  .view-navigation-trigger:hover { background: var(--surface-soft); }
+  .view-navigation-options { display: none; position: absolute; right: 0; top: calc(100% + 8px); z-index: 40; width: 210px; padding: 6px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); box-shadow: 0 12px 32px #10271d24; }
+  .view-navigation-options.is-open { display: grid; gap: 4px; }
+  .view-navigation-options .button { width: 100%; justify-content: flex-start; }
+}
+@media (max-width: 640px) {
+  .page-heading { gap: 8px; }
+  .view-navigation-trigger { width: 48px; padding: 0; gap: 2px; }
+  .view-navigation-trigger > span { display: none; }
+}
+@media (max-width: 480px) {
+  .page-heading { gap: 6px; }
+  .page-heading-titles .app-logo { display: none; }
+  .page-heading h1 { font-size: 17px; letter-spacing: -.6px; }
+  .page-heading .user-selector { gap: 4px; }
+  .page-heading .user-select-trigger, .page-heading .settings-toggle { width: 44px; height: 44px; }
+  .view-navigation-trigger { width: 44px; }
+  .view-navigation-options { right: -48px; }
+}
 .my-services, .services-content, .services-sidebar { min-width: 0; }
 .services-heading { margin-bottom: 18px; }
 .services-heading h2 { margin: 0; }
@@ -964,8 +991,6 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .upcoming-services > ul { grid-template-columns: 1fr; }
 }
 @media (max-width: 640px) {
-  .view-navigation { position: sticky; top: 0; z-index: 30; background: var(--canvas); padding-block: 8px; margin-top: -8px; }
-  .view-navigation .button { flex: 1; min-width: 0; }
   .upcoming-services > ul { grid-template-columns: 1fr; }
   .service-actions { flex-direction: column; }
   .service-actions .button { flex: auto; width: 100%; min-height: 48px; }

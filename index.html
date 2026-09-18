@@ -14,6 +14,42 @@
         document.documentElement.dataset.accent = ['green', 'blue', 'purple', 'rose', 'amber'].includes(accent) ? accent : 'green';
       })();
     </script>
+    <style>
+      html { background: #f8f9f6; }
+      html[data-theme="dark"] { background: #101a17; }
+      body { margin: 0; }
+      #app-startup {
+        position: fixed;
+        inset: 0;
+        z-index: 10000;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        box-sizing: border-box;
+        padding: 32px;
+        background: #f8f9f6;
+        color: #285747;
+        font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
+        text-align: center;
+      }
+      [data-theme="dark"] #app-startup { background: #101a17; color: #93d5b3; }
+      #app-startup ~ #root { visibility: hidden; }
+      #app-startup img { width: 88px; height: 88px; object-fit: contain; }
+      #app-startup strong { margin-top: 20px; font-size: 22px; font-weight: 700; }
+      #app-startup p { margin: 10px 0 24px; font-size: 14px; }
+      .startup-spinner {
+        width: 28px;
+        height: 28px;
+        border: 3px solid transparent;
+        border-top-color: currentColor;
+        border-right-color: currentColor;
+        border-radius: 50%;
+        animation: startup-spin 0.9s linear infinite;
+      }
+      @keyframes startup-spin { to { transform: rotate(360deg); } }
+      @media (prefers-reduced-motion: reduce) { .startup-spinner { animation: none; } }
+    </style>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -30,6 +66,13 @@
     <title>Ministrantappka</title>
   </head>
   <body>
+    <div id="app-startup" role="status" aria-live="polite">
+      <img src="/logo.png" alt="" width="88" height="88" />
+      <strong>Ministrantappka</strong>
+      <p>Ładowanie aplikacji…</p>
+      <span class="startup-spinner" aria-hidden="true"></span>
+      <noscript>Włącz JavaScript w przeglądarce, aby uruchomić aplikację.</noscript>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

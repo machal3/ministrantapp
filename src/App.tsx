@@ -11,6 +11,7 @@ import { Pencil } from 'lucide-react';
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { AlertCircle, ArrowRight, Award, CalendarDays, CalendarPlus, Check, Church, HeartHandshake, LoaderCircle, LogOut, Plus, RefreshCw, Trash2, Trophy, UserRound, Users, X, ShieldCheck } from 'lucide-react';
 import AppLogo from './components/AppLogo';
+import ViewNavigation from './components/ViewNavigation';
 import BackgroundSyncNotice from './components/BackgroundSyncNotice';
 import UserSelector, { readSelectedServer } from './components/UserSelector';
 import WeekNavigator from './components/WeekNavigator';
@@ -122,6 +123,11 @@ export default function App() {
   const [snapshot, setSnapshot] = useState<{ week: string; data: ScheduleData } | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
+  useEffect(() => {
+    // Keep the HTML startup screen through the initial data request, including
+    // slow downloads. Reveal the app on failure too, so retry remains available.
+    if (!loading) document.getElementById('app-startup')?.remove();
+  }, [loading]);
   const [actionError, setActionError] = useState('');
   const [notice, setNotice] = useState('');
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('connecting');
@@ -553,16 +559,14 @@ export default function App() {
           <AppLogo className="app-logo" width={34} height={34} />
           <h1>Ministrantappka</h1>
         </div>
+        <ViewNavigation view={view} onChange={setView} onPreload={target => {
+          if (target === 'services') void MyServicesView.preload();
+          if (target === 'competition') void CompetitionView.preload();
+        }} />
         <div className="page-heading-controls">
           <UserSelector ready={snapshot !== null} servers={servers} selectedId={selectedId} onChange={setSelectedId} selectionRequest={selectionRequest} adminSession={adminSession} onAdminToggle={() => { if (adminSession) { void leaveAdmin(); } else { preloadAdminModals(); setAdminLoginOpen(true); } }} />
         </div>
       </section>
-
-      <nav className="view-navigation" aria-label="Widoki aplikacji">
-        <button className={`button ${view === 'schedule' ? 'primary' : 'secondary'}`} aria-current={view === 'schedule' ? 'page' : undefined} onClick={() => setView('schedule')}><CalendarDays size={18} />Grafik</button>
-        <button className={`button ${view === 'services' ? 'primary' : 'secondary'}`} aria-current={view === 'services' ? 'page' : undefined} onClick={() => setView('services')} onMouseEnter={() => void MyServicesView.preload()} onTouchStart={() => void MyServicesView.preload()}><HeartHandshake size={18} />Moje służby</button>
-        <button className={`button ${view === 'competition' ? 'primary' : 'secondary'}`} aria-current={view === 'competition' ? 'page' : undefined} onClick={() => setView('competition')} onMouseEnter={() => void CompetitionView.preload()} onTouchStart={() => void CompetitionView.preload()}><Trophy size={18} />Rywalizacja</button>
-      </nav>
 
       {serviceConfirmations.error && !serviceConfirmations.pending?.masses.length && !adminSession && <div className="error-banner" role="alert"><AlertCircle size={18} /><div><strong>Nie udało się sprawdzić obecności</strong><p>{serviceConfirmations.error}</p></div><button className="button secondary" onClick={() => void serviceConfirmations.refresh()}><RefreshCw size={16} />Ponów sprawdzanie</button></div>}
 

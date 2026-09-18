@@ -230,7 +230,30 @@ export async function confirmService(massId: string, serverId: string, attended:
     }
     for (const s of state.competitionSeasons ?? []) s.revision++;
   });
-  checkCompetition((await client().rpc('confirm_service', { p_mass_id: massId, p_server_id: serverId, p_attended: attended })).error);
+  const db = client();
+  // Older confirm_service versions also create a single declaration. Remember
+  // the actual roster before calling the RPC so a retroactive presence remains
+  // separate even when the database has not received migration 202609160007.
+  let undeclared = false;
+  let wasExcused = false;
+  if (attended) {
+    const [declaration, exception] = await Promise.all([
+      db.from('effective_attendees').select('server_id').eq('mass_id', massId).eq('server_id', serverId).maybeSingle(),
+      db.from('mass_attendees').select('type').eq('mass_id', massId).eq('server_id', serverId).maybeSingle(),
+    ]);
+    check(declaration.error);
+    check(exception.error);
+    undeclared = !declaration.data;
+    wasExcused = exception.data?.type === 'excused';
+  }
+  checkCompetition((await db.rpc('confirm_service', { p_mass_id: massId, p_server_id: serverId, p_attended: attended })).error);
+  if (undeclared) {
+    const repair = wasExcused
+      ? db.from('mass_attendees').update({ type: 'excused' })
+      : db.from('mass_attendees').delete();
+    const { error } = await repair.eq('mass_id', massId).eq('server_id', serverId).eq('type', 'single');
+    if (error) throw new Error(`Obecność została zapisana, ale nie udało się usunąć deklaracji dodanej przez starszą wersję bazy. ${error.message}`);
+  }
 }
 
 export async function joinCompetition(serverId: string): Promise<void> {

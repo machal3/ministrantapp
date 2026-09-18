@@ -37,6 +37,30 @@ beforeEach(() => {
 });
 afterEach(() => { cleanup(); localStorage.clear(); });
 
+it.each(['success', 'failure'])('reveals the app after startup loading ends with %s', async outcome => {
+  let resolve!: (data: ScheduleData) => void;
+  let reject!: (error: Error) => void;
+  repository.loadWeek.mockReturnValue(new Promise<ScheduleData>((yes, no) => {
+    resolve = yes;
+    reject = no;
+  }));
+  const startup = document.createElement('div');
+  startup.id = 'app-startup';
+  document.body.append(startup);
+  try {
+    render(<App />);
+    expect(startup.isConnected).toBe(true);
+    await act(async () => {
+      if (outcome === 'success') resolve(weekData(start));
+      else reject(new Error('Startup request failed'));
+    });
+    expect(startup.isConnected).toBe(false);
+    if (outcome === 'failure') expect(screen.getByText('Startup request failed')).toBeTruthy();
+  } finally {
+    startup.remove();
+  }
+});
+
 it('refreshes the currently selected week after a delayed signup completes', async () => {
   let finish!: () => void;
   repository.setAttendance.mockImplementation(() => new Promise<void>(resolve => { finish = resolve; }));

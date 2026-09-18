@@ -147,16 +147,51 @@ it('confirms a past service from the schedule card instead of signing up', async
   expect(await screen.findByText('Zapisano Twoją obecność.')).toBeTruthy();
 });
 
-it('removes a past declaration from the schedule card without asking about presence', async () => {
+it('immediately lists an undeclared attendee separately and keeps them there after saving', async () => {
+  data.masses = [{ id: 'm0', title: 'Poranna Msza', start_time: zonedIso(dateKey(), '07:00'), is_extra: false, suggested_spots: 4 }];
+  let finishSave!: () => void;
+  api.confirmService.mockImplementationOnce(() => new Promise<void>(resolve => {
+    finishSave = () => {
+      data.confirmations = [{ mass_id: 'm0', server_id: 'jan', attended: true, confirmed_at: new Date().toISOString() }];
+      resolve();
+    };
+  }));
+  const { unmount } = render(<App />);
+  const card = await screen.findByRole('article', { name: /Poranna Msza/ });
+  fireEvent.click(within(card).getByRole('button', { name: 'Byłem' }));
+
+  const expectUndeclaredPresence = (element: HTMLElement) => {
+    const section = within(element).getByText('Obecni bez deklaracji').closest('.attendance-section') as HTMLElement;
+    expect(within(section).getByText('Jan Testowy')).toBeTruthy();
+    expect(within(section).getByText('Był')).toBeTruthy();
+    expect(within(element).getByText('Zadeklarowani').closest('.attendance-section')?.querySelector('.attendee-list')).toBeNull();
+    expect(within(element).queryByText('Jednorazowy')).toBeNull();
+    expect(element.querySelector('.capacity')?.textContent).toMatch(/^0\//);
+  };
+  // The roster updates before the request completes, without creating a declaration.
+  expectUndeclaredPresence(card);
+  expect(api.confirmService).toHaveBeenCalledWith('m0', 'jan', true);
+  await act(async () => finishSave());
+  expectUndeclaredPresence(card);
+
+  unmount();
+  render(<App />);
+  const restoredCard = await screen.findByRole('article', { name: /Poranna Msza/ });
+  expectUndeclaredPresence(restoredCard);
+  fireEvent.click(within(restoredCard).getByRole('button', { name: 'Zmień na nie byłem' }));
+  expect(within(restoredCard).queryByText('Obecni bez deklaracji')).toBeNull();
+  await waitFor(() => expect(api.confirmService).toHaveBeenLastCalledWith('m0', 'jan', false));
+});
+
+it('does not allow removing a past declaration from the schedule card', async () => {
   const todayMass = { id: 'm0', title: 'Poranna Msza', start_time: zonedIso(dateKey(), '07:00'), is_extra: false, suggested_spots: 4 };
   data.masses = [todayMass];
   data.attendees = [{ mass_id: 'm0', server_id: 'jan', name: 'Jan Testowy', rank: 'Lektor', attendance_type: 'single' }];
   pending = [];
   render(<App />);
   const card = await screen.findByRole('article', { name: /Poranna Msza/ });
-  fireEvent.click(within(card).getByRole('button', { name: 'Wypisz się z tego terminu' }));
-  await waitFor(() => expect(api.removeAttendance).toHaveBeenCalledWith('m0', 'jan'));
-  expect(await screen.findByText('Usunięto Twój zapis z tego terminu. Stały dyżur pozostał bez zmian.')).toBeTruthy();
+  expect(within(card).queryByRole('button', { name: 'Wypisz się z tego terminu' })).toBeNull();
+  expect(within(card).queryByRole('button', { name: 'Zgłoś nieobecność w tym terminie' })).toBeNull();
 });
 
 it('opens the protected points editor beside existing admin controls and sets a specific value', async () => {
@@ -228,4 +263,3 @@ it('opens confirmation modal before leaving the competition and calls leaveCompe
   fireEvent.click(confirmBtn);
   await waitFor(() => expect(api.leaveCompetition).toHaveBeenCalledWith('jan'));
 });
-

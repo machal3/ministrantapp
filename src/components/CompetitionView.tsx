@@ -251,7 +251,7 @@ export default function CompetitionView({ data, activeId, now, loading, error, o
             <div className="competition-personal-grid"><OptedOutPanel profile={profile} onJoin={() => void onJoinCompetition?.(profile.server.id)} busy={loading} /></div>
           )
         ) : <div className="empty-state competition-selection"><UserRound size={32} /><h3>Odkryj swój postęp</h3><p>Wybierz swoje imię w nagłówku, aby zobaczyć poziom, serię i odznaki. Ranking wspólnoty znajdziesz obok.</p></div>}
-        {profile && isParticipant && <section className="competition-badges" aria-labelledby="badges-heading"><div className="competition-section-heading"><div><h3 id="badges-heading"><Award size={19} />Twoje odznaki</h3><p>Każda opowiada inną historię Twojej służby.</p></div><span>{earned} / {profile.badges.length} zdobytych</span></div>
+        {profile && isParticipant && <section className="competition-badges" aria-labelledby="badges-heading"><div className="competition-section-heading"><h3 id="badges-heading"><Award size={19} />Twoje odznaki</h3><span>{earned} / {profile.badges.length} zdobytych</span></div>
           {profile.badges.length === 0 ? <p className="sidebar-empty">W tym sezonie nie ma jeszcze odznak. Administrator może dodać je w panelu „Edytuj odznaki”.</p> : <>
           <div className="competition-badge-bar">
             <div className="competition-badge-filters" role="group" aria-label="Filtr odznak">{([

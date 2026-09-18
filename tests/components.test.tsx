@@ -73,22 +73,19 @@ describe('MassCard', () => {
   it('shows retroactive presence separately without a single declaration or capacity increase', () => {
     const { container } = render(<MassCard mass={pastMass} attendees={[]} rules={[]} exceptions={[]} activeId="jan" busy={false} onAction={vi.fn()} onDelete={vi.fn()} presence={new Map([['jan', true]])} servers={[{ id: 'jan', name: 'Jan Kowalski', rank: 'Lektor' }]} />);
     expect(screen.getByText('Obecni bez deklaracji')).toBeTruthy();
+    expect(screen.getByText('Nikt się nie zapisał.')).toBeTruthy();
+    expect(screen.queryByText('Możesz być pierwszy.')).toBeNull();
     expect(screen.getByText('Był')).toBeTruthy();
     expect(screen.queryByText('Jednorazowy')).toBeNull();
     expect(screen.queryByText('Służysz')).toBeNull();
     expect(screen.getByText('Zadeklarowani').closest('.attendance-section')?.querySelector('.attendee-list')).toBeNull();
     expect(container.querySelector('.capacity')?.textContent).toMatch(/^0\//);
   });
-  it('offers past declaration removal without touching presence', () => {
-    const onAction = vi.fn();
+  it('does not offer declaration removal after the term passes', () => {
     const declared = [{ ...attendees[0], server_id: 'jan', name: 'Jan Kowalski' }];
-    const { rerender } = render(<MassCard mass={pastMass} attendees={declared} rules={[]} exceptions={[]} activeId="jan" busy={false} onAction={onAction} onDelete={vi.fn()} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Wypisz się z tego terminu' }));
-    expect(onAction).toHaveBeenCalledWith(pastMass, 'undeclare');
-    rerender(<MassCard mass={pastMass} attendees={[]} rules={[]} exceptions={[]} activeId="jan" busy={false} onAction={onAction} onDelete={vi.fn()} />);
+    render(<MassCard mass={pastMass} attendees={declared} rules={[]} exceptions={[]} activeId="jan" busy={false} onAction={vi.fn()} onDelete={vi.fn()} />);
     expect(screen.queryByRole('button', { name: 'Wypisz się z tego terminu' })).toBeNull();
-    rerender(<MassCard mass={mass} attendees={declared} rules={[]} exceptions={[]} activeId="jan" busy={false} onAction={onAction} onDelete={vi.fn()} />);
-    expect(screen.queryByRole('button', { name: 'Wypisz się z tego terminu' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Zgłoś nieobecność w tym terminie' })).toBeNull();
   });
   it('marks presence on the roster without removing declarations', () => {
     const props = {
