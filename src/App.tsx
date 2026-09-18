@@ -555,14 +555,16 @@ export default function App() {
     <main className="main-container" id="grafik">
       {isDemo && <div className="demo-banner"><span><strong>Tryb demonstracyjny</strong> · Dane przykładowe zapisują się tylko w tej przeglądarce.</span><span>Podłącz Supabase zgodnie z README, aby udostępnić grafik wspólnocie.</span></div>}
       <section className="page-heading">
-        <div className="page-heading-titles">
-          <AppLogo className="app-logo" width={34} height={34} />
-          <h1>Ministrantappka</h1>
+        <div className="page-heading-primary">
+          <div className="page-heading-titles">
+            <AppLogo className="app-logo" width={34} height={34} />
+            <h1>Ministrantappka</h1>
+          </div>
+          <ViewNavigation view={view} onChange={setView} onPreload={target => {
+            if (target === 'services') void MyServicesView.preload();
+            if (target === 'competition') void CompetitionView.preload();
+          }} />
         </div>
-        <ViewNavigation view={view} onChange={setView} onPreload={target => {
-          if (target === 'services') void MyServicesView.preload();
-          if (target === 'competition') void CompetitionView.preload();
-        }} />
         <div className="page-heading-controls">
           <UserSelector ready={snapshot !== null} servers={servers} selectedId={selectedId} onChange={setSelectedId} selectionRequest={selectionRequest} adminSession={adminSession} onAdminToggle={() => { if (adminSession) { void leaveAdmin(); } else { preloadAdminModals(); setAdminLoginOpen(true); } }} />
         </div>

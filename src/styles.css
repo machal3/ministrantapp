@@ -920,23 +920,33 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 }
 
 /* Personal services reuse the schedule's surfaces, controls and attendance colors. */
-.page-heading { display: flex; flex-wrap: nowrap; gap: 20px; }
+.page-heading { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 28px; }
+.page-heading-primary { display: flex; align-items: center; min-width: 0; gap: 20px; }
 .page-heading-titles { flex: 1 1 auto; }
 .page-heading h1 { white-space: nowrap; }
-.page-heading-controls { display: flex; flex: 0 0 auto; flex-wrap: nowrap; }
+.page-heading-controls { display: flex; width: 100%; min-width: 0; flex-wrap: nowrap; }
+.page-heading .user-selector-wrap { width: 100%; }
 .view-navigation { position: relative; flex: 0 0 auto; }
 .view-navigation-options { display: flex; gap: 6px; }
 .view-navigation .button { min-width: 0; min-height: 44px; padding: 10px 14px; white-space: nowrap; }
 .view-navigation-trigger { display: none; }
 @media (max-width: 1199px) {
+  .page-heading { grid-template-columns: minmax(0, 1fr) 280px; gap: 24px; }
   .view-navigation-trigger { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--control-radius); background: var(--surface); color: var(--green); font-size: 13px; font-weight: 700; cursor: pointer; }
   .view-navigation-trigger:hover { background: var(--surface-soft); }
   .view-navigation-options { display: none; position: absolute; right: 0; top: calc(100% + 8px); z-index: 40; width: 210px; padding: 6px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); box-shadow: 0 12px 32px #10271d24; }
   .view-navigation-options.is-open { display: grid; gap: 4px; }
   .view-navigation-options .button { width: 100%; justify-content: flex-start; }
 }
+@media (max-width: 900px) {
+  .page-heading { display: flex; gap: 20px; }
+  .page-heading-primary { flex: 1 1 auto; }
+  .page-heading-controls { width: auto; flex: 0 0 auto; }
+  .page-heading .user-selector-wrap { width: auto; }
+}
 @media (max-width: 640px) {
   .page-heading { gap: 8px; }
+  .page-heading-primary { gap: 8px; }
   .view-navigation-trigger { width: 48px; padding: 0; gap: 2px; }
   .view-navigation-trigger > span { display: none; }
 }
